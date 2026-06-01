@@ -1,0 +1,93 @@
+import type { BroadcastTemplate } from '@/shared/preview/templateContract'
+import bg from '@/assets/bg/OC_bg.png'
+
+export const personTemplate: BroadcastTemplate = {
+    id: 'person',
+    name: 'Person Lower Third',
+    canvas: {
+        width: 1920,
+        height: 1080,
+        background: {
+            type: 'image',
+            value: bg,
+            // value: '/background.png',
+
+            objectFit: 'contain',
+        },
+    },
+    layers: [
+        {
+            id: 'person-name-panel',
+            type: 'shape',
+            shapeType: 'rect',
+            x: 574,
+            y: 872,
+            width: 1270,
+            height: 35,
+            zIndex: 1,
+            fill: {
+                type: 'solid',
+                value: 'transparent',
+            },
+        },
+        {
+            id: 'person-role-panel',
+            type: 'shape',
+            shapeType: 'rect',
+            x: 102,
+            y: 943,
+            width: 1411,
+            height: 23,
+            zIndex: 2,
+            fill: {
+                type: 'solid',
+                value: 'transparent',
+            },
+        },
+        {
+            id: 'person-name-text',
+            type: 'text',
+            x: 606,
+            y: 877,
+            width: 500,
+            height: 44,
+            zIndex: 4,
+            fieldId: 'name',
+            fallbackText: 'Nume Persoana',
+            fitInBox: true,
+            fitMode: 'scaleX',
+            minScaleX: 0.65,
+            textStyle: {
+                fontFamily: 'inherit',
+                fontSize: 28,
+                fontWeight: 700,
+                color: '#000',
+                align: 'left',
+                lineHeight: 1,
+                transform: 'uppercase',
+            },
+        },
+        {
+            id: 'person-occupation-text',
+            type: 'text',
+            x: 606,
+            y: 924,
+            width: 1000,
+            height: 60,
+            zIndex: 5,
+            fieldId: 'occupation',
+            fallbackText: 'Functie Persoana',
+            fitInBox: true,
+            fitMode: 'scaleX',
+            minScaleX: 0.65,
+            textStyle: {
+                fontFamily: 'inherit',
+                fontSize: 30,
+                fontWeight: 700,
+                color: '#000',
+                align: 'left',
+                lineHeight: 1,
+            },
+        },
+    ],
+}

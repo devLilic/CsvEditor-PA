@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "show": "obiectiv-comun",
+  "templates": {
+    "titles": {
+      "id": "title",
+      "name": "Title Lower Third",
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "background": {
+          "type": "image",
+          "value": "src/assets/bg/OC_bg.png",
+          "objectFit": "contain"
+        }
+      },
+      "layers": [
+        {
+          "id": "title-config-anchor",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 595,
+          "y": 916,
+          "width": 1229,
+          "height": 40,
+          "zIndex": 1,
+          "visible": false,
+          "fill": {
+            "type": "solid",
+            "value": "transparent"
+          }
+        },
+        {
+          "id": "title-main-text",
+          "type": "text",
+          "x": 592,
+          "y": 884,
+          "width": 1229,
+          "height": 80,
+          "zIndex": 2,
+          "fieldId": "title",
+          "fallbackText": "TITLU",
+          "fitInBox": true,
+          "fitMode": "scaleX",
+          "minScaleX": 0.65,
+          "textStyle": {
+            "fontFamily": "inherit",
+            "fontSize": 68,
+            "fontWeight": 700,
+            "color": "#111111",
+            "align": "left",
+            "lineHeight": 1,
+            "letterSpacing": "-0.08em",
+            "transform": "uppercase"
+          }
+        }
+      ]
+    },
+    "persons": {
+      "id": "person",
+      "name": "Person Lower Third",
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "background": {
+          "type": "image",
+          "value": "src/assets/bg/OC_bg.png",
+          "objectFit": "contain"
+        }
+      },
+      "layers": [
+        {
+          "id": "person-name-panel",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 574,
+          "y": 872,
+          "width": 1270,
+          "height": 35,
+          "zIndex": 1,
+          "fill": {
+            "type": "solid",
+            "value": "transparent"
+          }
+        },
+        {
+          "id": "person-role-panel",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 102,
+          "y": 943,
+          "width": 1411,
+          "height": 23,
+          "zIndex": 2,
+          "fill": {
+            "type": "solid",
+            "value": "transparent"
+          }
+        },
+        {
+          "id": "person-name-text",
+          "type": "text",
+          "x": 606,
+          "y": 877,
+          "width": 500,
+          "height": 44,
+          "zIndex": 4,
+          "fieldId": "name",
+          "fallbackText": "Nume Persoana",
+          "fitInBox": true,
+          "fitMode": "scaleX",
+          "minScaleX": 0.65,
+          "textStyle": {
+            "fontFamily": "inherit",
+            "fontSize": 28,
+            "fontWeight": 700,
+            "color": "#000",
+            "align": "left",
+            "lineHeight": 1,
+            "transform": "uppercase"
+          }
+        },
+        {
+          "id": "person-occupation-text",
+          "type": "text",
+          "x": 606,
+          "y": 924,
+          "width": 1000,
+          "height": 60,
+          "zIndex": 5,
+          "fieldId": "occupation",
+          "fallbackText": "Functie Persoana",
+          "fitInBox": true,
+          "fitMode": "scaleX",
+          "minScaleX": 0.65,
+          "textStyle": {
+            "fontFamily": "inherit",
+            "fontSize": 30,
+            "fontWeight": 700,
+            "color": "#000",
+            "align": "left",
+            "lineHeight": 1
+          }
+        }
+      ]
+    },
+    "locations": {
+      "id": "location",
+      "name": "Location Bug",
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "background": {
+          "type": "image",
+          "value": "src/assets/bg/OC_bg.png",
+          "objectFit": "contain"
+        }
+      },
+      "layers": [
+        {
+          "id": "location-shape-anchor",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 450,
+          "y": 840,
+          "width": 376,
+          "height": 579,
+          "zIndex": 1,
+          "visible": false,
+          "fill": {
+            "type": "solid",
+            "value": "transparent"
+          }
+        },
+        {
+          "id": "location-text",
+          "type": "text",
+          "x": 438,
+          "y": 815,
+          "width": 134,
+          "height": 34,
+          "zIndex": 2,
+          "fieldId": "location",
+          "fallbackText": "LOCATIE",
+          "fitInBox": true,
+          "fitMode": "scaleX",
+          "minScaleX": 0.65,
+          "textStyle": {
+            "fontFamily": "inherit",
+            "fontSize": 20,
+            "fontWeight": 700,
+            "color": "#fff",
+            "align": "center",
+            "lineHeight": 1.6,
+            "transform": "uppercase"
+          }
+        }
+      ]
+    },
+    "phoneCalls": {
+      "id": "phone-call",
+      "name": "Phone Call Lower Third",
+      "canvas": {
+        "width": 1920,
+        "height": 1080,
+        "background": {
+          "type": "image",
+          "value": "src/assets/bg/OC__phone_bg.png",
+          "objectFit": "contain"
+        }
+      },
+      "layers": [
+        {
+          "id": "phone-call-photo-frame",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 160,
+          "y": 217,
+          "width": 411,
+          "height": 512,
+          "zIndex": 1,
+          "fill": {
+            "type": "solid",
+            "value": "#ffffff"
+          },
+          "borderRadius": 4
+        },
+        {
+          "id": "phone-call-person-image",
+          "type": "image",
+          "x": 161,
+          "y": 218,
+          "width": 409,
+          "height": 509,
+          "zIndex": 2,
+          "src": "{image}",
+          "objectFit": "cover"
+        },
+        {
+          "id": "phone-call-label-panel",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 436,
+          "y": 814,
+          "width": 135,
+          "height": 32,
+          "zIndex": 3,
+          "fill": {
+            "type": "solid",
+            "value": "#c70018"
+          },
+          "borderRadius": 2,
+          "visible": false
+        },
+        {
+          "id": "phone-call-lower-third",
+          "type": "shape",
+          "shapeType": "rect",
+          "x": 575,
+          "y": 858,
+          "width": 1292,
+          "height": 120,
+          "zIndex": 3,
+          "fill": {
+            "type": "solid",
+            "value": "#fff"
+          },
+          "borderRadius": 2,
+          "visible": false
+        },
+        {
+          "id": "phone-call-name-text",
+          "type": "text",
+          "x": 609,
+          "y": 874,
+          "width": 1020,
+          "height": 52,
+          "zIndex": 5,
+          "fieldId": "name",
+          "fallbackText": "NUME PERSOANA",
+          "fitInBox": true,
+          "fitMode": "scaleX",
+          "minScaleX": 0.6,
+          "textStyle": {
+            "fontFamily": "inherit",
+            "fontSize": 30,
+            "fontWeight": 800,
+            "color": "#111111",
+            "align": "left",
+            "lineHeight": 1,
+            "transform": "uppercase"
+          }
+        },
+        {
+          "id": "phone-call-occupation-text",
+          "type": "text",
+          "x": 607,
+          "y": 923,
+          "width": 1040,
+          "height": 40,
+          "zIndex": 5,
+          "fieldId": "occupation",
+          "fallbackText": "Functie Persoana",
+          "fitInBox": true,
+          "fitMode": "scaleX",
+          "minScaleX": 0.65,
+          "textStyle": {
+            "fontFamily": "inherit",
+            "fontSize": 30,
+            "fontWeight": 600,
+            "color": "#111111",
+            "align": "left",
+            "lineHeight": 1
+          }
+        }
+      ]
+    }
+  }
+}

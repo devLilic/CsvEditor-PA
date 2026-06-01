@@ -1,0 +1,8 @@
+C:\Projects\CsvEditor\electron\electron-env.d.ts
+C:\Projects\CsvEditor\electron\store.ts
+C:\Projects\CsvEditor\electron\main\csv-handlers.ts
+C:\Projects\CsvEditor\electron\main\index.ts
+C:\Projects\CsvEditor\electron\main\settings-handlers.ts
+C:\Projects\CsvEditor\electron\main\update.ts
+C:\Projects\CsvEditor\electron\preload\api.ts
+C:\Projects\CsvEditor\electron\preload\index.ts

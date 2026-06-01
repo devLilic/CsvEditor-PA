@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.devlilic.csveditor",
+  "asar": true,
+  "productName": "CsvEditor",
+  "directories": {
+    "output": "release/${version}"
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "devLilic",
+      "repo": "CsvEditor",
+      "releaseType": "release"
+    }
+  ],
+  "files": [
+    "dist-electron",
+    "dist"
+  ],
+  "mac": {
+    "artifactName": "CsvEditor-Mac-${version}-Installer.${ext}",
+    "target": [
+      "dmg"
+    ]
+  },
+  "win": {
+    "icon": "build/icons/icon.ico",
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "artifactName": "CsvEditor-Windows-${version}-Setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "artifactName": "CsvEditor-Linux-${version}.${ext}"
+  }
+}
