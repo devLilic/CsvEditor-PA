@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.devlilic.punctulpeazi.graphics",
   "asar": true,
-  "productName": "Punctul pe Azi Graphics",
+  "productName": "Punctul pe Azi",
   "directories": {
     "output": "release/${version}"
   },
