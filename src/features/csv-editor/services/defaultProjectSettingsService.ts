@@ -1,6 +1,7 @@
 import {
     FALLBACK_DEFAULT_PROJECT_SETTINGS,
     isDefaultProjectSettings,
+    normalizeDefaultProjectSettings,
     type DefaultProjectSettings,
 } from '../domain/defaultProjectSettings'
 
@@ -16,7 +17,7 @@ export const defaultProjectSettingsService = {
     async getDefaultProjectSettings(): Promise<DefaultProjectSettings> {
         try {
             const settings = await getApi().getDefaultProjectSettings()
-            return isDefaultProjectSettings(settings) ? settings : FALLBACK_DEFAULT_PROJECT_SETTINGS
+            return normalizeDefaultProjectSettings(settings)
         } catch {
             return FALLBACK_DEFAULT_PROJECT_SETTINGS
         }
@@ -29,7 +30,7 @@ export const defaultProjectSettingsService = {
 
         try {
             const savedSettings = await getApi().setDefaultProjectSettings(settings)
-            return isDefaultProjectSettings(savedSettings) ? savedSettings : FALLBACK_DEFAULT_PROJECT_SETTINGS
+            return normalizeDefaultProjectSettings(savedSettings)
         } catch {
             return FALLBACK_DEFAULT_PROJECT_SETTINGS
         }

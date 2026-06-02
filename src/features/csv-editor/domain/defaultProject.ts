@@ -3,6 +3,7 @@ import type { EntitiesState } from './entities'
 import { createInvitedSection } from './entities'
 import {
     FALLBACK_DEFAULT_PROJECT_SETTINGS,
+    normalizeDefaultProjectSettings,
     type DefaultProjectSettings,
 } from './defaultProjectSettings'
 import { serializeCsv } from '../utils/csvSerializer'
@@ -10,9 +11,10 @@ import { serializeCsv } from '../utils/csvSerializer'
 export const DEFAULT_PROJECT_CONTENT = FALLBACK_DEFAULT_PROJECT_SETTINGS
 
 export function createDefaultProjectEntities(settings: DefaultProjectSettings): EntitiesState {
-    const title = settings.title.trim()
-    const location = settings.location.trim()
-    const hotTitle = settings.hotTitle.trim()
+    const normalizedSettings = normalizeDefaultProjectSettings(settings)
+    const title = normalizedSettings.title.trim()
+    const location = normalizedSettings.location.trim()
+    const hotTitle = normalizedSettings.hotTitle.trim()
 
     return {
         sections: [
@@ -29,8 +31,8 @@ export function createDefaultProjectEntities(settings: DefaultProjectSettings): 
                         : {}),
                     person: {
                         id: uuidv4(),
-                        name: settings.personName,
-                        occupation: settings.personOccupation,
+                        name: normalizedSettings.personName,
+                        occupation: normalizedSettings.personOccupation,
                     },
                     ...(location
                         ? {

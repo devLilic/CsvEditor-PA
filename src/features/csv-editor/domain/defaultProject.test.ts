@@ -51,6 +51,19 @@ describe('createDefaultProjectEntities', () => {
         expect(project.sections[0].rows[0].hotTitle?.title).toBe('ULTIMA ORA DEFAULT')
     })
 
+    it('accepts legacy settings without a default hot title', () => {
+        const project = createDefaultProjectEntities({
+            title: 'LEGACY TITLE',
+            personName: 'LEGACY NAME',
+            personOccupation: 'LEGACY ROLE',
+            location: 'LEGACY LOCATION',
+        } as any)
+
+        expect(project.sections[0].rows[0].title?.title).toBe('LEGACY TITLE')
+        expect(project.sections[0].rows[0].person?.name).toBe('LEGACY NAME')
+        expect(project.sections[0].rows[0].hotTitle).toBeUndefined()
+    })
+
     it('creates ids for the section, rows, and entities', () => {
         const project = createDefaultProjectEntities(FALLBACK_DEFAULT_PROJECT_SETTINGS)
         const section = project.sections[0]
