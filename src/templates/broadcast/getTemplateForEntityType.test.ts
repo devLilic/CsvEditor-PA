@@ -5,10 +5,11 @@ import { titleTemplate } from './titleTemplate'
 import { personTemplate } from './personTemplate'
 import { locationTemplate } from './locationTemplate'
 import { phoneCallTemplate } from './phoneCallTemplate'
+import { hotTitleTemplate } from './hotTitleTemplate'
+import { waitTitleTemplate } from './waitTitleTemplate'
+import { waitLocationTemplate } from './waitLocationTemplate'
 
 describe('getTemplateForEntityType', () => {
-    const registry = broadcastTemplates as Record<string, unknown>
-
     it('maps titles to titleTemplate', () => {
         expect(getTemplateForEntityType('titles')).toBe(titleTemplate)
     })
@@ -25,13 +26,10 @@ describe('getTemplateForEntityType', () => {
         expect(getTemplateForEntityType('phoneCalls')).toBe(phoneCallTemplate)
     })
 
-    it('does not expose dedicated hot or wait templates', () => {
-        expect(registry.hotTitles).toBeUndefined()
-        expect(registry.waitTitles).toBeUndefined()
-        expect(registry.waitLocations).toBeUndefined()
-        expect(getTemplateForEntityType('hotTitles')).toBe(broadcastTemplates.titles)
-        expect(getTemplateForEntityType('waitTitles')).toBe(broadcastTemplates.titles)
-        expect(getTemplateForEntityType('waitLocations')).toBe(broadcastTemplates.titles)
+    it('maps PA hot and wait types to dedicated templates', () => {
+        expect(getTemplateForEntityType('hotTitles')).toBe(hotTitleTemplate)
+        expect(getTemplateForEntityType('waitTitles')).toBe(waitTitleTemplate)
+        expect(getTemplateForEntityType('waitLocations')).toBe(waitLocationTemplate)
     })
 
     it('uses titleTemplate as the explicit fallback for unknown entity types', () => {

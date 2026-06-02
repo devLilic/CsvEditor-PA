@@ -10,7 +10,7 @@ export function createPreviewData(
     entityType: string,
     data: PreviewSourceData
 ): Record<string, string> {
-    if (entityType === 'titles') {
+    if (entityType === 'titles' || entityType === 'hotTitles' || entityType === 'waitTitles') {
         return { title: data.title ?? '' }
     }
 
@@ -29,7 +29,7 @@ export function createPreviewData(
         }
     }
 
-    if (entityType === 'locations') {
+    if (entityType === 'locations' || entityType === 'waitLocations') {
         return { location: data.location ?? '' }
     }
 

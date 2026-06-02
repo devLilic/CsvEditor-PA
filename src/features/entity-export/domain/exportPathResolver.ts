@@ -1,8 +1,9 @@
 export const ENTITY_EXPORT_FILENAMES = {
-    titles: 'OC_titles.csv',
-    persons: 'OC_persons.csv',
-    locations: 'OC_locations.csv',
-    phones: 'OC_phones.csv',
+    titles: 'PA_titles.csv',
+    persons: 'PA_persons.csv',
+    locations: 'PA_locations.csv',
+    phones: 'PA_phones.csv',
+    waitTitlesLocations: 'PA_wait_titles_locations.csv',
 } as const
 
 export interface ResolveEntityExportPathInput {
@@ -15,6 +16,7 @@ export interface EntityExportPaths {
     personsPath: string
     locationsPath: string
     phonesPath: string
+    waitTitlesLocationsPath: string
 }
 
 function trimTrailingSeparators(folderPath: string): string {
@@ -71,5 +73,6 @@ export function resolveEntityExportPaths(input: ResolveEntityExportPathInput): E
         personsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.persons),
         locationsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.locations),
         phonesPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.phones),
+        waitTitlesLocationsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.waitTitlesLocations),
     }
 }

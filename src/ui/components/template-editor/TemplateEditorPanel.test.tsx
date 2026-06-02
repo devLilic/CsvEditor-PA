@@ -74,6 +74,9 @@ describe('TemplateEditorPanel', () => {
         expect(screen.getByRole('tab', { name: 'Persons' })).toBeInTheDocument()
         expect(screen.getByRole('tab', { name: 'Locations' })).toBeInTheDocument()
         expect(screen.getByRole('tab', { name: 'Phones' })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: 'Hot Titles' })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: 'Wait Titles' })).toBeInTheDocument()
+        expect(screen.getByRole('tab', { name: 'Wait Locations' })).toBeInTheDocument()
         expect(screen.getByLabelText('title')).toBeInTheDocument()
         expect(screen.getByText('Background')).toBeInTheDocument()
         expect(screen.getByText('title-main-text (text)')).toBeInTheDocument()
@@ -145,7 +148,7 @@ describe('TemplateEditorPanel', () => {
         templateDocumentState.isDirty = true
         templateDocumentState.saveTemplates.mockResolvedValueOnce({
             ok: true,
-            warning: 'Template-urile au fost salvate local, dar defaultTemplates.oc.json nu a putut fi actualizat.',
+            warning: 'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.',
         })
         const user = userEvent.setup()
         render(<TemplateEditorPanel isTedMode />)
@@ -153,7 +156,7 @@ describe('TemplateEditorPanel', () => {
         await user.click(screen.getByRole('button', { name: 'Save templates' }))
 
         expect(await screen.findByText(
-            'Template-urile au fost salvate local, dar defaultTemplates.oc.json nu a putut fi actualizat.'
+            'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.'
         )).toBeInTheDocument()
     })
 })

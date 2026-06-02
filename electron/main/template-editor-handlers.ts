@@ -13,12 +13,12 @@ import type {
 const fsp = fs.promises
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const TEMPLATE_FOLDER_NAME = 'templates'
-const USER_TEMPLATE_FILENAME = 'ocTemplates.json'
+const USER_TEMPLATE_FILENAME = 'paTemplates.json'
 const DEV_DEFAULT_TEMPLATE_PATH = path.join(
     'src',
     'templates',
     'broadcast',
-    'defaultTemplates.oc.json',
+    'defaultTemplates.pa.json',
 )
 
 function getUserTemplatePath() {

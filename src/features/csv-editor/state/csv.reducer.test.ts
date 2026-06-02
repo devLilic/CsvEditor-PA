@@ -116,11 +116,78 @@ describe('csvReducer - sections', () => {
         expect(nextState.entities.sections).toHaveLength(2)
         expect(nextState.entities.sections.at(-1)?.kind).toBe('invited')
     })
+
+    it('SECTION_ADD_BETA assigns the next betaIndex', () => {
+        const nextState = csvReducer(
+            stateWithSections([
+                betaSection({ id: 'beta-1', betaIndex: 1 }),
+                invitedSection(),
+            ]),
+            {
+                type: 'SECTION_ADD_BETA',
+                payload: { betaTitle: 'Politic' },
+            }
+        )
+
+        expect(nextState.entities.sections[1]).toMatchObject({
+            kind: 'beta',
+            betaIndex: 2,
+            betaTitle: 'Politic',
+        })
+    })
+
+    it('SECTION_RENAME_BETA modifies only betaTitle', () => {
+        const beta = betaSection({ betaTitle: 'Vechi' })
+        const state = stateWithSections([beta, invitedSection()])
+        const nextState = csvReducer(state, {
+            type: 'SECTION_RENAME_BETA',
+            payload: { sectionId: beta.id, betaTitle: 'Nou' },
+        })
+
+        expect(nextState.entities.sections[0]).toEqual({
+            ...beta,
+            betaTitle: 'Nou',
+        })
+    })
+
+    it('SECTION_DELETE_BETA removes its rows and reindexes remaining betas', () => {
+        const state = stateWithSections([
+            betaSection({
+                id: 'beta-1',
+                betaIndex: 1,
+                rows: [{ id: 'row-1', title: { id: 'title-1', title: 'Sterge' } }],
+            }),
+            betaSection({ id: 'beta-2', betaIndex: 2 }),
+            invitedSection(),
+        ], 'beta-1')
+        const nextState = csvReducer(state, {
+            type: 'SECTION_DELETE_BETA',
+            payload: { sectionId: 'beta-1' },
+        })
+
+        expect(nextState.entities.sections).toHaveLength(2)
+        expect(nextState.entities.sections[0]).toMatchObject({
+            id: 'beta-2',
+            betaIndex: 1,
+        })
+        expect(nextState.entities.sections.flatMap((section) => section.rows)).toEqual([])
+        expect(nextState.activeSectionId).toBe('beta-2')
+    })
+
+    it('SECTION_SET_ACTIVE changes activeSectionId', () => {
+        const state = stateWithSections([betaSection(), invitedSection()], 'beta-1')
+        const nextState = csvReducer(state, {
+            type: 'SECTION_SET_ACTIVE',
+            payload: { sectionId: 'invited-1' },
+        })
+
+        expect(nextState.activeSectionId).toBe('invited-1')
+    })
 })
 
 describe('csvReducer - entities', () => {
-    it('does not define phoneCalls as a CSV EntityType', () => {
-        expect(Object.values(EntityTypes)).not.toContain('phoneCalls')
+    it('defines phoneCalls as a PA entity type while storing calls as persons with image', () => {
+        expect(EntityTypes.PHONE_CALLS).toBe('phoneCalls')
     })
 
     it('ENTITY_ADD adds the entity in the correct section', () => {
@@ -339,5 +406,133 @@ describe('csvReducer - entities', () => {
         expect(nextState.selected?.entityType).toBe('persons')
         expect(nextState.activeViewType).toBe('phoneCalls')
         expect(nextState.activeEntityType).toBe('phoneCalls')
+    })
+
+    it.each([
+        ['titles', { title: 'Titlu' }, 'title'],
+        ['persons', { name: 'Maria', occupation: 'Editor' }, 'person'],
+    ] as const)('allows %s in BETA', (entityType, data, slot) => {
+        const state = stateWithSections([betaSection(), invitedSection()])
+        const nextState = csvReducer(state, {
+            type: 'ENTITY_ADD',
+            payload: { sectionId: 'beta-1', entityType, data },
+        })
+
+        expect(nextState.entities.sections[0].rows[0][slot]).toBeDefined()
+    })
+
+    it.each([
+        ['locations', { location: 'Chisinau' }],
+        ['phoneCalls', { name: 'Ion', occupation: 'Invitat', image: 'WORK_PATH/ion.jpg' }],
+        ['hotTitles', { title: 'Urgent' }],
+        ['waitTitles', { title: 'Asteptare' }],
+        ['waitLocations', { location: 'Studio' }],
+    ] as const)('rejects %s in BETA', (entityType, data) => {
+        const state = stateWithSections([betaSection(), invitedSection()])
+        const nextState = csvReducer(state, {
+            type: 'ENTITY_ADD',
+            payload: { sectionId: 'beta-1', entityType, data },
+        })
+
+        expect(nextState).toBe(state)
+    })
+
+    it.each([
+        ['titles', { title: 'Titlu' }, 'title'],
+        ['persons', { name: 'Maria', occupation: 'Editor' }, 'person'],
+        ['phoneCalls', { name: 'Ion', occupation: 'Invitat', image: 'WORK_PATH/ion.jpg' }, 'person'],
+        ['locations', { location: 'Chisinau' }, 'location'],
+        ['hotTitles', { title: 'Urgent' }, 'hotTitle'],
+        ['waitTitles', { title: 'Asteptare' }, 'waitTitle'],
+        ['waitLocations', { location: 'Studio' }, 'waitLocation'],
+    ] as const)('allows %s in INVITATI', (entityType, data, slot) => {
+        const state = stateWithSections([invitedSection()])
+        const nextState = csvReducer(state, {
+            type: 'ENTITY_ADD',
+            payload: { sectionId: 'invited-1', entityType, data },
+        })
+
+        expect(nextState.entities.sections[0].rows[0][slot]).toBeDefined()
+    })
+
+    it.each([
+        ['hotTitles', 'hotTitle', { title: 'Nou' }, 'title', 'Nou'],
+        ['waitTitles', 'waitTitle', { title: 'Nou' }, 'title', 'Nou'],
+        ['waitLocations', 'waitLocation', { location: 'Nou' }, 'location', 'Nou'],
+    ] as const)('updates %s', (entityType, slot, data, field, expected) => {
+        const state = stateWithSections([invitedSection({
+            rows: [{
+                id: 'row-1',
+                [slot]: slot === 'waitLocation'
+                    ? { id: 'entity-1', location: 'Vechi' }
+                    : { id: 'entity-1', title: 'Vechi' },
+            }],
+        })])
+        const nextState = csvReducer(state, {
+            type: 'ENTITY_UPDATE',
+            payload: { sectionId: 'invited-1', entityType, id: 'entity-1', data },
+        })
+
+        expect((nextState.entities.sections[0].rows[0][slot] as any)[field]).toBe(expected)
+    })
+
+    it.each([
+        ['titles', 'title'],
+        ['persons', 'person'],
+        ['phoneCalls', 'person'],
+        ['locations', 'location'],
+        ['hotTitles', 'hotTitle'],
+        ['waitTitles', 'waitTitle'],
+        ['waitLocations', 'waitLocation'],
+    ] as const)('deletes %s and removes rows that become empty', (entityType, slot) => {
+        const entity = slot === 'person'
+            ? { id: 'entity-1', name: 'Ion', occupation: 'Invitat', image: 'WORK_PATH/ion.jpg' }
+            : slot === 'location' || slot === 'waitLocation'
+                ? { id: 'entity-1', location: 'Studio' }
+                : { id: 'entity-1', title: 'Titlu' }
+        const state = stateWithSections([invitedSection({
+            rows: [{ id: 'row-1', [slot]: entity }],
+        })])
+        const nextState = csvReducer(state, {
+            type: 'ENTITY_DELETE',
+            payload: { sectionId: 'invited-1', entityType, id: 'entity-1' },
+        })
+
+        expect(nextState.entities.sections[0].rows).toEqual([])
+    })
+
+    it('SET_ACTIVE_ENTITY_TYPE keeps the PA entity type and UI view in sync', () => {
+        const state = stateWithSections([invitedSection()])
+        const nextState = csvReducer(state, {
+            type: 'SET_ACTIVE_ENTITY_TYPE',
+            payload: 'hotTitles',
+        })
+
+        expect(nextState.activeEntityType).toBe('hotTitles')
+        expect(nextState.activeViewType).toBe('hotTitles')
+    })
+
+    it('keeps onAir globally per PA EntityType', () => {
+        const state = stateWithSections([betaSection(), invitedSection()])
+        const hotOnAir = csvReducer(state, {
+            type: 'SET_ON_AIR',
+            payload: { type: 'hotTitles', id: 'hot-1' },
+        })
+        const waitOnAir = csvReducer(hotOnAir, {
+            type: 'SET_ON_AIR',
+            payload: { type: 'waitTitles', id: 'wait-1' },
+        })
+        const cleared = csvReducer(waitOnAir, {
+            type: 'CLEAR_ON_AIR',
+            payload: { type: 'hotTitles' },
+        })
+
+        expect(waitOnAir.onAir).toEqual({
+            hotTitles: 'hot-1',
+            waitTitles: 'wait-1',
+        })
+        expect(cleared.onAir).toEqual({
+            waitTitles: 'wait-1',
+        })
     })
 })

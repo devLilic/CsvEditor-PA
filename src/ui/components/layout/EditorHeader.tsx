@@ -151,6 +151,9 @@ export function EditorHeader() {
 
     return (
         <div className="relative flex items-center justify-between gap-4 border-b bg-white px-4 py-2">
+            <span className="shrink-0 rounded bg-red-700 px-3 py-1 text-sm font-bold text-white">
+                Punctul pe Azi
+            </span>
             <SectionsTabs />
 
             <div className="relative flex items-center">

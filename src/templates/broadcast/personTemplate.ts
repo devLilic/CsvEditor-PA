@@ -1,5 +1,5 @@
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
-import bg from '@/assets/bg/OC_bg.png'
+import bg from '@/assets/bg/PA_bg.png'
 
 export const personTemplate: BroadcastTemplate = {
     id: 'person',

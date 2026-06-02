@@ -35,6 +35,9 @@ function createTemplates(prefix: string): TemplateDocumentTemplates {
         persons: { ...templates.persons, id: `${prefix}-persons` },
         locations: { ...templates.locations, id: `${prefix}-locations` },
         phoneCalls: { ...templates.phoneCalls, id: `${prefix}-phoneCalls` },
+        hotTitles: { ...templates.hotTitles, id: `${prefix}-hotTitles` },
+        waitTitles: { ...templates.waitTitles, id: `${prefix}-waitTitles` },
+        waitLocations: { ...templates.waitLocations, id: `${prefix}-waitLocations` },
     }
 }
 
@@ -83,6 +86,33 @@ describe('TemplateDocumentProvider', () => {
         await waitForLoaded(result)
 
         expect(result.current.document).toEqual(userDocument)
+    })
+
+    it('restores the fixed phone image source when loading a modified user document', async () => {
+        const userDocument = createDocument('user')
+        const imageLayer = userDocument.templates.phoneCalls.layers.find(
+            (layer) => layer.id === 'phone-call-person-image'
+        )
+        if (!imageLayer || imageLayer.type !== 'image') {
+            throw new Error('Expected phone-call-person-image layer')
+        }
+        imageLayer.src = 'manual-photo.png'
+        serviceMock.getUserTemplateDocument.mockResolvedValueOnce({
+            ok: true,
+            document: userDocument,
+        })
+
+        const { result } = renderTemplateDocumentProvider({
+            bundledDefaultDocument: createDocument('bundled'),
+        })
+        await waitForLoaded(result)
+
+        expect(result.current.document.templates.phoneCalls.layers).toContainEqual(
+            expect.objectContaining({
+                id: 'phone-call-person-image',
+                src: '{image}',
+            })
+        )
     })
 
     it('falls back to bundled default when user document is missing', async () => {
@@ -146,6 +176,41 @@ describe('TemplateDocumentProvider', () => {
         expect(serviceMock.saveUserTemplateDocument).toHaveBeenCalledOnce()
         expect(serviceMock.saveDevDefaultTemplateDocument).toHaveBeenCalledOnce()
         expect(result.current.isDirty).toBe(false)
+    })
+
+    it('writes the fixed phone image source when saving templates', async () => {
+        const { result } = renderTemplateDocumentProvider({
+            bundledDefaultDocument: createDocument('bundled'),
+        })
+        await waitForLoaded(result)
+        const phoneCalls = clone(result.current.document.templates.phoneCalls)
+        const imageLayer = phoneCalls.layers.find((layer) => layer.id === 'phone-call-person-image')
+        if (!imageLayer || imageLayer.type !== 'image') {
+            throw new Error('Expected phone-call-person-image layer')
+        }
+        imageLayer.src = 'manual-photo.png'
+
+        act(() => {
+            result.current.updateTemplate('phoneCalls', phoneCalls)
+        })
+        await act(async () => {
+            await result.current.saveTemplates()
+        })
+
+        expect(serviceMock.saveUserTemplateDocument).toHaveBeenCalledWith(
+            expect.objectContaining({
+                templates: expect.objectContaining({
+                    phoneCalls: expect.objectContaining({
+                        layers: expect.arrayContaining([
+                            expect.objectContaining({
+                                id: 'phone-call-person-image',
+                                src: '{image}',
+                            }),
+                        ]),
+                    }),
+                }),
+            })
+        )
     })
 
     it('resetTemplateToDefault restores the current template to default', async () => {
@@ -241,7 +306,7 @@ describe('TemplateDocumentProvider', () => {
             const saveResult = await result.current.saveTemplates()
             expect(saveResult).toEqual({
                 ok: true,
-                warning: 'Template-urile au fost salvate local, dar defaultTemplates.oc.json nu a putut fi actualizat.',
+                warning: 'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.',
             })
         })
 

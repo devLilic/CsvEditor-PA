@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.devlilic.csveditor",
+  "appId": "com.devlilic.punctulpeazi.graphics",
   "asar": true,
-  "productName": "CsvEditor",
+  "productName": "Punctul pe Azi Graphics",
   "directories": {
     "output": "release/${version}"
   },
@@ -10,7 +10,7 @@
     {
       "provider": "github",
       "owner": "devLilic",
-      "repo": "CsvEditor",
+      "repo": "CsvEditor-PA",
       "releaseType": "release"
     }
   ],
@@ -19,7 +19,7 @@
     "dist"
   ],
   "mac": {
-    "artifactName": "CsvEditor-Mac-${version}-Installer.${ext}",
+    "artifactName": "PunctulPeAzi-Graphics-${version}-${os}.${ext}",
     "target": [
       "dmg"
     ]
@@ -34,7 +34,7 @@
         ]
       }
     ],
-    "artifactName": "CsvEditor-Windows-${version}-Setup.${ext}"
+    "artifactName": "PunctulPeAzi-Graphics-${version}-${os}.${ext}"
   },
   "nsis": {
     "oneClick": false,
@@ -44,6 +44,6 @@
   },
   "linux": {
     "target": ["AppImage"],
-    "artifactName": "CsvEditor-Linux-${version}.${ext}"
+    "artifactName": "PunctulPeAzi-Graphics-${version}-${os}.${ext}"
   }
 }

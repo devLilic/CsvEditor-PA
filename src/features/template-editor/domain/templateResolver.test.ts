@@ -7,7 +7,7 @@ import {
 } from './templateDocument'
 import { resolveTemplateDocument } from './templateResolver'
 
-const requiredTemplateKeys = ['titles', 'persons', 'locations', 'phoneCalls']
+const requiredTemplateKeys = ['titles', 'persons', 'locations', 'phoneCalls', 'hotTitles', 'waitTitles', 'waitLocations']
 
 function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T
@@ -21,6 +21,9 @@ function createTemplates(prefix: string): TemplateDocumentTemplates {
         persons: { ...templates.persons, id: `${prefix}-persons` },
         locations: { ...templates.locations, id: `${prefix}-locations` },
         phoneCalls: { ...templates.phoneCalls, id: `${prefix}-phoneCalls` },
+        hotTitles: { ...templates.hotTitles, id: `${prefix}-hotTitles` },
+        waitTitles: { ...templates.waitTitles, id: `${prefix}-waitTitles` },
+        waitLocations: { ...templates.waitLocations, id: `${prefix}-waitLocations` },
     }
 }
 
@@ -78,6 +81,18 @@ describe('templateResolver', () => {
         })
 
         expect(result.templates).toEqual(hardcodedDocument.templates)
+    })
+
+    it('falls back from invalid user data through invalid bundled PA default to hardcoded PA templates', () => {
+        const hardcodedDocument = createDocument('hardcoded-pa')
+
+        const result = resolveTemplateDocument({
+            userDocument: { show: 'obiectiv-comun' },
+            bundledDefaultDocument: { show: 'punctul-pe-azi', templates: {} },
+            hardcodedDocument,
+        })
+
+        expect(result).toEqual(hardcodedDocument)
     })
 
     it('returns all required template keys', () => {

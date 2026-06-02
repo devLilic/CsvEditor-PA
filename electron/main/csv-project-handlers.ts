@@ -18,7 +18,10 @@ import type {
 import { getCsvFileSettings } from '../store'
 import { writeCsvBackup } from './csv-backup'
 import { notifyEntityExportFailure } from './entity-export-notification'
-import { exportEntityCsvFilesFromEntities } from './entity-export-service'
+import {
+    exportEntityCsvFilesFromEntities,
+    type EntityExportResult,
+} from './entity-export-service'
 
 const fsp = fs.promises
 
@@ -143,24 +146,24 @@ async function exportEntityCsvsAfterProjectLoad(input: {
     content: string
     workingCsvPath: string
     exportCsvFolderPath: string
-}): Promise<void> {
+}): Promise<EntityExportResult> {
     try {
         const entities = parseCsv(input.content)
         const exportPaths = resolveEntityExportPaths({
             workingCsvPath: input.workingCsvPath,
             exportFolderPath: input.exportCsvFolderPath,
         })
-        const result = await exportEntityCsvFilesFromEntities({
+        return await exportEntityCsvFilesFromEntities({
             paths: exportPaths,
             entities,
             onError: (error) => notifyEntityExportFailure(input.mainWindow, error),
         })
-
-        if (!result.ok) {
-            console.error('[entity-export] failed after csv-project:load-into-working:', result.error)
-        }
     } catch (error) {
         console.error('[entity-export] failed after csv-project:load-into-working:', error)
+        return {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+        }
     }
 }
 
@@ -210,12 +213,18 @@ async function loadCsvProjectIntoWorking(
     }
 
     await fsp.writeFile(workingCsvPath, savedProjectContent, 'utf-8')
-    await exportEntityCsvsAfterProjectLoad({
+    const exportResult = await exportEntityCsvsAfterProjectLoad({
         mainWindow,
         content: savedProjectContent,
         workingCsvPath,
         exportCsvFolderPath: settings.exportCsvFolderPath,
     })
+    if (!exportResult.ok) {
+        return {
+            ok: false,
+            error: `ENTITY_EXPORT_FAILED: ${exportResult.error ?? 'UNKNOWN_ERROR'}`,
+        }
+    }
 
     return {
         ok: true,

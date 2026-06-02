@@ -6,6 +6,7 @@ import {
     getPhoneImageDisplayFilename,
     type PhoneImageSettings,
     getCsvEntityTypeForEditorView,
+    type EntityType,
     useEntities,
     useSelectedEntity,
     useActiveEntityType,
@@ -29,21 +30,22 @@ type FormState = {
     image?: string
 }
 
-function getTemplateKeyForViewType(entityType: string): EditableTemplateEntityType {
-    if (entityType === 'persons') return 'persons'
-    if (entityType === 'locations') return 'locations'
-    if (entityType === 'phoneCalls') return 'phoneCalls'
+function getTemplateKeyForViewType(entityType: EntityType): EditableTemplateEntityType {
+    return entityType
+}
 
-    return 'titles'
+function isEntityTypeAllowedInSection(entityType: EntityType, sectionKind?: string) {
+    return sectionKind !== 'beta' || entityType === 'titles' || entityType === 'persons'
 }
 
 export function EntityEditor() {
     const { activeSectionId, activeSection, getBlockItems, addEntity, updateEntity } = useEntities()
 
     const { selected, clearSelection } = useSelectedEntity()
-    const { activeViewType } = useActiveEntityType()
+    const { activeEntityType, setActiveEntityType } = useActiveEntityType()
     const { document: templateDocument } = useTemplateDocument()
-    const editorEntityType = getCsvEntityTypeForEditorView(activeViewType)
+    const editorEntityType = getCsvEntityTypeForEditorView(activeEntityType)
+    const isAllowedInActiveSection = isEntityTypeAllowedInSection(activeEntityType, activeSection?.kind)
 
     const [showInvalid, setShowInvalid] = useState(false)
     const [form, setForm] = useState<FormState>({})
@@ -57,12 +59,16 @@ export function EntityEditor() {
     const occupationRef = useRef<HTMLInputElement>(null)
     const locationRef = useRef<HTMLInputElement>(null)
 
-    const sectionId = activeSectionId ?? activeSection?.id ?? ''
+    const sectionId = activeSectionId ?? ''
+    const selectedLookupEntityType =
+        selected?.entityType === 'persons' && activeEntityType === 'phoneCalls'
+            ? 'phoneCalls'
+            : selected?.entityType
     // ✅ memoize list + selectedItem (prevents "Maximum update depth exceeded")
     const selectedItems = useMemo(() => {
-        if (!selected) return []
-        return getBlockItems(selected.sectionId, selected.entityType)
-    }, [getBlockItems, selected?.sectionId, selected?.entityType])
+        if (!selected || !selectedLookupEntityType) return []
+        return getBlockItems(selected.sectionId, selectedLookupEntityType)
+    }, [getBlockItems, selected?.sectionId, selectedLookupEntityType])
 
     const selectedItem = useMemo(() => {
         if (!selected) return null
@@ -88,7 +94,7 @@ export function EntityEditor() {
         let el: HTMLInputElement | null = null
 
         if (editorEntityType === 'persons') el = nameRef.current
-        else if (editorEntityType === 'locations') el = locationRef.current
+        else if (editorEntityType === 'locations' || editorEntityType === 'waitLocations') el = locationRef.current
         else el = titleRef.current
 
         if (!el) return
@@ -148,7 +154,13 @@ export function EntityEditor() {
     // ✅ autofocus whenever context changes (tab, selection, section)
     useEffect(() => {
         focusPrimaryInput()
-    }, [focusPrimaryInput, activeViewType, selected?.id, selected?.sectionId])
+    }, [focusPrimaryInput, activeEntityType, selected?.id, selected?.sectionId])
+
+    useEffect(() => {
+        if (isAllowedInActiveSection) return
+        clearSelection()
+        setActiveEntityType('titles')
+    }, [clearSelection, isAllowedInActiveSection, setActiveEntityType])
 
     // ✅ ESC clears selection + resets editor
     useEffect(() => {
@@ -182,7 +194,9 @@ export function EntityEditor() {
     }
 
     const isFormValid = (): boolean => {
-        switch (activeViewType) {
+        if (!sectionId || !isAllowedInActiveSection) return false
+
+        switch (activeEntityType) {
             case 'persons':
                 return Boolean(form.name?.trim())
 
@@ -190,9 +204,12 @@ export function EntityEditor() {
                 return Boolean(form.name?.trim() && form.image?.trim())
 
             case 'locations':
+            case 'waitLocations':
                 return Boolean(form.location?.trim())
 
             case 'titles':
+            case 'hotTitles':
+            case 'waitTitles':
             default:
                 return Boolean(form.title?.trim())
         }
@@ -232,8 +249,8 @@ export function EntityEditor() {
         requestAnimationFrame(() => focusTitleInput())
     }
 
-    const previewTemplate = templateDocument.templates[getTemplateKeyForViewType(activeViewType)]
-    const previewData = createPreviewData(activeViewType, form)
+    const previewTemplate = templateDocument.templates[getTemplateKeyForViewType(activeEntityType)]
+    const previewData = createPreviewData(activeEntityType, form)
     const phoneImageFilename = form.image
         ? getPhoneImageDisplayFilename(form.image) || form.image
         : ''
@@ -275,7 +292,7 @@ export function EntityEditor() {
                             onEnter={saveEntity}
                         />
 
-                        {activeViewType === 'phoneCalls' && (
+                        {activeEntityType === 'phoneCalls' && (
                             <>
                                 <button
                                     type="button"
@@ -319,7 +336,7 @@ export function EntityEditor() {
                     </>
                 )}
 
-                {editorEntityType === 'locations' && (
+                {(editorEntityType === 'locations' || editorEntityType === 'waitLocations') && (
                     <InputField
                         label="Locație"
                         value={form.location ?? ''}
@@ -331,7 +348,7 @@ export function EntityEditor() {
                     />
                 )}
 
-                {editorEntityType === 'titles' && (
+                {(editorEntityType === 'titles' || editorEntityType === 'hotTitles' || editorEntityType === 'waitTitles') && (
                     <InputField
                         label="Titlu"
                         value={form.title ?? ''}

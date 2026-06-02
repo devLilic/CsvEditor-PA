@@ -71,4 +71,21 @@ describe('TedPreviewOnlyPanel', () => {
         })
         expect(container.querySelector('[data-layer-id="title-main-text"]')).toBeInTheDocument()
     })
+
+    it.each([
+        ['hotTitles', broadcastTemplates.hotTitles, { title: 'SAMPLE HOT TITLE' }, 'hot-title-text'],
+        ['waitTitles', broadcastTemplates.waitTitles, { title: 'SAMPLE WAIT TITLE' }, 'wait-title-text'],
+        ['waitLocations', broadcastTemplates.waitLocations, { location: 'SAMPLE WAIT LOCATION' }, 'wait-location-text'],
+    ])('renders the %s template with live TED sample text', (_entityType, template, sampleData, layerId) => {
+        const sampleText = Object.values(sampleData)[0]
+        const { container } = render(
+            <TedPreviewOnlyPanel
+                template={template}
+                sampleData={sampleData}
+            />
+        )
+
+        expect(screen.getByText(sampleText)).toBeInTheDocument()
+        expect(container.querySelector(`[data-layer-id="${layerId}"]`)).toBeInTheDocument()
+    })
 })

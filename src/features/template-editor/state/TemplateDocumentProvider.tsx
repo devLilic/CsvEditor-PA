@@ -9,15 +9,16 @@ import {
 import type { ReactNode } from 'react'
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
 import { broadcastTemplates } from '@/templates/broadcast'
-import bundledDefaultTemplateDocument from '@/templates/broadcast/defaultTemplates.oc.json'
-import ocBg from '@/assets/bg/OC_bg.png'
-import ocPhoneBg from '@/assets/bg/OC__phone_bg.png'
+import bundledDefaultTemplateDocument from '@/templates/broadcast/defaultTemplates.pa.json'
+import paBg from '@/assets/bg/PA_bg.png'
+import paPhoneBg from '@/assets/bg/PA_phone_bg.png'
 import {
     createTemplateDocumentFromTemplates,
     type TemplateDocument,
     type TemplateDocumentTemplates,
 } from '@/features/template-editor/domain/templateDocument'
 import { resolveTemplateDocument } from '@/features/template-editor/domain/templateResolver'
+import { enforceFixedTemplateFields } from '@/features/template-editor/domain/fixedTemplateFields'
 import { templateEditorStorageService } from '@/features/template-editor/services/templateEditorStorageService'
 
 export type EditableTemplateEntityType = keyof TemplateDocumentTemplates
@@ -29,7 +30,7 @@ type SaveTemplatesResult = {
 }
 
 const DEV_DEFAULT_SAVE_WARNING =
-    'Template-urile au fost salvate local, dar defaultTemplates.oc.json nu a putut fi actualizat.'
+    'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.'
 
 export type TemplateDocumentContextValue = {
     document: TemplateDocument
@@ -50,10 +51,10 @@ function clone<T>(value: T): T {
 }
 
 function hydrateRuntimeAssets(document: TemplateDocument): TemplateDocument {
-    const nextDocument = clone(document)
+    const nextDocument = enforceFixedTemplateFields(clone(document))
     const backgroundMap: Record<string, string> = {
-        'src/assets/bg/OC_bg.png': ocBg,
-        'src/assets/bg/OC__phone_bg.png': ocPhoneBg,
+        'src/assets/bg/PA_bg.png': paBg,
+        'src/assets/bg/PA_phone_bg.png': paPhoneBg,
     }
 
     for (const template of Object.values(nextDocument.templates)) {
@@ -67,10 +68,10 @@ function hydrateRuntimeAssets(document: TemplateDocument): TemplateDocument {
 }
 
 function dehydrateRuntimeAssets(document: TemplateDocument): TemplateDocument {
-    const nextDocument = clone(document)
+    const nextDocument = enforceFixedTemplateFields(clone(document))
     const backgroundMap: Record<string, string> = {
-        [ocBg]: 'src/assets/bg/OC_bg.png',
-        [ocPhoneBg]: 'src/assets/bg/OC__phone_bg.png',
+        [paBg]: 'src/assets/bg/PA_bg.png',
+        [paPhoneBg]: 'src/assets/bg/PA_phone_bg.png',
     }
 
     for (const template of Object.values(nextDocument.templates)) {

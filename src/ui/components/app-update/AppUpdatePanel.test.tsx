@@ -43,6 +43,7 @@ describe('AppUpdatePanel', () => {
     it('displays current version', () => {
         render(<AppUpdatePanel />)
 
+        expect(screen.getByRole('heading', { name: 'Actualizari Punctul pe Azi' })).toBeInTheDocument()
         expect(screen.getByText('Versiune curenta: 3.0.0')).toBeInTheDocument()
     })
 

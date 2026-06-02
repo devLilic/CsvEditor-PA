@@ -4,6 +4,7 @@ import { useCsvContext } from '../context/CsvContext'
 import type { EntityType, CsvSection, SimpleTitle, Person, Location, SectionRow } from '../domain/entities'
 import type { SelectedEntity } from '../domain/csv.types'
 import { isSupportedEntityType } from '../domain/supportedEntityTypes'
+import { isPhoneCallPerson } from '../domain/phoneCall'
 import { createDefaultProjectEntities } from '../domain/defaultProject'
 import { FALLBACK_DEFAULT_PROJECT_SETTINGS } from '../domain/defaultProjectSettings'
 import { csvService } from '../services/csvService'
@@ -15,6 +16,9 @@ type BlockItem =
     | { entityType: 'titles'; id: string; rowId: string; data: SimpleTitle }
     | { entityType: 'persons'; id: string; rowId: string; data: Person }
     | { entityType: 'locations'; id: string; rowId: string; data: Location }
+    | { entityType: 'hotTitles'; id: string; rowId: string; data: SimpleTitle }
+    | { entityType: 'waitTitles'; id: string; rowId: string; data: SimpleTitle }
+    | { entityType: 'waitLocations'; id: string; rowId: string; data: Location }
 
 export type StartNewProjectResult =
     | { ok: true }
@@ -30,8 +34,12 @@ function rowsToBlockItems(section: CsvSection, entityType: EntityType): BlockIte
 
     for (const r of section.rows) {
         if (entityType === 'titles' && r.title) out.push({ entityType: 'titles', id: r.title.id, rowId: r.id, data: r.title })
-        if (entityType === 'persons' && r.person) out.push({ entityType: 'persons', id: r.person.id, rowId: r.id, data: r.person })
-        if (entityType === 'locations' && r.location) out.push({ entityType: 'locations', id: r.location.id, rowId: r.id, data: r.location })
+        if (entityType === 'persons' && r.person && !isPhoneCallPerson(r.person)) out.push({ entityType: 'persons', id: r.person.id, rowId: r.id, data: r.person })
+        if (section.kind === 'invited' && entityType === 'phoneCalls' && r.person && isPhoneCallPerson(r.person)) out.push({ entityType: 'persons', id: r.person.id, rowId: r.id, data: r.person })
+        if (section.kind === 'invited' && entityType === 'locations' && r.location) out.push({ entityType: 'locations', id: r.location.id, rowId: r.id, data: r.location })
+        if (section.kind === 'invited' && entityType === 'hotTitles' && r.hotTitle) out.push({ entityType: 'hotTitles', id: r.hotTitle.id, rowId: r.id, data: r.hotTitle })
+        if (section.kind === 'invited' && entityType === 'waitTitles' && r.waitTitle) out.push({ entityType: 'waitTitles', id: r.waitTitle.id, rowId: r.id, data: r.waitTitle })
+        if (section.kind === 'invited' && entityType === 'waitLocations' && r.waitLocation) out.push({ entityType: 'waitLocations', id: r.waitLocation.id, rowId: r.id, data: r.waitLocation })
     }
 
     return out
@@ -189,7 +197,7 @@ export function useEntities() {
         activeSection,
         activeViewType: state.activeViewType,
         // Legacy alias kept while UI consumers migrate to activeViewType.
-        activeEntityType: state.activeViewType,
+        activeEntityType: state.activeEntityType,
         selected,
 
         // section ops

@@ -18,6 +18,15 @@ const TED_SAMPLE_DATA: Record<TedEntityType, TedSampleData> = {
         occupation: 'Sample occupation',
         image: '',
     },
+    hotTitles: {
+        title: 'SAMPLE HOT TITLE',
+    },
+    waitTitles: {
+        title: 'SAMPLE WAIT TITLE',
+    },
+    waitLocations: {
+        location: 'SAMPLE WAIT LOCATION',
+    },
 }
 
 export function createTedSampleData(

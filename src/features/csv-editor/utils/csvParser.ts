@@ -11,7 +11,7 @@ export const CSV_COLUMNS = {
 
     PERSON_NAME: 'Nume',
     PERSON_OCCUPATION: 'Functie',
-    IMAGE: 'Image',
+    PERSON_IMAGE: 'Image',
 
     LOCATION: 'Locatie',
     HOT_TITLE: 'Ultima Ora',
@@ -37,20 +37,27 @@ function isCompletelyEmptyRow(row: CsvRowRaw): boolean {
     })
 }
 
-function buildRowFromCsv(row: CsvRowRaw): Omit<SectionRow, 'id'> | null {
+function buildRowFromCsv(row: CsvRowRaw, sectionKind: CsvSection['kind']): Omit<SectionRow, 'id'> | null {
     const nr = cell(row, CSV_COLUMNS.TITLE_NR)
     const titleText = cell(row, CSV_COLUMNS.TITLE)
     const name = cell(row, CSV_COLUMNS.PERSON_NAME)
     const occupation = cell(row, CSV_COLUMNS.PERSON_OCCUPATION)
-    const image = cell(row, CSV_COLUMNS.IMAGE)
+    const image = cell(row, CSV_COLUMNS.PERSON_IMAGE)
     const loc = cell(row, CSV_COLUMNS.LOCATION)
+    const hotTitle = cell(row, CSV_COLUMNS.HOT_TITLE)
+    const waitTitle = cell(row, CSV_COLUMNS.WAIT_TITLE)
+    const waitLocation = cell(row, CSV_COLUMNS.WAIT_LOCATION)
 
     // empty row inside a section -> ignore (no delimiter concept anymore)
     if (
         titleText === '' &&
         name === '' &&
         occupation === '' &&
-        loc === ''
+        image === '' &&
+        loc === '' &&
+        hotTitle === '' &&
+        waitTitle === '' &&
+        waitLocation === ''
     ) {
         return null
     }
@@ -64,15 +71,27 @@ function buildRowFromCsv(row: CsvRowRaw): Omit<SectionRow, 'id'> | null {
 
     if (name !== '' || occupation !== '' || image !== '') {
         const p: Person = { id: uuidv4(), name, occupation }
-        if (image !== '') {
+        if (sectionKind === 'invited' && image !== '') {
             p.image = image
         }
         out.person = p
     }
 
-    if (loc !== '') {
+    if (sectionKind === 'invited' && loc !== '') {
         const l: Location = { id: uuidv4(), location: loc }
         out.location = l
+    }
+
+    if (sectionKind === 'invited' && hotTitle !== '') {
+        out.hotTitle = { id: uuidv4(), title: hotTitle }
+    }
+
+    if (sectionKind === 'invited' && waitTitle !== '') {
+        out.waitTitle = { id: uuidv4(), title: waitTitle }
+    }
+
+    if (sectionKind === 'invited' && waitLocation !== '') {
+        out.waitLocation = { id: uuidv4(), location: waitLocation }
     }
 
     return out
@@ -88,7 +107,7 @@ function buildRowFromCsv(row: CsvRowRaw): Omit<SectionRow, 'id'> | null {
  * - Marker rows do not create content rows; they only switch current section.
  * - Rows are stored canonically as section.rows[] (packing model).
  * - If no markers exist → fallback to single INVITATI section with all rows.
- * - Legacy hot/wait columns are tolerated but ignored in this version.
+ * - PA hot/wait columns are parsed only for INVITATI.
  */
 export function parseCsv(content: string): EntitiesState {
     const parsed = Papa.parse<CsvRowRaw>(content, {
@@ -151,7 +170,7 @@ export function parseCsv(content: string): EntitiesState {
         }
 
         // content row
-        const rowData = buildRowFromCsv(row)
+        const rowData = buildRowFromCsv(row, current?.kind ?? 'invited')
         if (!rowData) return
 
         if (!current) {

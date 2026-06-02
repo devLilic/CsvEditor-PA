@@ -29,6 +29,24 @@ describe('tedSampleData', () => {
         })
     })
 
+    it('hotTitles have sample title', () => {
+        expect(createTedSampleData('hotTitles')).toEqual({
+            title: 'SAMPLE HOT TITLE',
+        })
+    })
+
+    it('waitTitles have sample title', () => {
+        expect(createTedSampleData('waitTitles')).toEqual({
+            title: 'SAMPLE WAIT TITLE',
+        })
+    })
+
+    it('waitLocations have sample location', () => {
+        expect(createTedSampleData('waitLocations')).toEqual({
+            location: 'SAMPLE WAIT LOCATION',
+        })
+    })
+
     it('sample data can be overridden from manual input', () => {
         expect(createTedSampleData('persons', {
             name: 'Manual Name',

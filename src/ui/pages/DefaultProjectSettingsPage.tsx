@@ -213,7 +213,7 @@ export function DefaultProjectSettingsPage() {
                 <header className="flex items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900">
-                            Setări proiect nou
+                            Punctul pe Azi - Setări proiect nou
                         </h1>
                         <p className="mt-1 text-sm text-gray-600">
                             Texte standard pentru proiect nou. Aceste valori vor fi folosite pentru următorul proiect nou.
@@ -262,6 +262,15 @@ export function DefaultProjectSettingsPage() {
                         <input
                             value={settings.location}
                             onChange={(event) => updateField('location', event.target.value)}
+                            className="rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </label>
+
+                    <label className="flex flex-col gap-1">
+                        <span className="text-sm font-medium text-gray-700">Ultima oră implicită</span>
+                        <input
+                            value={settings.hotTitle}
+                            onChange={(event) => updateField('hotTitle', event.target.value)}
                             className="rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </label>

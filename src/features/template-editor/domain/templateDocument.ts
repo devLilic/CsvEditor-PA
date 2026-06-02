@@ -1,22 +1,25 @@
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
 
 export const TEMPLATE_DOCUMENT_VERSION = 1
-export const TEMPLATE_DOCUMENT_SHOW = 'obiectiv-comun'
+export const TEMPLATE_DOCUMENT_SHOW = 'punctul-pe-azi'
 
 export type TemplateDocumentTemplates = {
     titles: BroadcastTemplate
     persons: BroadcastTemplate
     locations: BroadcastTemplate
     phoneCalls: BroadcastTemplate
+    hotTitles: BroadcastTemplate
+    waitTitles: BroadcastTemplate
+    waitLocations: BroadcastTemplate
 }
 
 export type TemplateDocument = {
     version: 1
-    show: 'obiectiv-comun'
+    show: 'punctul-pe-azi'
     templates: TemplateDocumentTemplates
 }
 
-const templateKeys = ['titles', 'persons', 'locations', 'phoneCalls'] as const
+const templateKeys = ['titles', 'persons', 'locations', 'phoneCalls', 'hotTitles', 'waitTitles', 'waitLocations'] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -70,6 +73,9 @@ export function createTemplateDocumentFromTemplates(
             persons: cloneTemplate(input.persons),
             locations: cloneTemplate(input.locations),
             phoneCalls: cloneTemplate(input.phoneCalls),
+            hotTitles: cloneTemplate(input.hotTitles),
+            waitTitles: cloneTemplate(input.waitTitles),
+            waitLocations: cloneTemplate(input.waitLocations),
         },
     }
 }

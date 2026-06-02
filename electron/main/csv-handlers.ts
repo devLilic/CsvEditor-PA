@@ -8,7 +8,10 @@ import { getCsvFilePath, getCsvFileSettings, setCsvFilePath } from '../store'
 import { writeCsvBackup } from './csv-backup'
 import { resolveEntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
 import { notifyEntityExportFailure } from './entity-export-notification'
-import { exportEntityCsvFilesFromFullCsvContent } from './entity-export-service'
+import {
+    exportEntityCsvFilesFromFullCsvContent,
+    type EntityExportResult,
+} from './entity-export-service'
 
 const fsp = fs.promises
 
@@ -62,24 +65,24 @@ async function exportEntityCsvsAfterWorkingCsvWrite(
     mainWindow: BrowserWindow,
     content: string,
     workingCsvPath: string
-): Promise<void> {
+): Promise<EntityExportResult> {
     try {
         const settings = getCsvFileSettings()
         const exportPaths = resolveEntityExportPaths({
             workingCsvPath,
             exportFolderPath: settings.exportCsvFolderPath,
         })
-        const result = await exportEntityCsvFilesFromFullCsvContent({
+        return await exportEntityCsvFilesFromFullCsvContent({
             paths: exportPaths,
             content,
             onError: (error) => notifyEntityExportFailure(mainWindow, error),
         })
-
-        if (!result.ok) {
-            console.error('[entity-export] failed after csv:write:', result.error)
-        }
     } catch (error) {
         console.error('[entity-export] failed after csv:write:', error)
+        return {
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+        }
     }
 }
 
@@ -144,7 +147,13 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
             }
 
             await fsp.writeFile(csvPath, content, 'utf-8')
-            await exportEntityCsvsAfterWorkingCsvWrite(mainWindow, content, csvPath)
+            const exportResult = await exportEntityCsvsAfterWorkingCsvWrite(mainWindow, content, csvPath)
+            if (!exportResult.ok) {
+                return {
+                    ok: false,
+                    error: `ENTITY_EXPORT_FAILED: ${exportResult.error ?? 'UNKNOWN_ERROR'}`,
+                }
+            }
             return { ok: true }
         } catch (error) {
             console.error('[csv:write] failed:', error)

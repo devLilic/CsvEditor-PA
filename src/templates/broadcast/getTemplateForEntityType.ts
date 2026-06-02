@@ -5,6 +5,9 @@ export function getTemplateForEntityType(entityType: string) {
     if (entityType === 'persons') return broadcastTemplates.persons
     if (entityType === 'locations') return broadcastTemplates.locations
     if (entityType === 'phoneCalls') return broadcastTemplates.phoneCalls
+    if (entityType === 'hotTitles') return broadcastTemplates.hotTitles
+    if (entityType === 'waitTitles') return broadcastTemplates.waitTitles
+    if (entityType === 'waitLocations') return broadcastTemplates.waitLocations
 
     return broadcastTemplates.titles
 }

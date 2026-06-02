@@ -11,10 +11,11 @@ describe('exportPathResolver', () => {
             workingCsvPath: 'D:\\TV\\OC\\working.csv',
             exportFolderPath: 'D:\\TV\\OC\\Exports',
         })).toEqual({
-            titlesPath: 'D:\\TV\\OC\\Exports\\OC_titles.csv',
-            personsPath: 'D:\\TV\\OC\\Exports\\OC_persons.csv',
-            locationsPath: 'D:\\TV\\OC\\Exports\\OC_locations.csv',
-            phonesPath: 'D:\\TV\\OC\\Exports\\OC_phones.csv',
+            titlesPath: 'D:\\TV\\OC\\Exports\\PA_titles.csv',
+            personsPath: 'D:\\TV\\OC\\Exports\\PA_persons.csv',
+            locationsPath: 'D:\\TV\\OC\\Exports\\PA_locations.csv',
+            phonesPath: 'D:\\TV\\OC\\Exports\\PA_phones.csv',
+            waitTitlesLocationsPath: 'D:\\TV\\OC\\Exports\\PA_wait_titles_locations.csv',
         })
     })
 
@@ -23,19 +24,21 @@ describe('exportPathResolver', () => {
             workingCsvPath: 'D:\\TV\\OC\\working.csv',
             exportFolderPath: '',
         })).toEqual({
-            titlesPath: 'D:\\TV\\OC\\Export\\OC_titles.csv',
-            personsPath: 'D:\\TV\\OC\\Export\\OC_persons.csv',
-            locationsPath: 'D:\\TV\\OC\\Export\\OC_locations.csv',
-            phonesPath: 'D:\\TV\\OC\\Export\\OC_phones.csv',
+            titlesPath: 'D:\\TV\\OC\\Export\\PA_titles.csv',
+            personsPath: 'D:\\TV\\OC\\Export\\PA_persons.csv',
+            locationsPath: 'D:\\TV\\OC\\Export\\PA_locations.csv',
+            phonesPath: 'D:\\TV\\OC\\Export\\PA_phones.csv',
+            waitTitlesLocationsPath: 'D:\\TV\\OC\\Export\\PA_wait_titles_locations.csv',
         })
     })
 
     it('uses fixed filenames', () => {
         expect(ENTITY_EXPORT_FILENAMES).toEqual({
-            titles: 'OC_titles.csv',
-            persons: 'OC_persons.csv',
-            locations: 'OC_locations.csv',
-            phones: 'OC_phones.csv',
+            titles: 'PA_titles.csv',
+            persons: 'PA_persons.csv',
+            locations: 'PA_locations.csv',
+            phones: 'PA_phones.csv',
+            waitTitlesLocations: 'PA_wait_titles_locations.csv',
         })
     })
 

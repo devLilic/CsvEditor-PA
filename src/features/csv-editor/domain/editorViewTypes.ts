@@ -5,6 +5,9 @@ export const EditorViewTypes = {
     PERSONS: 'persons',
     LOCATIONS: 'locations',
     PHONE_CALLS: 'phoneCalls',
+    HOT_TITLES: 'hotTitles',
+    WAIT_TITLES: 'waitTitles',
+    WAIT_LOCATIONS: 'waitLocations',
 } as const
 
 export type EditorViewType =
@@ -12,6 +15,9 @@ export type EditorViewType =
     | 'persons'
     | 'locations'
     | 'phoneCalls'
+    | 'hotTitles'
+    | 'waitTitles'
+    | 'waitLocations'
 
 export function isEditorViewType(value: string): value is EditorViewType {
     return Object.values(EditorViewTypes).includes(value as EditorViewType)

@@ -6,6 +6,7 @@ import { EditModeProvider, useEditMode } from '@/ui/context/EditModeContext'
 import { TitleFilterProvider } from '@/ui/context/TitleFilterContext'
 
 const csvHooks = vi.hoisted(() => ({
+    activeSectionId: 'invited-1',
     activeEntityType: 'titles' as
         | 'titles'
         | 'persons'
@@ -29,8 +30,8 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
     return {
         ...actual,
         useEntities: () => ({
-            activeSectionId: 'invited-1',
-            activeSection: { id: 'invited-1', kind: 'invited', rows: [] },
+            activeSectionId: csvHooks.activeSectionId,
+            activeSection: { id: csvHooks.activeSectionId, kind: 'invited', rows: [] },
             getBlockItems: csvHooks.getBlockItems,
             deleteEntity: csvHooks.deleteEntity,
         }),
@@ -51,6 +52,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
 })
 
 beforeEach(() => {
+    csvHooks.activeSectionId = 'invited-1'
     csvHooks.activeEntityType = 'titles'
     csvHooks.getBlockItems.mockReset()
     csvHooks.deleteEntity.mockClear()
@@ -113,6 +115,14 @@ function personsAndPhoneCallsItems() {
     ]
 }
 
+function personsItems() {
+    return personsAndPhoneCallsItems().slice(0, 1)
+}
+
+function phoneCallsItems() {
+    return personsAndPhoneCallsItems().slice(1)
+}
+
 describe('EntityList', () => {
     it('renders titles', () => {
         csvHooks.getBlockItems.mockReturnValue([
@@ -128,7 +138,7 @@ describe('EntityList', () => {
 
     it('persons view renders persons without image', () => {
         csvHooks.activeEntityType = 'persons'
-        csvHooks.getBlockItems.mockReturnValue(personsAndPhoneCallsItems())
+        csvHooks.getBlockItems.mockReturnValue(personsItems())
 
         renderEntityList()
 
@@ -139,7 +149,7 @@ describe('EntityList', () => {
 
     it('persons view does not render persons with image', () => {
         csvHooks.activeEntityType = 'persons'
-        csvHooks.getBlockItems.mockReturnValue(personsAndPhoneCallsItems())
+        csvHooks.getBlockItems.mockReturnValue(personsItems())
 
         renderEntityList()
 
@@ -161,18 +171,18 @@ describe('EntityList', () => {
 
     it('phoneCalls view renders persons with image', () => {
         csvHooks.activeEntityType = 'phoneCalls'
-        csvHooks.getBlockItems.mockReturnValue(personsAndPhoneCallsItems())
+        csvHooks.getBlockItems.mockReturnValue(phoneCallsItems())
 
         renderEntityList()
 
-        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'persons')
+        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'phoneCalls')
         expect(screen.getByText('ION POPESCU')).toBeInTheDocument()
         expect(screen.getByText('Expert')).toBeInTheDocument()
     })
 
     it('phoneCalls view does not render persons without image', () => {
         csvHooks.activeEntityType = 'phoneCalls'
-        csvHooks.getBlockItems.mockReturnValue(personsAndPhoneCallsItems())
+        csvHooks.getBlockItems.mockReturnValue(phoneCallsItems())
 
         renderEntityList()
 
@@ -183,7 +193,7 @@ describe('EntityList', () => {
     it('phoneCalls item uses the real person id', async () => {
         const user = userEvent.setup()
         csvHooks.activeEntityType = 'phoneCalls'
-        csvHooks.getBlockItems.mockReturnValue(personsAndPhoneCallsItems())
+        csvHooks.getBlockItems.mockReturnValue(phoneCallsItems())
 
         renderEntityList()
         await user.click(screen.getByText('ION POPESCU'))
@@ -198,7 +208,7 @@ describe('EntityList', () => {
 
     it('phoneCalls item is visually selected using the real person entity', () => {
         csvHooks.activeEntityType = 'phoneCalls'
-        csvHooks.getBlockItems.mockReturnValue(personsAndPhoneCallsItems())
+        csvHooks.getBlockItems.mockReturnValue(phoneCallsItems())
         csvHooks.isSelected.mockImplementation(
             (sectionId, entityType, id) =>
                 sectionId === 'invited-1' &&
@@ -237,7 +247,7 @@ describe('EntityList', () => {
         expect(csvHooks.deleteEntity).toHaveBeenCalledWith('invited-1', 'persons', 'person-2')
     })
 
-    it('does not request or render hot or wait entity lists', () => {
+    it('renders hot title lists provided by the PA hooks', () => {
         csvHooks.activeEntityType = 'hotTitles'
         csvHooks.getBlockItems.mockReturnValue([
             { entityType: 'hotTitles', id: 'hot-1', data: { title: 'HOT' } },
@@ -245,8 +255,69 @@ describe('EntityList', () => {
 
         renderEntityList()
 
-        expect(csvHooks.getBlockItems).not.toHaveBeenCalled()
-        expect(screen.queryByText('HOT')).not.toBeInTheDocument()
+        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'hotTitles')
+        expect(screen.getByText('HOT')).toBeInTheDocument()
+    })
+
+    it.each([
+        ['waitTitles', 'waitTitles', { title: 'TITLU ASTEPTARE' }],
+        ['waitLocations', 'waitLocations', { location: 'LOCATIE ASTEPTARE' }],
+    ] as const)('renders %s lists', (activeEntityType, entityType, data) => {
+        csvHooks.activeEntityType = activeEntityType
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType, id: `${entityType}-1`, data },
+        ])
+
+        renderEntityList()
+
+        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', entityType)
+        expect(screen.getByText(Object.values(data)[0])).toBeInTheDocument()
+    })
+
+    it('requests items only for the active section', () => {
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.getBlockItems.mockReturnValue([])
+
+        renderEntityList()
+
+        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('beta-1', 'titles')
+        expect(csvHooks.getBlockItems).not.toHaveBeenCalledWith('invited-1', 'titles')
+    })
+
+    it('renders an empty state when the active list has no items', () => {
+        csvHooks.getBlockItems.mockReturnValue([])
+
+        renderEntityList()
+
         expect(screen.getByText('Nu exista elemente in aceasta sectiune.')).toBeInTheDocument()
+    })
+
+    it('deletes a PA entity using its active section and entity type', async () => {
+        const user = userEvent.setup()
+        csvHooks.activeSectionId = 'section-pa'
+        csvHooks.activeEntityType = 'waitTitles'
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType: 'waitTitles', id: 'wait-title-1', data: { title: 'ASTEPTARE' } },
+        ])
+
+        renderEntityListWithEditModeToggle()
+        await user.click(screen.getByRole('button', { name: 'toggle edit mode' }))
+        await user.click(screen.getByRole('button', { name: 'Sterge' }))
+
+        expect(csvHooks.deleteEntity).toHaveBeenCalledWith('section-pa', 'waitTitles', 'wait-title-1')
+    })
+
+    it('keeps ON AIR actions working for PA entity types', async () => {
+        const user = userEvent.setup()
+        csvHooks.activeEntityType = 'hotTitles'
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType: 'hotTitles', id: 'hot-1', data: { title: 'HOT' } },
+        ])
+
+        renderEntityList()
+        await user.click(screen.getByRole('button', { name: 'ON AIR' }))
+
+        expect(csvHooks.isOnAir).toHaveBeenCalledWith('hotTitles', 'hot-1')
+        expect(csvHooks.setOnAir).toHaveBeenCalledWith('hotTitles', 'hot-1')
     })
 })

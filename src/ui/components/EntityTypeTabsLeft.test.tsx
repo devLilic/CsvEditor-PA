@@ -5,6 +5,7 @@ import { EntityTypeTabsLeft } from './EntityTypeTabsLeft'
 
 const csvHooks = vi.hoisted(() => ({
     activeEntityType: 'titles',
+    activeSection: { id: 'invited-1', kind: 'invited', rows: [] } as any,
     setActiveEntityType: vi.fn(),
     clearSelection: vi.fn(),
 }))
@@ -23,11 +24,15 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
         useSelectedEntity: () => ({
             clearSelection: csvHooks.clearSelection,
         }),
+        useEntities: () => ({
+            activeSection: csvHooks.activeSection,
+        }),
     }
 })
 
 beforeEach(() => {
     csvHooks.activeEntityType = 'titles'
+    csvHooks.activeSection = { id: 'invited-1', kind: 'invited', rows: [] }
     csvHooks.setActiveEntityType.mockClear()
     csvHooks.clearSelection.mockClear()
 })
@@ -52,21 +57,36 @@ describe('EntityTypeTabsLeft', () => {
     it('renders Locatii tab', () => {
         render(<EntityTypeTabsLeft />)
 
-        expect(screen.getByRole('button', { name: /Loca/ })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Locații' })).toBeInTheDocument()
     })
 
-    it('renders Apeluri telefonice tab', () => {
+    it('renders Phones tab', () => {
         render(<EntityTypeTabsLeft />)
 
-        expect(screen.getByRole('button', { name: 'Apeluri telefonice' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Phones' })).toBeInTheDocument()
     })
 
-    it('does not render legacy tabs', () => {
+    it('renders PA-only tabs for PLATOU', () => {
         render(<EntityTypeTabsLeft />)
 
-        expect(screen.queryByRole('button', { name: /Ultima/ })).not.toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: /Titluri.*teptare/ })).not.toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: /Loca.*teptare/ })).not.toBeInTheDocument()
+        expect(screen.getAllByRole('button')).toHaveLength(7)
+        expect(screen.getByRole('button', { name: 'Ultima oră' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Titluri așteptare' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Locații așteptare' })).toBeInTheDocument()
+    })
+
+    it('renders only Titluri and Persoane tabs for BETA', () => {
+        csvHooks.activeSection = { id: 'beta-1', kind: 'beta', betaIndex: 1, betaTitle: 'Externe', rows: [] }
+        render(<EntityTypeTabsLeft />)
+
+        expect(screen.getByRole('button', { name: 'Titluri' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Persoane' })).toBeInTheDocument()
+        expect(screen.getAllByRole('button')).toHaveLength(2)
+        expect(screen.queryByRole('button', { name: 'Locații' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Phones' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Ultima oră' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Titluri așteptare' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Locații așteptare' })).not.toBeInTheDocument()
     })
 
     it('clears selection and changes active type when switching tabs', async () => {
@@ -83,7 +103,7 @@ describe('EntityTypeTabsLeft', () => {
         const user = userEvent.setup()
         render(<EntityTypeTabsLeft />)
 
-        await user.click(screen.getByRole('button', { name: 'Apeluri telefonice' }))
+        await user.click(screen.getByRole('button', { name: 'Phones' }))
 
         expect(csvHooks.clearSelection).toHaveBeenCalledTimes(1)
         expect(csvHooks.setActiveEntityType).toHaveBeenCalledWith('phoneCalls')

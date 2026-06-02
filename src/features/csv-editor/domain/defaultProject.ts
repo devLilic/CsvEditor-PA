@@ -12,6 +12,7 @@ export const DEFAULT_PROJECT_CONTENT = FALLBACK_DEFAULT_PROJECT_SETTINGS
 export function createDefaultProjectEntities(settings: DefaultProjectSettings): EntitiesState {
     const title = settings.title.trim()
     const location = settings.location.trim()
+    const hotTitle = settings.hotTitle.trim()
 
     return {
         sections: [
@@ -36,6 +37,14 @@ export function createDefaultProjectEntities(settings: DefaultProjectSettings): 
                             location: {
                                 id: uuidv4(),
                                 location,
+                            },
+                        }
+                        : {}),
+                    ...(hotTitle
+                        ? {
+                            hotTitle: {
+                                id: uuidv4(),
+                                title: hotTitle,
                             },
                         }
                         : {}),

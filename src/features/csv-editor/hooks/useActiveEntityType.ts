@@ -3,6 +3,8 @@ import { useCallback } from 'react'
 import { useCsvContext } from '../context/CsvContext'
 import type { EditorViewType } from '../domain/editorViewTypes'
 import { isEditorViewType } from '../domain/editorViewTypes'
+import type { EntityType } from '../domain/entities'
+import { isSupportedEntityType } from '../domain/supportedEntityTypes'
 
 /**
  * Single source of truth pentru Tabs ↔ Lists ↔ Editor
@@ -28,11 +30,23 @@ export function useActiveEntityType() {
             ? state.activeEntityType
             : 'titles'
 
+    const setActiveEntityType = useCallback(
+        (type: EntityType) => {
+            if (!isSupportedEntityType(type)) return
+
+            dispatch({
+                type: 'SET_ACTIVE_ENTITY_TYPE',
+                payload: type,
+            })
+        },
+        [dispatch]
+    )
+
     return {
         activeViewType,
         setActiveViewType,
         // Legacy names kept while components migrate.
-        activeEntityType: activeViewType,
-        setActiveEntityType: setActiveViewType,
+        activeEntityType: state.activeEntityType,
+        setActiveEntityType,
     }
 }

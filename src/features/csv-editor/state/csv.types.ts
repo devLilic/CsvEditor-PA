@@ -15,8 +15,8 @@ export interface CsvState {
     // Canonical active UI view; phoneCalls maps to the CSV persons entity.
     activeViewType: EditorViewType
 
-    // Legacy alias kept while UI consumers migrate to activeViewType.
-    activeEntityType: EditorViewType
+    // PA entity selection. phoneCalls remains a UI/storage alias over persons.
+    activeEntityType: EntityType
 
     // active section for Tabs (BETA/INVITATI)
     activeSectionId: string | null
@@ -55,7 +55,7 @@ export type CsvAction =
 
     // selection + active type
     | { type: 'SET_SELECTED'; payload: SelectedEntity | null }
-    | { type: 'SET_ACTIVE_ENTITY_TYPE'; payload: EditorViewType }
+    | { type: 'SET_ACTIVE_ENTITY_TYPE'; payload: EntityType }
     | { type: 'SET_ACTIVE_VIEW_TYPE'; payload: EditorViewType }
 
     // ON AIR

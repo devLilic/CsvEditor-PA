@@ -118,7 +118,7 @@ describe('entity export mapper', () => {
         ].join('\n'))
     })
 
-    it('maps EntitiesState to all OC export CSVs without recalculating Nr', () => {
+    it('maps EntitiesState to all PA export CSVs with section markers', () => {
         const result = mapEntitiesStateToExportCsvs({
             sections: [
                 {
@@ -164,12 +164,14 @@ describe('entity export mapper', () => {
 
         expect(result).toEqual({
             titlesCsv: [
-                'Nr;Titlu',
-                '007;Titlu din state',
+                'Nr;Titlu;Ultima Ora',
+                '--- INVITATI ---;;',
+                '1;Titlu din state;',
             ].join('\n'),
             personsCsv: [
-                'Nume;Functie',
-                'Ion;Invitat',
+                'Sectiune;Nume;Functie',
+                '--- INVITATI ---;;',
+                ';Ion;Invitat',
             ].join('\n'),
             locationsCsv: [
                 'Locatie',
@@ -179,10 +181,11 @@ describe('entity export mapper', () => {
                 'Nume;Functie;Image',
                 'Ana;Reporter;D:\\photos\\ana.jpg',
             ].join('\n'),
+            waitTitlesLocationsCsv: 'Titlu;Locatie',
         })
     })
 
-    it('maps full CSV content to OC export CSVs and preserves Nr exactly', () => {
+    it('maps full CSV content through the PA sections model', () => {
         const result = mapFullCsvContentToExportCsvs([
             'Nr;Titlu;Nume;Functie;Image;Locatie',
             '003;Titlu CSV;Ion;Invitat;;Chișinău',
@@ -191,13 +194,15 @@ describe('entity export mapper', () => {
 
         expect(result).toEqual({
             titlesCsv: [
-                'Nr;Titlu',
-                '003;Titlu CSV',
-                '7A;Alt titlu',
+                'Nr;Titlu;Ultima Ora',
+                '--- INVITATI ---;;',
+                '1;Titlu CSV;',
+                '2;Alt titlu;',
             ].join('\n'),
             personsCsv: [
-                'Nume;Functie',
-                'Ion;Invitat',
+                'Sectiune;Nume;Functie',
+                '--- INVITATI ---;;',
+                ';Ion;Invitat',
             ].join('\n'),
             locationsCsv: [
                 'Locatie',
@@ -207,6 +212,7 @@ describe('entity export mapper', () => {
                 'Nume;Functie;Image',
                 'Ana;Reporter;D:\\photos\\ana.jpg',
             ].join('\n'),
+            waitTitlesLocationsCsv: 'Titlu;Locatie',
         })
     })
 
@@ -218,12 +224,55 @@ describe('entity export mapper', () => {
 
         expect(result).toEqual({
             titlesCsv: [
-                'Nr;Titlu',
-                ';Titlu implicit',
+                'Nr;Titlu;Ultima Ora',
+                '--- INVITATI ---;;',
+                '1;Titlu implicit;',
             ].join('\n'),
-            personsCsv: 'Nume;Functie',
+            personsCsv: [
+                'Sectiune;Nume;Functie',
+                '--- INVITATI ---;;',
+            ].join('\n'),
             locationsCsv: 'Locatie',
             phonesCsv: 'Nume;Functie;Image',
+            waitTitlesLocationsCsv: 'Titlu;Locatie',
         })
+    })
+
+    it('maps wait titles and locations into the PA convenience CSV', () => {
+        const result = mapFullCsvContentToExportCsvs([
+            'Nr;Titlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare',
+            ';;;;;;;Titlu wait;',
+            ';;;;;;;;Locatie wait',
+        ].join('\n'))
+
+        expect(result.waitTitlesLocationsCsv).toBe([
+            'Titlu;Locatie',
+            'Titlu wait;Locatie wait',
+        ].join('\n'))
+    })
+
+    it('preserves PA section markers when regenerating exports from the full CSV', () => {
+        const result = mapFullCsvContentToExportCsvs([
+            'Nr;Titlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare',
+            ';--- beta 1 - Extern ---;;;;;;;',
+            ';Titlu beta;Invitat beta;Rol beta;;;;;',
+            ';--- INVITATI ---;;;;;;;',
+            ';Titlu platou;Invitat platou;Rol platou;;;Ultima ora;;',
+        ].join('\n'))
+
+        expect(result.titlesCsv).toBe([
+            'Nr;Titlu;Ultima Ora',
+            '--- beta 1 - Extern ---;;',
+            '1;Titlu beta;',
+            '--- INVITATI ---;;',
+            '1;Titlu platou;Ultima ora',
+        ].join('\n'))
+        expect(result.personsCsv).toBe([
+            'Sectiune;Nume;Functie',
+            '--- beta 1 - Extern ---;;',
+            ';Invitat beta;Rol beta',
+            '--- INVITATI ---;;',
+            ';Invitat platou;Rol platou',
+        ].join('\n'))
     })
 })

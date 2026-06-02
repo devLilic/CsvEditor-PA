@@ -16,12 +16,16 @@ function createValidDocument() {
             persons: broadcastTemplates.persons,
             locations: broadcastTemplates.locations,
             phoneCalls: broadcastTemplates.phoneCalls,
+            hotTitles: broadcastTemplates.hotTitles,
+            waitTitles: broadcastTemplates.waitTitles,
+            waitLocations: broadcastTemplates.waitLocations,
         },
     }
 }
 
 describe('TemplateDocument validation', () => {
-    it('accepts a valid document with version 1 and show obiectiv-comun', () => {
+    it('accepts a valid PA document', () => {
+        expect(createValidDocument().show).toBe('punctul-pe-azi')
         expect(validateTemplateDocument(createValidDocument())).toBe(true)
     })
 
@@ -62,6 +66,37 @@ describe('TemplateDocument validation', () => {
         delete templates.phoneCalls
 
         expect(validateTemplateDocument(document)).toBe(false)
+    })
+
+    it('rejects a document without PA wait templates', () => {
+        const document = createValidDocument()
+        const templates = document.templates as Record<string, unknown>
+        delete templates.waitTitles
+
+        expect(validateTemplateDocument(document)).toBe(false)
+    })
+
+    it('rejects a document without hotTitles', () => {
+        const document = createValidDocument()
+        const templates = document.templates as Record<string, unknown>
+        delete templates.hotTitles
+
+        expect(validateTemplateDocument(document)).toBe(false)
+    })
+
+    it('rejects a document without waitLocations', () => {
+        const document = createValidDocument()
+        const templates = document.templates as Record<string, unknown>
+        delete templates.waitLocations
+
+        expect(validateTemplateDocument(document)).toBe(false)
+    })
+
+    it('rejects an OC document in the PA application', () => {
+        expect(validateTemplateDocument({
+            ...createValidDocument(),
+            show: 'obiectiv-comun',
+        })).toBe(false)
     })
 
     it('rejects a document with the wrong version', () => {

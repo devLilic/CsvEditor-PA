@@ -21,7 +21,7 @@ describe('EntityExportFailureAlert', () => {
         act(() => {
             listener?.({
                 kind: 'titles',
-                filePath: 'D:\\TV\\OC\\Export\\OC_titles.csv',
+                filePath: 'D:\\TV\\PA\\Export\\PA_titles.csv',
                 message: 'LOCKED',
             })
         })
@@ -32,7 +32,7 @@ describe('EntityExportFailureAlert', () => {
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Verifică folderul de export sau conexiunea la disc.'
         )
-        expect(screen.getByRole('alert')).toHaveTextContent('D:\\TV\\OC\\Export\\OC_titles.csv')
+        expect(screen.getByRole('alert')).toHaveTextContent('D:\\TV\\PA\\Export\\PA_titles.csv')
     })
 
     it('unsubscribes when unmounted', () => {
@@ -58,7 +58,7 @@ describe('EntityExportFailureAlert', () => {
         act(() => {
             listener?.({
                 kind: 'persons',
-                filePath: 'D:\\TV\\OC\\Export\\OC_persons.csv',
+                filePath: 'D:\\TV\\PA\\Export\\PA_persons.csv',
                 message: 'LOCKED',
             })
         })

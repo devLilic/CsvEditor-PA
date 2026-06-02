@@ -15,8 +15,11 @@ function emptyCsvRow(): Record<string, string> {
         [CSV_COLUMNS.TITLE]: '',
         [CSV_COLUMNS.PERSON_NAME]: '',
         [CSV_COLUMNS.PERSON_OCCUPATION]: '',
-        [CSV_COLUMNS.IMAGE]: '',
+        [CSV_COLUMNS.PERSON_IMAGE]: '',
         [CSV_COLUMNS.LOCATION]: '',
+        [CSV_COLUMNS.HOT_TITLE]: '',
+        [CSV_COLUMNS.WAIT_TITLE]: '',
+        [CSV_COLUMNS.WAIT_LOCATION]: '',
     }
 }
 
@@ -30,7 +33,7 @@ function packSectionRows(section: CsvSection, options: SerializeCsvOptions): Rec
 
     out.push({
         ...emptyCsvRow(),
-        [CSV_COLUMNS.TITLE_NR]: marker,
+        [CSV_COLUMNS.TITLE]: marker,
     })
 
     // 2) content rows packed
@@ -52,11 +55,17 @@ function packSectionRows(section: CsvSection, options: SerializeCsvOptions): Rec
 
             [CSV_COLUMNS.PERSON_NAME]: r.person?.name ?? '',
             [CSV_COLUMNS.PERSON_OCCUPATION]: r.person?.occupation ?? '',
-            [CSV_COLUMNS.IMAGE]: r.person?.image
+            [CSV_COLUMNS.PERSON_IMAGE]: r.person?.image
                 ? resolveWorkPathImageCsvValue(r.person.image, options.phoneImageWorkPath ?? '')
                 : '',
 
             [CSV_COLUMNS.LOCATION]: r.location?.location ?? '',
+            [CSV_COLUMNS.HOT_TITLE]:
+                section.kind === 'invited' ? (r.hotTitle?.title ?? '') : '',
+            [CSV_COLUMNS.WAIT_TITLE]:
+                section.kind === 'invited' ? (r.waitTitle?.title ?? '') : '',
+            [CSV_COLUMNS.WAIT_LOCATION]:
+                section.kind === 'invited' ? (r.waitLocation?.location ?? '') : '',
         })
     }
 
@@ -67,7 +76,7 @@ function packSectionRows(section: CsvSection, options: SerializeCsvOptions): Rec
  * EntitiesState ➜ CSV string (sections-based)
  *
  * Rules:
- * - each section starts with marker row in Nr column
+ * - each section starts with marker row in Titlu column
  * - Nr resets per section
  * - Nr filled only for non-empty Titlu rows (not markers)
  * - packing is based on section.rows order

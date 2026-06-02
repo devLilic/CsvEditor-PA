@@ -15,6 +15,8 @@ const csvHooks = vi.hoisted(() => ({
         | 'hotTitles'
         | 'waitTitles'
         | 'waitLocations',
+    activeSectionId: 'invited-1' as string | null,
+    activeSection: { id: 'invited-1', kind: 'invited', rows: [] } as any,
     addEntity: vi.fn(),
     updateEntity: vi.fn(),
     clearSelection: vi.fn(),
@@ -38,8 +40,8 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
     return {
         ...actual,
         useEntities: () => ({
-            activeSectionId: 'invited-1',
-            activeSection: { id: 'invited-1', kind: 'invited', rows: [] },
+            activeSectionId: csvHooks.activeSectionId,
+            activeSection: csvHooks.activeSection,
             getBlockItems: csvHooks.getBlockItems,
             addEntity: csvHooks.addEntity,
             updateEntity: csvHooks.updateEntity,
@@ -103,6 +105,8 @@ vi.mock('./phone-image/PhoneImageModal', () => ({
 
 beforeEach(() => {
     csvHooks.activeEntityType = 'titles'
+    csvHooks.activeSectionId = 'invited-1'
+    csvHooks.activeSection = { id: 'invited-1', kind: 'invited', rows: [] }
     csvHooks.addEntity.mockClear()
     csvHooks.updateEntity.mockClear()
     csvHooks.clearSelection.mockClear()
@@ -426,21 +430,26 @@ describe('EntityEditor', () => {
             entityType: 'persons',
             id: 'person-1',
         }
-        csvHooks.getBlockItems.mockReturnValue([
-            {
-                entityType: 'persons',
-                id: 'person-1',
-                data: {
-                    name: 'ION POPESCU',
-                    occupation: 'Expert',
-                    image: 'WORK_PATH/ion_popescu.jpg',
-                },
-            },
-        ])
+        csvHooks.getBlockItems.mockImplementation((_sectionId, entityType) =>
+            entityType === 'phoneCalls'
+                ? [
+                      {
+                          entityType: 'persons',
+                          id: 'person-1',
+                          data: {
+                              name: 'ION POPESCU',
+                              occupation: 'Expert',
+                              image: 'WORK_PATH/ion_popescu.jpg',
+                          },
+                      },
+                  ]
+                : []
+        )
         const user = userEvent.setup()
 
         renderEntityEditor()
 
+        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'phoneCalls')
         expect(screen.getByRole('button', { name: 'Update' })).toBeEnabled()
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Analyst')
@@ -542,13 +551,11 @@ describe('EntityEditor', () => {
         })
     })
 
-    it('does not render form inputs for unsupported hot or wait entity types', () => {
+    it('renders title and location inputs for PA hot and wait entity types', () => {
         csvHooks.activeEntityType = 'hotTitles'
         const { rerender } = renderEntityEditor()
 
-        expect(screen.queryByLabelText('Titlu')).not.toBeInTheDocument()
-        expect(screen.queryByLabelText('Nume')).not.toBeInTheDocument()
-        expect(screen.queryByLabelText('Locație')).not.toBeInTheDocument()
+        expect(screen.getByLabelText('Titlu')).toBeInTheDocument()
 
         csvHooks.activeEntityType = 'waitLocations'
         rerender(
@@ -557,17 +564,14 @@ describe('EntityEditor', () => {
             </TestProviders>
         )
 
-        expect(screen.queryByLabelText('Titlu')).not.toBeInTheDocument()
-        expect(screen.queryByLabelText('Nume')).not.toBeInTheDocument()
-        expect(screen.queryByLabelText('Locație')).not.toBeInTheDocument()
+        expect(screen.getByLabelText(/Loca/)).toBeInTheDocument()
     })
 
-    it('does not use dedicated templates for hot or wait entity types', () => {
+    it('uses dedicated templates for hot and wait entity types', () => {
         csvHooks.activeEntityType = 'hotTitles'
         const { container, rerender } = renderEntityEditor()
 
-        expect(container.querySelector('[data-layer-id="title-main-text"]')).toBeInTheDocument()
-        expect(container.innerHTML).not.toMatch(/hot|wait/i)
+        expect(container.querySelector('[data-layer-id="hot-title-text"]')).toBeInTheDocument()
 
         csvHooks.activeEntityType = 'waitTitles'
         rerender(
@@ -576,8 +580,7 @@ describe('EntityEditor', () => {
             </TestProviders>
         )
 
-        expect(container.querySelector('[data-layer-id="title-main-text"]')).toBeInTheDocument()
-        expect(container.innerHTML).not.toMatch(/hot|wait/i)
+        expect(container.querySelector('[data-layer-id="wait-title-text"]')).toBeInTheDocument()
 
         csvHooks.activeEntityType = 'waitLocations'
         rerender(
@@ -586,8 +589,45 @@ describe('EntityEditor', () => {
             </TestProviders>
         )
 
-        expect(container.querySelector('[data-layer-id="title-main-text"]')).toBeInTheDocument()
-        expect(container.innerHTML).not.toMatch(/hot|wait/i)
+        expect(container.querySelector('[data-layer-id="wait-location-text"]')).toBeInTheDocument()
+    })
+
+    it.each([
+        ['hotTitles', 'Titlu', 'hotTitles', { title: 'URGENT' }],
+        ['waitTitles', 'Titlu', 'waitTitles', { title: 'ASTEPTARE' }],
+        ['waitLocations', /Loca/, 'waitLocations', { location: 'CHISINAU' }],
+    ] as const)('creates %s in the active section', async (entityType, label, expectedType, payload) => {
+        csvHooks.activeEntityType = entityType
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText(label), Object.values(payload)[0])
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', expectedType, payload)
+    })
+
+    it('does not allow PLATOU-only entity types in BETA', () => {
+        csvHooks.activeEntityType = 'hotTitles'
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.activeSection = { id: 'beta-1', kind: 'beta', betaIndex: 1, betaTitle: 'Externe', rows: [] }
+
+        renderEntityEditor()
+
+        expect(csvHooks.clearSelection).toHaveBeenCalled()
+        expect(csvHooks.setActiveEntityType).toHaveBeenCalledWith('titles')
+        expect(screen.getByRole('button', { name: /Adaug/i })).toBeDisabled()
+    })
+
+    it('does not add entities without an activeSectionId', async () => {
+        csvHooks.activeSectionId = null
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Titlu'), 'Breaking')
+
+        expect(screen.getByRole('button', { name: /Adaug/i })).toBeDisabled()
+        expect(csvHooks.addEntity).not.toHaveBeenCalled()
     })
 
     it('changing the active entity type does not crash', () => {

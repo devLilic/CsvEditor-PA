@@ -1,12 +1,12 @@
 {
-  "name": "CsvEditor",
-  "version": "3.0.6",
+  "name": "punctul-pe-azi-graphics",
+  "version": "1.0.1",
   "main": "dist-electron/main/index.js",
   "description": "Editor de titluri.",
   "author": "devlilic13",
   "license": "MIT",
   "private": true,
-  "productName": "CsvEditor",
+  "productName": "Punctul pe Azi Graphics",
   "debug": {
     "env": {
       "VITE_DEV_SERVER_URL": "http://127.0.0.1:7777/"

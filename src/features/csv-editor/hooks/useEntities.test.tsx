@@ -10,11 +10,12 @@ import { settingsService } from '../services/settingsService'
 
 function StartNewProjectHarness() {
     const { dispatch } = useCsvContext()
-    const { startNewProject, forceStartNewProjectWithoutBackup, getBlockItems, activeSectionId } = useEntities()
+    const { startNewProject, forceStartNewProjectWithoutBackup, getBlockItems, activeSectionId, sections } = useEntities()
     const sectionId = activeSectionId ?? 'old-section'
     const titles = getBlockItems(sectionId, 'titles')
     const persons = getBlockItems(sectionId, 'persons')
     const locations = getBlockItems(sectionId, 'locations')
+    const hotTitles = getBlockItems(sectionId, 'hotTitles')
 
     const seedOldData = () => {
         dispatch({
@@ -61,6 +62,9 @@ function StartNewProjectHarness() {
             <div data-testid="person-name">{persons[0]?.data.name ?? ''}</div>
             <div data-testid="person-occupation">{persons[0]?.data.occupation ?? ''}</div>
             <div data-testid="location">{locations[0]?.data.location ?? ''}</div>
+            <div data-testid="hot-title">{hotTitles[0]?.data.title ?? ''}</div>
+            <div data-testid="sections-count">{sections.length}</div>
+            <div data-testid="beta-count">{sections.filter((section) => section.kind === 'beta').length}</div>
         </div>
     )
 }
@@ -77,6 +81,7 @@ describe('useEntities startNewProject', () => {
             personName: 'SAVED DEFAULT NAME',
             personOccupation: 'SAVED DEFAULT ROLE',
             location: 'SAVED DEFAULT LOCATION',
+            hotTitle: 'SAVED DEFAULT HOT TITLE',
         }
         const backupSpy = vi.spyOn(csvService, 'createBackup').mockResolvedValue({ ok: true })
         const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })
@@ -108,6 +113,9 @@ describe('useEntities startNewProject', () => {
         expect(screen.getByTestId('person-name')).toHaveTextContent(savedSettings.personName)
         expect(screen.getByTestId('person-occupation')).toHaveTextContent(savedSettings.personOccupation)
         expect(screen.getByTestId('location')).toHaveTextContent(savedSettings.location)
+        expect(screen.getByTestId('hot-title')).toHaveTextContent(savedSettings.hotTitle)
+        expect(screen.getByTestId('sections-count')).toHaveTextContent('1')
+        expect(screen.getByTestId('beta-count')).toHaveTextContent('0')
 
         expect(backupSpy).toHaveBeenCalledTimes(1)
         expect(writeSpy).toHaveBeenCalledTimes(1)
@@ -128,6 +136,9 @@ describe('useEntities startNewProject', () => {
         expect(writtenCsv).toContain(savedSettings.personName)
         expect(writtenCsv).toContain(savedSettings.personOccupation)
         expect(writtenCsv).toContain(savedSettings.location)
+        expect(writtenCsv).toContain(savedSettings.hotTitle)
+        expect(writtenCsv).toContain('--- INVITATI ---')
+        expect(writtenCsv).not.toMatch(/---\s*beta/i)
         expect(writtenCsv).not.toContain('OLD TITLE')
         expect(writtenCsv).not.toContain('OLD NAME')
         expect(writtenCsv).not.toContain('OLD ROLE')
@@ -145,6 +156,7 @@ describe('useEntities startNewProject', () => {
             personName: 'SAVED DEFAULT NAME',
             personOccupation: 'SAVED DEFAULT ROLE',
             location: 'SAVED DEFAULT LOCATION',
+            hotTitle: '',
         }
         vi.spyOn(csvService, 'createBackup').mockResolvedValue({ ok: true })
         const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })
@@ -214,6 +226,7 @@ describe('useEntities startNewProject', () => {
             personName: 'FORCED DEFAULT NAME',
             personOccupation: 'FORCED DEFAULT ROLE',
             location: 'FORCED DEFAULT LOCATION',
+            hotTitle: 'FORCED DEFAULT HOT TITLE',
         }
         const backupSpy = vi.spyOn(csvService, 'createBackup').mockResolvedValue({ ok: false, error: 'BACKUP_FAILED' })
         const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })

@@ -12,6 +12,7 @@ import { registerTemplateEditorHandlers } from './template-editor-handlers'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const APP_USER_MODEL_ID = 'com.devlilic.punctulpeazi.graphics'
 
 // The built directory structure
 //
@@ -37,7 +38,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 if (os.release().startsWith('6.1')) app.disableHardwareAcceleration()
 
 // Set application name for Windows 10+ notifications
-if (process.platform === 'win32') app.setAppUserModelId(app.getName())
+if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID)
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -50,7 +51,7 @@ const indexHtml = path.join(RENDERER_DIST, 'index.html')
 const SPELLCHECK_LANGUAGES = ['ro']
 
 function getWindowTitle() {
-  return `AZ Editor (ver. ${app.getVersion()})`
+  return `Punctul pe Azi (ver. ${app.getVersion()})`
 }
 
 function lockWindowTitle(window: BrowserWindow) {
@@ -109,7 +110,7 @@ async function createWindow() {
     title: getWindowTitle(),
     fullscreenable: true,
     autoHideMenuBar: false,
-    icon: path.join(process.env.VITE_PUBLIC, 'favicon.ico'),
+    icon: path.join(process.env.VITE_PUBLIC, 'PA_favicon.ico'),
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production

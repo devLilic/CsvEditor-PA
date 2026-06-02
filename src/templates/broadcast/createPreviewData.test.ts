@@ -40,16 +40,16 @@ describe('createPreviewData', () => {
         expect(createPreviewData('locations', {})).toEqual({ location: '' })
     })
 
-    it('returns empty data for hotTitles', () => {
-        expect(createPreviewData('hotTitles', { title: 'Hot' })).toEqual({})
+    it('maps title data for hotTitles', () => {
+        expect(createPreviewData('hotTitles', { title: 'Hot' })).toEqual({ title: 'Hot' })
     })
 
-    it('returns empty data for waitTitles', () => {
-        expect(createPreviewData('waitTitles', { title: 'Wait' })).toEqual({})
+    it('maps title data for waitTitles', () => {
+        expect(createPreviewData('waitTitles', { title: 'Wait' })).toEqual({ title: 'Wait' })
     })
 
-    it('returns empty data for waitLocations', () => {
-        expect(createPreviewData('waitLocations', { location: 'Wait' })).toEqual({})
+    it('maps location data for waitLocations', () => {
+        expect(createPreviewData('waitLocations', { location: 'Wait' })).toEqual({ location: 'Wait' })
     })
 
     it('returns empty data for unknown entity types', () => {

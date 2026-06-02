@@ -1,4 +1,4 @@
-import bundledDefaultTemplateDocument from '@/templates/broadcast/defaultTemplates.oc.json'
+import bundledDefaultTemplateDocument from '@/templates/broadcast/defaultTemplates.pa.json'
 import {
     isTemplateDocument,
     type TemplateDocument,

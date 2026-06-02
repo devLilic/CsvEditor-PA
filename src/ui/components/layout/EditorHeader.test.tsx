@@ -170,6 +170,7 @@ describe('EditorHeader', () => {
     it('shows the Proiect nou button and no CSV picker in the header', () => {
         render(<EditorHeader />)
 
+        expect(screen.getByText('Punctul pe Azi')).toBeInTheDocument()
         expect(screen.getByRole('button', { name: /Proiect nou/i })).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: /Selecteaz/i })).not.toBeInTheDocument()
         expect(screen.queryByText('Sterge')).not.toBeInTheDocument()
@@ -328,7 +329,7 @@ describe('EditorHeader', () => {
         headerModeState.isTemplateDirty = true
         saveTemplatesMock.mockResolvedValueOnce({
             ok: true,
-            warning: 'Template-urile au fost salvate local, dar defaultTemplates.oc.json nu a putut fi actualizat.',
+            warning: 'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.',
         })
         const user = userEvent.setup()
         render(<EditorHeader />)
@@ -337,7 +338,7 @@ describe('EditorHeader', () => {
         await user.click(screen.getByRole('button', { name: 'Salvează și ieși' }))
 
         expect(screen.getByRole('status')).toHaveTextContent(
-            'Template-urile au fost salvate local, dar defaultTemplates.oc.json nu a putut fi actualizat.'
+            'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.'
         )
         expect(setTedModeMock).toHaveBeenCalledWith(false)
     })
@@ -465,6 +466,16 @@ describe('EditorHeader', () => {
 
     it('dispatches CSV_LOADED when a saved project is loaded', async () => {
         const user = userEvent.setup()
+        loadProjectIntoWorkingCsvMock.mockResolvedValueOnce({
+            ok: true,
+            content: [
+                'Nr;Titlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare',
+                ';--- beta 1 - Extern ---;;;;;;;',
+                ';Titlu beta;;;;;;;;',
+                ';--- INVITATI ---;;;;;;;',
+                ';Titlu platou;;;;;;;;',
+            ].join('\n'),
+        })
         render(<EditorHeader />)
 
         await user.click(screen.getByRole('button', { name: 'Proiecte salvate' }))
@@ -477,7 +488,18 @@ describe('EditorHeader', () => {
         })
         expect(dispatchMock).toHaveBeenCalledWith({
             type: 'CSV_LOADED',
-            payload: expect.any(Object),
+            payload: {
+                sections: [
+                    expect.objectContaining({
+                        kind: 'beta',
+                        betaIndex: 1,
+                        betaTitle: 'Extern',
+                    }),
+                    expect.objectContaining({
+                        kind: 'invited',
+                    }),
+                ],
+            },
         })
     })
 

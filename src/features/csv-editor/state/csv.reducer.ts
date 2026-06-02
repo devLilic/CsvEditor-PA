@@ -9,7 +9,9 @@ import { isEditorViewType } from '../domain/editorViewTypes'
 function getActiveViewType(state: CsvState) {
     return isEditorViewType(state.activeViewType)
         ? state.activeViewType
-        : state.activeEntityType
+        : isEditorViewType(state.activeEntityType)
+            ? state.activeEntityType
+            : 'titles'
 }
 
 function withActiveViewType(state: CsvState, activeViewType: CsvState['activeViewType']): CsvState {
@@ -24,8 +26,20 @@ function isInvited(section: CsvSection) {
     return section.kind === 'invited'
 }
 
+function getStorageEntityType(entityType: EntityType): EntityType {
+    return entityType === EntityTypes.PHONE_CALLS
+        ? EntityTypes.PERSONS
+        : entityType
+}
+
+function canUseEntityType(kind: CsvSection['kind'], entityType: EntityType): boolean {
+    if (kind === 'invited') return true
+
+    return entityType === EntityTypes.TITLES || entityType === EntityTypes.PERSONS
+}
+
 function slotIsEmpty(row: SectionRow, entityType: EntityType): boolean {
-    switch (entityType) {
+    switch (getStorageEntityType(entityType)) {
         case EntityTypes.TITLES:
             return !row.title
         case EntityTypes.PERSONS:
@@ -44,7 +58,7 @@ function slotIsEmpty(row: SectionRow, entityType: EntityType): boolean {
 }
 
 function setSlot(row: SectionRow, entityType: EntityType, value: any): SectionRow {
-    switch (entityType) {
+    switch (getStorageEntityType(entityType)) {
         case EntityTypes.TITLES:
             return { ...row, title: value as SimpleTitle }
         case EntityTypes.PERSONS:
@@ -66,19 +80,21 @@ function createEmptyRow(): SectionRow {
     return { id: uuidv4() }
 }
 
-function makeEntity(entityType: EntityType, data: Record<string, unknown>) {
-    if (entityType === EntityTypes.PERSONS) {
+function makeEntity(entityType: EntityType, data: Record<string, unknown>, allowPersonImage = true) {
+    const storageEntityType = getStorageEntityType(entityType)
+
+    if (storageEntityType === EntityTypes.PERSONS) {
         return {
             id: uuidv4(),
             name: String((data as any).name ?? ''),
             occupation: String((data as any).occupation ?? ''),
-            image: typeof (data as any).image === 'string' && (data as any).image.trim() !== ''
+            image: allowPersonImage && typeof (data as any).image === 'string' && (data as any).image.trim() !== ''
                 ? String((data as any).image)
                 : undefined,
         } satisfies Person
     }
 
-    if (entityType === EntityTypes.LOCATIONS || entityType === EntityTypes.WAIT_LOCATIONS) {
+    if (storageEntityType === EntityTypes.LOCATIONS || storageEntityType === EntityTypes.WAIT_LOCATIONS) {
         return {
             id: uuidv4(),
             location: String((data as any).location ?? ''),
@@ -117,10 +133,7 @@ function findSection(sections: CsvSection[], sectionId: string): CsvSection | nu
 }
 
 function canUseWait(kind: CsvSection['kind'], entityType: EntityType): boolean {
-    if (kind !== 'invited') {
-        return entityType !== EntityTypes.WAIT_TITLES && entityType !== EntityTypes.WAIT_LOCATIONS
-    }
-    return true
+    return canUseEntityType(kind, entityType)
 }
 
 function addRowWithEntity(section: CsvSection, entityType: EntityType, data: Record<string, unknown>): CsvSection {
@@ -176,11 +189,12 @@ function addRowWithEntity(section: CsvSection, entityType: EntityType, data: Rec
 }
 
 function updateEntityInSection(section: CsvSection, entityType: EntityType, id: string, data: Record<string, unknown>): CsvSection {
+    const storageEntityType = getStorageEntityType(entityType)
     const rows = section.rows.map((r) => {
-        if (entityType === EntityTypes.TITLES && r.title?.id === id) {
+        if (storageEntityType === EntityTypes.TITLES && r.title?.id === id) {
             return { ...r, title: { ...r.title, title: String((data as any).title ?? r.title.title) } }
         }
-        if (entityType === EntityTypes.PERSONS && r.person?.id === id) {
+        if (storageEntityType === EntityTypes.PERSONS && r.person?.id === id) {
             const next: Person = {
                 ...r.person,
                 name: String((data as any).name ?? r.person.name),
@@ -191,19 +205,19 @@ function updateEntityInSection(section: CsvSection, entityType: EntityType, id: 
             }
             return { ...r, person: next }
         }
-        if (entityType === EntityTypes.LOCATIONS && r.location?.id === id) {
+        if (storageEntityType === EntityTypes.LOCATIONS && r.location?.id === id) {
             const next: Location = { ...r.location, location: String((data as any).location ?? r.location.location) }
             return { ...r, location: next }
         }
-        if (entityType === EntityTypes.HOT_TITLES && r.hotTitle?.id === id) {
+        if (storageEntityType === EntityTypes.HOT_TITLES && r.hotTitle?.id === id) {
             const next: SimpleTitle = { ...r.hotTitle, title: String((data as any).title ?? r.hotTitle.title) }
             return { ...r, hotTitle: next }
         }
-        if (entityType === EntityTypes.WAIT_TITLES && r.waitTitle?.id === id) {
+        if (storageEntityType === EntityTypes.WAIT_TITLES && r.waitTitle?.id === id) {
             const next: SimpleTitle = { ...r.waitTitle, title: String((data as any).title ?? r.waitTitle.title) }
             return { ...r, waitTitle: next }
         }
-        if (entityType === EntityTypes.WAIT_LOCATIONS && r.waitLocation?.id === id) {
+        if (storageEntityType === EntityTypes.WAIT_LOCATIONS && r.waitLocation?.id === id) {
             const next: Location = { ...r.waitLocation, location: String((data as any).location ?? r.waitLocation.location) }
             return { ...r, waitLocation: next }
         }
@@ -214,7 +228,7 @@ function updateEntityInSection(section: CsvSection, entityType: EntityType, id: 
 }
 
 function isSlotOccupied(row: SectionRow, entityType: EntityType): boolean {
-    switch (entityType) {
+    switch (getStorageEntityType(entityType)) {
         case EntityTypes.TITLES: return Boolean(row.title)
         case EntityTypes.PERSONS: return Boolean(row.person)
         case EntityTypes.LOCATIONS: return Boolean(row.location)
@@ -241,14 +255,15 @@ function ensureRowExists(rows: SectionRow[], index: number): SectionRow[] {
 }
 
 function deleteEntityInSection(section: CsvSection, entityType: EntityType, id: string): CsvSection {
+    const storageEntityType = getStorageEntityType(entityType)
     const rows = section.rows
         .map((r) => {
-            if (entityType === EntityTypes.TITLES && r.title?.id === id) return { ...r, title: undefined }
-            if (entityType === EntityTypes.PERSONS && r.person?.id === id) return { ...r, person: undefined }
-            if (entityType === EntityTypes.LOCATIONS && r.location?.id === id) return { ...r, location: undefined }
-            if (entityType === EntityTypes.HOT_TITLES && r.hotTitle?.id === id) return { ...r, hotTitle: undefined }
-            if (entityType === EntityTypes.WAIT_TITLES && r.waitTitle?.id === id) return { ...r, waitTitle: undefined }
-            if (entityType === EntityTypes.WAIT_LOCATIONS && r.waitLocation?.id === id) return { ...r, waitLocation: undefined }
+            if (storageEntityType === EntityTypes.TITLES && r.title?.id === id) return { ...r, title: undefined }
+            if (storageEntityType === EntityTypes.PERSONS && r.person?.id === id) return { ...r, person: undefined }
+            if (storageEntityType === EntityTypes.LOCATIONS && r.location?.id === id) return { ...r, location: undefined }
+            if (storageEntityType === EntityTypes.HOT_TITLES && r.hotTitle?.id === id) return { ...r, hotTitle: undefined }
+            if (storageEntityType === EntityTypes.WAIT_TITLES && r.waitTitle?.id === id) return { ...r, waitTitle: undefined }
+            if (storageEntityType === EntityTypes.WAIT_LOCATIONS && r.waitLocation?.id === id) return { ...r, waitLocation: undefined }
             return r
         })
         // optional cleanup: remove rows that became empty
@@ -340,12 +355,9 @@ export function csvReducer(state: CsvState, action: CsvAction): CsvState {
             const section = sections[sIdx]
 
             // blocăm wait* în beta
-            if (
-                (entityType === EntityTypes.WAIT_TITLES || entityType === EntityTypes.WAIT_LOCATIONS) &&
-                section.kind !== 'invited'
-            ) return state
+            if (!canUseEntityType(section.kind, entityType)) return state
 
-            const entity = makeEntity(entityType, data)
+            const entity = makeEntity(entityType, data, section.kind === 'invited')
 
             // ✅ CANONICAL INSERT RULE:
             // insert AFTER last occupied slot for this entityType
@@ -413,6 +425,10 @@ export function csvReducer(state: CsvState, action: CsvAction): CsvState {
 
         // ---------------- Active/Selected ----------------
         case 'SET_ACTIVE_ENTITY_TYPE':
+            return isEditorViewType(action.payload)
+                ? withActiveViewType(state, action.payload)
+                : { ...state, activeEntityType: action.payload }
+
         case 'SET_ACTIVE_VIEW_TYPE':
             return withActiveViewType(state, action.payload)
 

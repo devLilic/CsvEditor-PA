@@ -1,5 +1,5 @@
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
-import phone_bg from '@/assets/bg/OC__phone_bg.png'
+import phone_bg from '@/assets/bg/PA_phone_bg.png'
 
 export const phoneCallTemplate: BroadcastTemplate = {
     id: 'phone-call',

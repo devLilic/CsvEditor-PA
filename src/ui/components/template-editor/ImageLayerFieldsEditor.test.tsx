@@ -17,10 +17,12 @@ function getImageLayer() {
 }
 
 describe('ImageLayerFieldsEditor', () => {
-    it('renders source and the supported object fit values', () => {
+    it('shows the fixed phone image source without an editable selector', () => {
         render(<ImageLayerFieldsEditor layer={getImageLayer()} onChange={vi.fn()} />)
 
-        expect(screen.getByLabelText('Source path')).toBeInTheDocument()
+        expect(screen.getByText('{image} (fix)')).toBeInTheDocument()
+        expect(screen.queryByLabelText('Source path')).not.toBeInTheDocument()
+        expect(screen.queryByLabelText('Source selector')).not.toBeInTheDocument()
         expect(screen.getByLabelText('Object fit')).toHaveValue('cover')
         expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
             'contain',
@@ -30,7 +32,11 @@ describe('ImageLayerFieldsEditor', () => {
     })
 
     it('updates source live without changing layer type or other properties', () => {
-        const layer = getImageLayer()
+        const layer = {
+            ...getImageLayer(),
+            id: 'custom-image',
+            src: 'initial.png',
+        }
         const onChange = vi.fn()
         render(<ImageLayerFieldsEditor layer={layer} onChange={onChange} />)
 
@@ -48,7 +54,11 @@ describe('ImageLayerFieldsEditor', () => {
     })
 
     it('allows an empty source so the preview can render its placeholder', () => {
-        const layer = getImageLayer()
+        const layer = {
+            ...getImageLayer(),
+            id: 'custom-image',
+            src: 'initial.png',
+        }
         const onChange = vi.fn()
         render(<ImageLayerFieldsEditor layer={layer} onChange={onChange} />)
 

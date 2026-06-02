@@ -2,9 +2,14 @@
 import type { SectionKind } from './csv.types'
 
 export const EntityTypes = {
-    PERSONS: 'persons',
     TITLES: 'titles',
+    PERSONS: 'persons',
     LOCATIONS: 'locations',
+    /**
+     * Editor/export view over persons with image. SectionRow intentionally
+     * keeps the canonical CSV representation in the person slot.
+     */
+    PHONE_CALLS: 'phoneCalls',
     HOT_TITLES: 'hotTitles',
     WAIT_TITLES: 'waitTitles',
     WAIT_LOCATIONS: 'waitLocations',

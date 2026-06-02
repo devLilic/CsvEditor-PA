@@ -16,10 +16,18 @@ describe('broadcastTemplates', () => {
         expect(broadcastTemplates.persons).toBeDefined()
         expect(broadcastTemplates.locations).toBeDefined()
         expect(broadcastTemplates.phoneCalls).toBeDefined()
-        expect(registry.hotTitles).toBeUndefined()
-        expect(registry.waitTitles).toBeUndefined()
-        expect(registry.waitLocations).toBeUndefined()
-        expect(Object.keys(broadcastTemplates)).toEqual(['titles', 'persons', 'locations', 'phoneCalls'])
+        expect(registry.hotTitles).toBeDefined()
+        expect(registry.waitTitles).toBeDefined()
+        expect(registry.waitLocations).toBeDefined()
+        expect(Object.keys(broadcastTemplates)).toEqual([
+            'titles',
+            'persons',
+            'locations',
+            'phoneCalls',
+            'hotTitles',
+            'waitTitles',
+            'waitLocations',
+        ])
     })
 
     it('each template has a valid minimal contract', () => {
@@ -103,5 +111,21 @@ describe('broadcastTemplates', () => {
         expect(template.canvas.width / template.canvas.height).toBeCloseTo(16 / 9)
         expect(imageLayers.length).toBeGreaterThanOrEqual(1)
         expect(imageLayers.some((layer) => layer.x < template.canvas.width / 2)).toBe(true)
+    })
+
+    it.each([
+        ['hotTitles', 1, 'title'],
+        ['waitTitles', 1, 'title'],
+        ['waitLocations', 2, 'location'],
+    ] as const)('exports %s with stable modern layers', (entityType, shapeCount, fieldId) => {
+        const template = broadcastTemplates[entityType]
+        const shapeLayers = template.layers.filter((layer) => layer.type === 'shape')
+        const textLayers = template.layers.filter((layer) => layer.type === 'text')
+
+        expect(template.canvas.background.type).toBe('image')
+        expect(shapeLayers).toHaveLength(shapeCount)
+        expect(textLayers).toHaveLength(1)
+        expect(textLayers[0].fieldId).toBe(fieldId)
+        expect(new Set(template.layers.map((layer) => layer.id)).size).toBe(template.layers.length)
     })
 })

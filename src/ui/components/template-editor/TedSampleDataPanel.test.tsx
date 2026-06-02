@@ -41,6 +41,9 @@ describe('TedSampleDataPanel', () => {
         ['persons', ['name', 'occupation']],
         ['locations', ['location']],
         ['phoneCalls', ['name', 'occupation', 'image']],
+        ['hotTitles', ['title']],
+        ['waitTitles', ['title']],
+        ['waitLocations', ['location']],
     ] as const)('shows the sample fields for %s', (entityType, fieldIds) => {
         renderPanel(entityType)
 

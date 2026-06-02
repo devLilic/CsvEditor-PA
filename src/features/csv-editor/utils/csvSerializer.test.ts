@@ -1,234 +1,232 @@
+import Papa from 'papaparse'
 import { describe, expect, it } from 'vitest'
-import { parseCsv, CSV_COLUMNS } from './csvParser'
-import { serializeCsv } from './csvSerializer'
 import type { EntitiesState } from '../domain/entities'
+import { CSV_COLUMNS, parseCsv } from './csvParser'
+import { serializeCsv } from './csvSerializer'
 
-const importantColumns = [
-    CSV_COLUMNS.TITLE_NR,
-    CSV_COLUMNS.TITLE,
-    CSV_COLUMNS.PERSON_NAME,
-    CSV_COLUMNS.PERSON_OCCUPATION,
-    CSV_COLUMNS.IMAGE,
-    CSV_COLUMNS.LOCATION,
-]
+type CsvRow = Record<string, string>
 
-describe('serializeCsv', () => {
-    it('keeps important columns after serializeCsv(parseCsv(csv))', () => {
-        const csv = [
-            'Nr;Titlu;Nume;Functie;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare',
-            ';--- beta 1 - Externe ---;;;;;;',
-            '1;Titlu beta;Maria Rusu;Editor;Bruxelles;Ultima ora beta;;;',
-            ';--- INVITATI ---;;;;;;',
-            '1;Titlu invitati;Ion Popescu;Invitat;Chisinau;Urgent;Titlu asteptare;Locatie asteptare',
-        ].join('\n')
+function parseSerializedRows(state: EntitiesState): CsvRow[] {
+    return Papa.parse<CsvRow>(serializeCsv(state), {
+        header: true,
+        delimiter: ';',
+        skipEmptyLines: true,
+    }).data
+}
 
-        const serialized = serializeCsv(parseCsv(csv))
-        const [serializedHeader] = serialized.split(/\r?\n/)
-        const columns = serializedHeader.split(';')
+function title(id: string, value: string) {
+    return { id, title: value }
+}
 
-        for (const column of importantColumns) {
-            expect(columns).toContain(column)
-        }
-        expect(columns).not.toContain(CSV_COLUMNS.HOT_TITLE)
-        expect(columns).not.toContain(CSV_COLUMNS.WAIT_TITLE)
-        expect(columns).not.toContain(CSV_COLUMNS.WAIT_LOCATION)
-    })
+function location(id: string, value: string) {
+    return { id, location: value }
+}
 
-    it('writes section markers only in the Nr column', () => {
-        const state: EntitiesState = {
-            sections: [
-                {
-                    id: 'invited-1',
-                    kind: 'invited',
-                    rows: [],
-                },
-            ],
-        }
+describe('serializeCsv PA common CSV', () => {
+    it('writes the PA common CSV header in exact order', () => {
+        const serialized = serializeCsv({
+            sections: [{ id: 'invited-1', kind: 'invited', rows: [] }],
+        })
 
-        const serialized = serializeCsv(state)
-        const [headerRow, markerRow] = serialized.split(/\r?\n/)
-        const columns = headerRow.split(';')
-        const cells = markerRow.split(';')
-
-        expect(cells[columns.indexOf(CSV_COLUMNS.TITLE_NR)]).toBe('--- INVITATI ---')
-        expect(cells[columns.indexOf(CSV_COLUMNS.TITLE)]).toBe('')
-    })
-
-    it('preserves supported values and does not regenerate hot or wait data', () => {
-        const csv = [
-            'Nr;Titlu;Nume;Functie;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare',
-            ';--- INVITATI ---;;;;;;',
-            '1;Titlu invitati;Ion Popescu;Invitat;Chisinau;Urgent;Titlu asteptare;Locatie asteptare',
-        ].join('\n')
-
-        const reparsed = parseCsv(serializeCsv(parseCsv(csv)))
-        const row = reparsed.sections[0].rows[0]
-
-        expect(row.title?.title).toBe('Titlu invitati')
-        expect(row.person?.name).toBe('Ion Popescu')
-        expect(row.person?.occupation).toBe('Invitat')
-        expect(row.location?.location).toBe('Chisinau')
-        expect(row.hotTitle).toBeUndefined()
-        expect(row.waitTitle).toBeUndefined()
-        expect(row.waitLocation).toBeUndefined()
-    })
-
-    it('writes full person.image path in the Image column', () => {
-        const state: EntitiesState = {
-            sections: [
-                {
-                    id: 'invited-1',
-                    kind: 'invited',
-                    rows: [
-                        {
-                            id: 'row-1',
-                            person: {
-                                id: 'person-1',
-                                name: 'ION POPESCU',
-                                occupation: 'EXPERT',
-                                image: 'C:\\PhoneImages\\ion_popescu.jpg',
-                            },
-                        },
-                    ],
-                },
-            ],
-        }
-
-        const serialized = serializeCsv(state)
-        const [headerRow, , dataRow] = serialized.split(/\r?\n/)
-        const imageIndex = headerRow.split(';').indexOf(CSV_COLUMNS.IMAGE)
-
-        expect(dataRow.split(';')[imageIndex]).toBe('C:\\PhoneImages\\ion_popescu.jpg')
-    })
-
-    it('leaves Image column empty when person.image is missing', () => {
-        const state: EntitiesState = {
-            sections: [
-                {
-                    id: 'invited-1',
-                    kind: 'invited',
-                    rows: [
-                        {
-                            id: 'row-1',
-                            person: {
-                                id: 'person-1',
-                                name: 'ION POPESCU',
-                                occupation: 'EXPERT',
-                            },
-                        },
-                    ],
-                },
-            ],
-        }
-
-        const serialized = serializeCsv(state)
-        const [headerRow, , dataRow] = serialized.split(/\r?\n/)
-        const imageIndex = headerRow.split(';').indexOf(CSV_COLUMNS.IMAGE)
-
-        expect(dataRow.split(';')[imageIndex]).toBe('')
-    })
-
-    it('serialized CSV contains Image header', () => {
-        const state: EntitiesState = {
-            sections: [
-                {
-                    id: 'invited-1',
-                    kind: 'invited',
-                    rows: [],
-                },
-            ],
-        }
-
-        const serialized = serializeCsv(state)
-        const [serializedHeader] = serialized.split(/\r?\n/)
-
-        expect(serializedHeader.split(';')).toContain(CSV_COLUMNS.IMAGE)
-    })
-
-    it('keeps full person.image path through parseCsv(serializeCsv(state))', () => {
-        const state: EntitiesState = {
-            sections: [
-                {
-                    id: 'invited-1',
-                    kind: 'invited',
-                    rows: [
-                        {
-                            id: 'row-1',
-                            person: {
-                                id: 'person-1',
-                                name: 'ION POPESCU',
-                                occupation: 'EXPERT',
-                                image: 'C:\\PhoneImages\\ion_popescu.jpg',
-                            },
-                        },
-                    ],
-                },
-            ],
-        }
-
-        const reparsed = parseCsv(serializeCsv(state))
-
-        expect(reparsed.sections[0].rows[0].person?.image).toBe(
-            'C:\\PhoneImages\\ion_popescu.jpg'
+        expect(serialized.split(/\r?\n/)[0]).toBe(
+            'Nr;Titlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare'
         )
+    })
+
+    it('writes beta and INVITATI markers in Titlu and keeps INVITATI last', () => {
+        const rows = parseSerializedRows({
+            sections: [
+                { id: 'invited-1', kind: 'invited', rows: [] },
+                { id: 'beta-1', kind: 'beta', betaIndex: 1, betaTitle: 'Titlu', rows: [] },
+            ],
+        })
+
+        expect(rows).toEqual([
+            {
+                [CSV_COLUMNS.TITLE_NR]: '',
+                [CSV_COLUMNS.TITLE]: '--- beta 1 - Titlu ---',
+                [CSV_COLUMNS.PERSON_NAME]: '',
+                [CSV_COLUMNS.PERSON_OCCUPATION]: '',
+                [CSV_COLUMNS.PERSON_IMAGE]: '',
+                [CSV_COLUMNS.LOCATION]: '',
+                [CSV_COLUMNS.HOT_TITLE]: '',
+                [CSV_COLUMNS.WAIT_TITLE]: '',
+                [CSV_COLUMNS.WAIT_LOCATION]: '',
+            },
+            {
+                [CSV_COLUMNS.TITLE_NR]: '',
+                [CSV_COLUMNS.TITLE]: '--- INVITATI ---',
+                [CSV_COLUMNS.PERSON_NAME]: '',
+                [CSV_COLUMNS.PERSON_OCCUPATION]: '',
+                [CSV_COLUMNS.PERSON_IMAGE]: '',
+                [CSV_COLUMNS.LOCATION]: '',
+                [CSV_COLUMNS.HOT_TITLE]: '',
+                [CSV_COLUMNS.WAIT_TITLE]: '',
+                [CSV_COLUMNS.WAIT_LOCATION]: '',
+            },
+        ])
+    })
+
+    it('resets title Nr for every section', () => {
+        const rows = parseSerializedRows({
+            sections: [
+                {
+                    id: 'beta-1',
+                    kind: 'beta',
+                    betaIndex: 1,
+                    betaTitle: 'Externe',
+                    rows: [
+                        { id: 'beta-row-1', title: title('beta-title-1', 'Titlu beta 1') },
+                        { id: 'beta-row-2', title: title('beta-title-2', 'Titlu beta 2') },
+                    ],
+                },
+                {
+                    id: 'invited-1',
+                    kind: 'invited',
+                    rows: [{ id: 'invited-row-1', title: title('invited-title-1', 'Titlu invitati') }],
+                },
+            ],
+        })
+
+        expect(rows.map((row) => row[CSV_COLUMNS.TITLE_NR])).toEqual(['', '1', '2', '', '1'])
+    })
+
+    it('writes PA data columns and emits wait values only for INVITATI', () => {
+        const rows = parseSerializedRows({
+            sections: [
+                {
+                    id: 'beta-1',
+                    kind: 'beta',
+                    betaIndex: 1,
+                    betaTitle: 'Externe',
+                    rows: [{
+                        id: 'beta-row-1',
+                        title: title('beta-title-1', 'Titlu beta'),
+                        person: { id: 'beta-person-1', name: 'Maria Rusu', occupation: 'Editor' },
+                        hotTitle: title('beta-hot-1', 'Ignorat'),
+                        waitTitle: title('beta-wait-title-1', 'Ignorat'),
+                        waitLocation: location('beta-wait-location-1', 'Ignorat'),
+                    }],
+                },
+                {
+                    id: 'invited-1',
+                    kind: 'invited',
+                    rows: [{
+                        id: 'invited-row-1',
+                        title: title('invited-title-1', 'Titlu invitati'),
+                        person: {
+                            id: 'phone-1',
+                            name: 'Ion Popescu',
+                            occupation: 'Invitat',
+                            image: 'C:\\PhoneImages\\ion.jpg',
+                        },
+                        location: location('location-1', 'Chisinau'),
+                        hotTitle: title('hot-title-1', 'Urgent'),
+                        waitTitle: title('wait-title-1', 'Asteptare'),
+                        waitLocation: location('wait-location-1', 'Studio'),
+                    }],
+                },
+            ],
+        })
+
+        expect(rows[1]).toMatchObject({
+            [CSV_COLUMNS.PERSON_NAME]: 'Maria Rusu',
+            [CSV_COLUMNS.PERSON_OCCUPATION]: 'Editor',
+            [CSV_COLUMNS.PERSON_IMAGE]: '',
+            [CSV_COLUMNS.HOT_TITLE]: '',
+            [CSV_COLUMNS.WAIT_TITLE]: '',
+            [CSV_COLUMNS.WAIT_LOCATION]: '',
+        })
+        expect(rows[3]).toMatchObject({
+            [CSV_COLUMNS.PERSON_NAME]: 'Ion Popescu',
+            [CSV_COLUMNS.PERSON_OCCUPATION]: 'Invitat',
+            [CSV_COLUMNS.PERSON_IMAGE]: 'C:\\PhoneImages\\ion.jpg',
+            [CSV_COLUMNS.LOCATION]: 'Chisinau',
+            [CSV_COLUMNS.HOT_TITLE]: 'Urgent',
+            [CSV_COLUMNS.WAIT_TITLE]: 'Asteptare',
+            [CSV_COLUMNS.WAIT_LOCATION]: 'Studio',
+        })
     })
 
     it('expands legacy WORK_PATH image refs when phone image workPath is provided', () => {
         const state: EntitiesState = {
-            sections: [
-                {
-                    id: 'invited-1',
-                    kind: 'invited',
-                    rows: [
-                        {
-                            id: 'row-1',
-                            person: {
-                                id: 'person-1',
-                                name: 'ION POPESCU',
-                                occupation: 'EXPERT',
-                                image: 'WORK_PATH/ion_popescu.jpg',
-                            },
-                        },
-                    ],
-                },
-            ],
+            sections: [{
+                id: 'invited-1',
+                kind: 'invited',
+                rows: [{
+                    id: 'row-1',
+                    person: {
+                        id: 'phone-1',
+                        name: 'Ion Popescu',
+                        occupation: 'Invitat',
+                        image: 'WORK_PATH/ion.jpg',
+                    },
+                }],
+            }],
         }
+        const serialized = serializeCsv(state, { phoneImageWorkPath: 'C:\\PhoneImages' })
+        const rows = Papa.parse<CsvRow>(serialized, {
+            header: true,
+            delimiter: ';',
+            skipEmptyLines: true,
+        }).data
 
-        const serialized = serializeCsv(state, {
-            phoneImageWorkPath: 'C:\\PhoneImages',
-        })
-        const [headerRow, , dataRow] = serialized.split(/\r?\n/)
-        const imageIndex = headerRow.split(';').indexOf(CSV_COLUMNS.IMAGE)
-
-        expect(dataRow.split(';')[imageIndex]).toBe('C:\\PhoneImages\\ion_popescu.jpg')
+        expect(rows[1][CSV_COLUMNS.PERSON_IMAGE]).toBe('C:\\PhoneImages\\ion.jpg')
     })
 
-    it('serializes new data with stable legacy columns left empty', () => {
+    it('round-trips the principal PA data through parseCsv', () => {
         const state: EntitiesState = {
             sections: [
                 {
+                    id: 'beta-1',
+                    kind: 'beta',
+                    betaIndex: 1,
+                    betaTitle: 'Externe',
+                    rows: [{
+                        id: 'beta-row-1',
+                        title: title('beta-title-1', 'Titlu beta'),
+                        person: { id: 'beta-person-1', name: 'Maria Rusu', occupation: 'Editor' },
+                    }],
+                },
+                {
                     id: 'invited-1',
                     kind: 'invited',
-                    rows: [
-                        {
-                            id: 'row-1',
-                            title: { id: 'title-1', title: 'Titlu nou' },
-                            person: { id: 'person-1', name: 'Ion Popescu', occupation: 'Invitat' },
-                            location: { id: 'location-1', location: 'Chisinau' },
+                    rows: [{
+                        id: 'invited-row-1',
+                        title: title('invited-title-1', 'Titlu invitati'),
+                        person: {
+                            id: 'phone-1',
+                            name: 'Ion Popescu',
+                            occupation: 'Invitat',
+                            image: 'C:\\PhoneImages\\ion.jpg',
                         },
-                    ],
+                        location: location('location-1', 'Chisinau'),
+                        hotTitle: title('hot-title-1', 'Urgent'),
+                        waitTitle: title('wait-title-1', 'Asteptare'),
+                        waitLocation: location('wait-location-1', 'Studio'),
+                    }],
                 },
             ],
         }
 
         const reparsed = parseCsv(serializeCsv(state))
-        const row = reparsed.sections[0].rows[0]
 
-        expect(row.title?.title).toBe('Titlu nou')
-        expect(row.person?.name).toBe('Ion Popescu')
-        expect(row.location?.location).toBe('Chisinau')
-        expect(row.hotTitle).toBeUndefined()
-        expect(row.waitTitle).toBeUndefined()
-        expect(row.waitLocation).toBeUndefined()
+        expect(reparsed.sections.map((section) => section.kind)).toEqual(['beta', 'invited'])
+        expect(reparsed.sections[0].rows[0]).toMatchObject({
+            title: { title: 'Titlu beta' },
+            person: { name: 'Maria Rusu', occupation: 'Editor' },
+        })
+        expect(reparsed.sections[1].rows[0]).toMatchObject({
+            title: { title: 'Titlu invitati' },
+            person: {
+                name: 'Ion Popescu',
+                occupation: 'Invitat',
+                image: 'C:\\PhoneImages\\ion.jpg',
+            },
+            location: { location: 'Chisinau' },
+            hotTitle: { title: 'Urgent' },
+            waitTitle: { title: 'Asteptare' },
+            waitLocation: { location: 'Studio' },
+        })
     })
 })

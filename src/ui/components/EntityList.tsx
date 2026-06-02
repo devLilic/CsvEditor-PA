@@ -6,8 +6,6 @@ import {
     useActiveEntityType,
     useOnAir,
     isSupportedEntityType,
-    isPhoneCallPerson,
-    getCsvEntityTypeForEditorView,
 } from '@/features/csv-editor'
 import type { EntityType } from '@/features/csv-editor'
 import { EmptyState } from './common/EmptyState'
@@ -18,16 +16,15 @@ export function EntityList() {
     const { activeSectionId, activeSection, getBlockItems, deleteEntity } =
         useEntities()
 
-    const { activeViewType } = useActiveEntityType()
+    const { activeEntityType } = useActiveEntityType()
     const { select, isSelected } = useSelectedEntity()
     const { isOnAir, setOnAir, clearOnAir } = useOnAir()
     const { editMode } = useEditMode()
     const { titleFilter } = useTitleFilter()
 
     const sectionId = activeSectionId ?? activeSection?.id ?? ''
-    const listEntityType = getCsvEntityTypeForEditorView(activeViewType)
-    const supportedEntityType = isSupportedEntityType(listEntityType)
-        ? listEntityType
+    const supportedEntityType = isSupportedEntityType(activeEntityType)
+        ? activeEntityType
         : null
     const normalizedTitleFilter = titleFilter.trim().toLocaleLowerCase()
     const items = useMemo(() => {
@@ -38,14 +35,6 @@ export function EntityList() {
         return getBlockItems(sectionId, supportedEntityType)
     }, [getBlockItems, sectionId, supportedEntityType])
     const filteredItems = useMemo(() => {
-        if (activeViewType === 'persons') {
-            return items.filter((item: any) => !isPhoneCallPerson(item.data))
-        }
-
-        if (activeViewType === 'phoneCalls') {
-            return items.filter((item: any) => isPhoneCallPerson(item.data))
-        }
-
         if (supportedEntityType !== 'titles' || !normalizedTitleFilter) {
             return items
         }
@@ -55,7 +44,7 @@ export function EntityList() {
                 .toLocaleLowerCase()
                 .includes(normalizedTitleFilter)
         )
-    }, [activeViewType, items, normalizedTitleFilter, supportedEntityType])
+    }, [items, normalizedTitleFilter, supportedEntityType])
 
     if (!sectionId) {
         return <EmptyState text="Nu exista sectiune activa." />
@@ -106,7 +95,7 @@ export function EntityList() {
                                     sectionId,
                                     entityType: item.entityType,
                                     id: item.id,
-                                    viewType: activeViewType,
+                                    viewType: supportedEntityType ?? undefined,
                                 })
                             }
                             className={`group px-3 py-2 cursor-pointer flex justify-between items-center gap-3 border-b border-l-4

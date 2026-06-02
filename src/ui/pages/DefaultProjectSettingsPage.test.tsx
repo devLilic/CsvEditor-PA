@@ -47,6 +47,7 @@ const savedSettings: DefaultProjectSettings = {
     personName: 'SAVED NAME',
     personOccupation: 'SAVED OCCUPATION',
     location: 'SAVED LOCATION',
+    hotTitle: 'SAVED HOT TITLE',
 }
 
 const savedPhoneImageSettings: PhoneImageSettings = {
@@ -96,6 +97,7 @@ describe('DefaultProjectSettingsPage', () => {
     it('shows the required fields', () => {
         renderPage()
 
+        expect(screen.getByRole('heading', { name: 'Punctul pe Azi - Setări proiect nou' })).toBeInTheDocument()
         expect(screen.getByRole('heading', { name: /proiect nou/i })).toBeInTheDocument()
         expect(screen.getByText(/Texte standard pentru proiect nou/i)).toBeInTheDocument()
         expect(screen.getByText(/urm/i)).toBeInTheDocument()
@@ -103,6 +105,7 @@ describe('DefaultProjectSettingsPage', () => {
         expect(screen.getByLabelText('Nume implicit')).toBeInTheDocument()
         expect(screen.getByLabelText(/Func/)).toBeInTheDocument()
         expect(screen.getByLabelText(/Loca/)).toBeInTheDocument()
+        expect(screen.getByLabelText('Ultima oră implicită')).toBeInTheDocument()
         expect(screen.getAllByRole('button', { name: /Salve/ })).toHaveLength(3)
         expect(screen.getAllByRole('button', { name: /Reseteaz/ })).toHaveLength(2)
         expect(screen.getByRole('button', { name: /editor/i })).toBeInTheDocument()
@@ -159,6 +162,7 @@ describe('DefaultProjectSettingsPage', () => {
         expect(screen.getByLabelText('Nume implicit')).toHaveValue(savedSettings.personName)
         expect(screen.getByLabelText(/Func/)).toHaveValue(savedSettings.personOccupation)
         expect(screen.getByLabelText(/Loca/)).toHaveValue(savedSettings.location)
+        expect(screen.getByLabelText('Ultima oră implicită')).toHaveValue(savedSettings.hotTitle)
     })
 
     it('loads saved CSV file settings values', async () => {
@@ -217,6 +221,27 @@ describe('DefaultProjectSettingsPage', () => {
         })
     })
 
+    it('saves the default hot title through the settings service', async () => {
+        const user = userEvent.setup()
+        renderPage()
+        const hotTitleInput = screen.getByLabelText('Ultima oră implicită')
+
+        await waitFor(() => {
+            expect(hotTitleInput).toHaveValue(savedSettings.hotTitle)
+        })
+
+        await user.clear(hotTitleInput)
+        await user.type(hotTitleInput, 'ULTIMA ORA NOUA')
+        await user.click(screen.getAllByRole('button', { name: /Salve/ })[0])
+
+        await waitFor(() => {
+            expect(defaultProjectSettingsService.setDefaultProjectSettings).toHaveBeenCalledWith({
+                ...savedSettings,
+                hotTitle: 'ULTIMA ORA NOUA',
+            })
+        })
+    })
+
     it('resets the form to fallback values', async () => {
         const user = userEvent.setup()
         renderPage()
@@ -234,6 +259,7 @@ describe('DefaultProjectSettingsPage', () => {
         expect(screen.getByLabelText('Nume implicit')).toHaveValue(FALLBACK_DEFAULT_PROJECT_SETTINGS.personName)
         expect(screen.getByLabelText(/Func/)).toHaveValue(FALLBACK_DEFAULT_PROJECT_SETTINGS.personOccupation)
         expect(screen.getByLabelText(/Loca/)).toHaveValue(FALLBACK_DEFAULT_PROJECT_SETTINGS.location)
+        expect(screen.getByLabelText('Ultima oră implicită')).toHaveValue(FALLBACK_DEFAULT_PROJECT_SETTINGS.hotTitle)
         expect(defaultProjectSettingsService.setDefaultProjectSettings).toHaveBeenCalledWith(
             FALLBACK_DEFAULT_PROJECT_SETTINGS,
         )
