@@ -170,7 +170,7 @@ describe('EditorHeader', () => {
     it('shows the Proiect nou button and no CSV picker in the header', () => {
         render(<EditorHeader />)
 
-        expect(screen.getByText('Punctul pe Azi')).toBeInTheDocument()
+        expect(screen.queryByText('Punctul pe Azi')).not.toBeInTheDocument()
         expect(screen.getByRole('button', { name: /Proiect nou/i })).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: /Selecteaz/i })).not.toBeInTheDocument()
         expect(screen.queryByText('Sterge')).not.toBeInTheDocument()

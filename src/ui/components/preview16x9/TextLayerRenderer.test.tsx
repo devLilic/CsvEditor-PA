@@ -157,6 +157,33 @@ describe('TextLayerRenderer', () => {
         })
     })
 
+    it('keeps fitted text on one line for scale measurement', () => {
+        render(<TextLayerRenderer layer={baseLayer} data={{ title: 'Long title' }} />)
+
+        expect(screen.getByText('Long title')).toHaveStyle({
+            display: 'inline-block',
+            maxWidth: 'none',
+            whiteSpace: 'nowrap',
+        })
+    })
+
+    it('wraps text naturally inside the box when fit in box is disabled', () => {
+        render(
+            <TextLayerRenderer
+                layer={{ ...baseLayer, fitInBox: false }}
+                data={{ title: 'Consilier politic cu responsabilitati internationale' }}
+            />
+        )
+
+        expect(screen.getByText('Consilier politic cu responsabilitati internationale')).toHaveStyle({
+            display: 'block',
+            width: '100%',
+            maxWidth: '100%',
+            whiteSpace: 'normal',
+            overflowWrap: 'break-word',
+        })
+    })
+
     it('keeps a small safety gap after scaled text so the last glyph remains visible', async () => {
         vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(1000)
 

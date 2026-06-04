@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import type { BroadcastTextLayer } from '@/shared/preview/templateContract'
 import { calculateTextScale, resolveLayerText } from '@/shared/preview/previewMath'
 
@@ -28,11 +28,26 @@ export function TextLayerRenderer({ layer, data, sampleData }: TextLayerRenderer
         : layer.textStyle.align === 'center'
             ? 'center center'
             : 'left center'
-    const textPositionStyle = layer.textStyle.align === 'right'
+    const textPositionStyle: CSSProperties = layer.textStyle.align === 'right'
         ? { right: 0, transform: `scaleX(${scaleX})` }
         : layer.textStyle.align === 'center'
             ? { left: '50%', transform: `translateX(-50%) scaleX(${scaleX})` }
             : { left: 0, transform: `scaleX(${scaleX})` }
+    const textLayoutStyle: CSSProperties = fitEnabled
+        ? {
+            ...textPositionStyle,
+            display: 'inline-block',
+            maxWidth: 'none',
+            whiteSpace: 'nowrap',
+        }
+        : {
+            left: 0,
+            width: '100%',
+            display: 'block',
+            maxWidth: '100%',
+            whiteSpace: 'normal',
+            overflowWrap: 'break-word',
+        }
 
     const measureText = useCallback(() => {
         if (!fitEnabled) {
@@ -108,10 +123,7 @@ export function TextLayerRenderer({ layer, data, sampleData }: TextLayerRenderer
                 style={{
                     position: 'absolute',
                     top: 0,
-                    ...textPositionStyle,
-                    display: 'inline-block',
-                    maxWidth: 'none',
-                    whiteSpace: 'nowrap',
+                    ...textLayoutStyle,
                     transformOrigin,
                 }}
             >

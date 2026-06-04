@@ -33,7 +33,7 @@
         {
           "id": "title-main-text",
           "type": "text",
-          "x": 111,
+          "x": 102,
           "y": 871,
           "width": 1401,
           "height": 80,
@@ -47,7 +47,7 @@
             "fontFamily": "inherit",
             "fontSize": 68,
             "fontWeight": 700,
-            "color": "#111111",
+            "color": "#274772",
             "align": "left",
             "lineHeight": 1,
             "letterSpacing": "-0.04em",
@@ -73,7 +73,7 @@
           "id": "person-name-panel",
           "type": "shape",
           "shapeType": "rect",
-          "x": 97,
+          "x": 102,
           "y": 872,
           "width": 1409,
           "height": 91,
@@ -164,7 +164,7 @@
           "type": "shape",
           "shapeType": "rect",
           "x": 507,
-          "y": 831,
+          "y": 828,
           "width": 20,
           "height": 20,
           "zIndex": 1,
@@ -177,7 +177,7 @@
         {
           "id": "location-text",
           "type": "text",
-          "x": 531,
+          "x": 535,
           "y": 815,
           "width": 370,
           "height": 41,
@@ -306,7 +306,7 @@
           "zIndex": 5,
           "fieldId": "occupation",
           "fallbackText": "Functie Persoana",
-          "fitInBox": true,
+          "fitInBox": false,
           "fitMode": "scaleX",
           "minScaleX": 0.65,
           "textStyle": {
@@ -423,7 +423,8 @@
             "color": "#1a426a",
             "align": "left",
             "lineHeight": 1,
-            "transform": "uppercase"
+            "transform": "uppercase",
+            "letterSpacing": "0.01em"
           }
         }
       ]
