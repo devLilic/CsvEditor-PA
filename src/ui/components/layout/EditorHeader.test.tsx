@@ -515,6 +515,8 @@ describe('EditorHeader', () => {
             filename: 'Manual',
             content: expect.stringContaining('CURRENT TITLE'),
         })
+        expect(saveCurrentAsProjectMock.mock.calls[0][0].content).not.toContain('PA_quickTitles.csv')
+        expect(saveCurrentAsProjectMock.mock.calls[0][0].content).not.toMatch(/quickTitles/i)
     })
 
     it('does not show backup files in the saved projects modal', async () => {

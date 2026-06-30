@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { FALLBACK_CSV_FILE_SETTINGS } from '../domain/csvFileSettings'
 import { csvFileSettingsService } from './csvFileSettingsService'
 
@@ -57,6 +57,36 @@ describe('csvFileSettingsService', () => {
 
         expect(result).toEqual(settings)
         expect(api.setCsvFileSettings).toHaveBeenCalledWith(settings)
+    })
+
+    it('notifies subscribers after CSV file settings are saved', async () => {
+        const api = (window as any).electronAPI
+        const listener = vi.fn()
+        const settings = {
+            workingCsvPath: 'C:/work/current.csv',
+            backupFolderPath: 'C:/work/backups',
+            savedProjectsFolderPath: 'C:/work/saved-projects',
+            exportCsvFolderPath: 'D:/new/export',
+        }
+        api.setCsvFileSettings.mockResolvedValueOnce(settings)
+        const unsubscribe = csvFileSettingsService.subscribeCsvFileSettings(listener)
+
+        await csvFileSettingsService.setCsvFileSettings(settings)
+
+        expect(listener).toHaveBeenCalledWith(settings)
+
+        unsubscribe()
+        api.setCsvFileSettings.mockResolvedValueOnce({
+            ...settings,
+            exportCsvFolderPath: 'E:/another/export',
+        })
+
+        await csvFileSettingsService.setCsvFileSettings({
+            ...settings,
+            exportCsvFolderPath: 'E:/another/export',
+        })
+
+        expect(listener).toHaveBeenCalledTimes(1)
     })
 
     it('setCsvFileSettings saves savedProjectsFolderPath', async () => {

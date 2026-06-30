@@ -3,6 +3,7 @@ import {
     ENTITY_EXPORT_FILENAMES,
     resolveEntityExportFolder,
     resolveEntityExportPaths,
+    resolveQuickTitlesCsvPath,
 } from './exportPathResolver'
 
 describe('exportPathResolver', () => {
@@ -39,7 +40,15 @@ describe('exportPathResolver', () => {
             locations: 'PA_locations.csv',
             phones: 'PA_phones.csv',
             waitTitlesLocations: 'PA_wait_titles_locations.csv',
+            quickTitles: 'PA_quickTitles.csv',
         })
+    })
+
+    it('resolves quickTitles CSV next to entity export files', () => {
+        expect(resolveQuickTitlesCsvPath({
+            workingCsvPath: 'D:\\TV\\OC\\working.csv',
+            exportFolderPath: 'D:\\TV\\OC\\Exports',
+        })).toBe('D:\\TV\\OC\\Exports\\PA_quickTitles.csv')
     })
 
     it('resolves fallback folder using dirname of the working CSV', () => {

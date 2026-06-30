@@ -83,6 +83,32 @@ export interface CsvProjectDeleteResponse {
     error?: string
 }
 
+export type ReadQuickTitlesCsvResult =
+    | {
+        ok: true
+        content: string
+        path: string
+        created: boolean
+    }
+    | {
+        ok: false
+        error: string
+    }
+
+export interface WriteQuickTitlesCsvRequest {
+    content: string
+}
+
+export type WriteQuickTitlesCsvResult =
+    | {
+        ok: true
+        path: string
+    }
+    | {
+        ok: false
+        error: string
+    }
+
 export type AppConfig = Record<string, unknown>
 
 export type UpdateStatus =
@@ -104,7 +130,7 @@ export type UpdateDownloadResult =
     | { ok: false; error: string }
 
 export interface EntityExportFailureNotification {
-    kind: 'titles' | 'persons' | 'locations' | 'phones'
+    kind: 'titles' | 'persons' | 'locations' | 'phones' | 'waitTitlesLocations' | 'quickTitles'
     filePath: string
     message: string
 }
@@ -223,7 +249,22 @@ export interface IpcInvokeMap {
 
     [IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES]: {
         request: string[]
-        response: void
+        response: string[]
+    }
+
+    [IPC_CHANNELS.QUICK_TITLES_READ_CSV]: {
+        request: void
+        response: ReadQuickTitlesCsvResult
+    }
+
+    [IPC_CHANNELS.QUICK_TITLES_WRITE_CSV]: {
+        request: WriteQuickTitlesCsvRequest
+        response: WriteQuickTitlesCsvResult
+    }
+
+    [IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV]: {
+        request: void
+        response: WriteQuickTitlesCsvResult
     }
 
     [IPC_CHANNELS.SETTINGS_GET_CONFIG]: {
@@ -368,6 +409,9 @@ export interface RendererApi {
 
     getQuickTitles(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES>>
     setQuickTitles(list: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES>>
+    readQuickTitlesCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_READ_CSV>>
+    writeQuickTitlesCsv(request: IpcRequest<typeof IPC_CHANNELS.QUICK_TITLES_WRITE_CSV>): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_WRITE_CSV>>
+    clearQuickTitlesCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV>>
 
     getAppConfig(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_CONFIG>>
     setAppConfig(cfg: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_CONFIG>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_CONFIG>>

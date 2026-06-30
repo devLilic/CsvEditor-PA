@@ -18,6 +18,9 @@ export const ipcMock = {
     // Settings
     getQuickTitles: vi.fn(),
     setQuickTitles: vi.fn(),
+    readQuickTitlesCsv: vi.fn(),
+    writeQuickTitlesCsv: vi.fn(),
+    clearQuickTitlesCsv: vi.fn(),
     getAppConfig: vi.fn(),
     setAppConfig: vi.fn(),
     getDefaultProjectSettings: vi.fn(),

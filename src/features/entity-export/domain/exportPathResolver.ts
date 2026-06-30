@@ -4,6 +4,7 @@ export const ENTITY_EXPORT_FILENAMES = {
     locations: 'PA_locations.csv',
     phones: 'PA_phones.csv',
     waitTitlesLocations: 'PA_wait_titles_locations.csv',
+    quickTitles: 'PA_quickTitles.csv',
 } as const
 
 export interface ResolveEntityExportPathInput {
@@ -75,4 +76,8 @@ export function resolveEntityExportPaths(input: ResolveEntityExportPathInput): E
         phonesPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.phones),
         waitTitlesLocationsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.waitTitlesLocations),
     }
+}
+
+export function resolveQuickTitlesCsvPath(input: ResolveEntityExportPathInput): string {
+    return joinPath(resolveEntityExportFolder(input), ENTITY_EXPORT_FILENAMES.quickTitles)
 }

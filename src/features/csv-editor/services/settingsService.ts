@@ -44,8 +44,8 @@ export const settingsService = {
         if (!Array.isArray(list)) return
 
         try {
-            await getApi().setQuickTitles(list)
-            emitQuickTitles(list) // 🔥 notifică UI
+            const res = await getApi().setQuickTitles(list)
+            emitQuickTitles(Array.isArray(res) ? res : list) // 🔥 notifică UI
         } catch {
             // intentionally silent
         }

@@ -11,6 +11,7 @@ import { csvService } from '../services/csvService'
 import { defaultProjectSettingsService } from '../services/defaultProjectSettingsService'
 import { settingsService } from '../services/settingsService'
 import { serializeCsv } from '../utils/csvSerializer'
+import * as quickTitlesCsvStorageService from '../../quick-titles/services/quickTitlesCsvStorageService'
 
 type BlockItem =
     | { entityType: 'titles'; id: string; rowId: string; data: SimpleTitle }
@@ -138,7 +139,16 @@ export function useEntities() {
             })
         const nextEntities = createDefaultProjectEntities(defaultProjectSettings)
 
-        // QuickTitles belong to the current project workflow; clear them after backup succeeds or explicit override.
+        // QuickTitles belong to the current project workflow; clear the authoritative CSV after backup succeeds or explicit override.
+        const quickTitlesClearResult = await quickTitlesCsvStorageService.clearQuickTitlesCsv()
+        if (!quickTitlesClearResult.ok) {
+            console.error('Failed to clear quick titles CSV:', quickTitlesClearResult.error)
+            return {
+                ok: false,
+                error: `QuickTitles clear failed: ${quickTitlesClearResult.error ?? 'UNKNOWN_ERROR'}`,
+            }
+        }
+
         await settingsService.setQuickTitles([])
 
         dispatch({ type: 'ENTITY_CLEAR_ALL', payload: nextEntities })

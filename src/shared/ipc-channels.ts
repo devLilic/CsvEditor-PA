@@ -13,6 +13,9 @@ export const IPC_CHANNELS = {
 
     SETTINGS_GET_QUICK_TITLES: "settings:get-quickTitles",
     SETTINGS_SET_QUICK_TITLES: "settings:set-quickTitles",
+    QUICK_TITLES_READ_CSV: "quick-titles:read-csv",
+    QUICK_TITLES_WRITE_CSV: "quick-titles:write-csv",
+    QUICK_TITLES_CLEAR_CSV: "quick-titles:clear-csv",
 
     SETTINGS_GET_CONFIG: "settings:get-config",
     SETTINGS_SET_CONFIG: "settings:set-config",

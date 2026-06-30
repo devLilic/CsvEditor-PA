@@ -1,6 +1,7 @@
 // src/ui/components/QuickTitlesBar.tsx
 import {useRef} from 'react'
 import {useQuickTitles} from '@/features/csv-editor'
+import { normalizeQuickTitle } from '@/features/quick-titles/domain/quickTitle'
 import {useEditMode} from "@/ui/context/EditModeContext";
 
 interface QuickTitlesBarProps {
@@ -8,12 +9,8 @@ interface QuickTitlesBarProps {
     focusEditor: () => void
 }
 
-export function normalizeQuickTitle(value: string): string {
-    const trimmed = value.trim()
-    if (!trimmed) return ''
+export { normalizeQuickTitle }
 
-    return trimmed.endsWith(':') ? trimmed : `${trimmed}:`
-}
 
 export function QuickTitlesBar({
                                    onApplyPrefix,

@@ -1,5 +1,5 @@
 // electron/main/settings-handlers.ts
-import { dialog, ipcMain } from 'electron'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import type { AppConfig } from '../../src/shared/ipc-types'
 import { isDefaultProjectSettings } from '../../src/features/csv-editor/domain/defaultProjectSettings'
@@ -17,6 +17,14 @@ import {
     getCsvFileSettings,
     setCsvFileSettings,
 } from '../store'
+import { notifyEntityExportFailure } from './entity-export-notification'
+import {
+    readQuickTitlesCsv,
+    normalizeQuickTitlesForCsv,
+    writeQuickTitlesCsv,
+    type QuickTitlesCsvError,
+} from './quick-titles-csv-service'
+import { resolveQuickTitlesCsvPath } from './quick-titles-handlers'
 
 function isStringArray(value: unknown): value is string[] {
     return Array.isArray(value) && value.every((v) => typeof v === 'string')
@@ -26,25 +34,56 @@ function isPlainObject(value: unknown): value is AppConfig {
     return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
-export function registerSettingsHandlers() {
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES, () => {
+function notifyQuickTitlesFailure(mainWindow: BrowserWindow, error: QuickTitlesCsvError): void {
+    notifyEntityExportFailure(mainWindow, error)
+}
+
+export function registerSettingsHandlers(mainWindow: BrowserWindow) {
+    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES, async () => {
         try {
-            return getQuickTitles()
+            const filePath = await resolveQuickTitlesCsvPath()
+            const result = await readQuickTitlesCsv({
+                filePath,
+                onError: (error) => notifyQuickTitlesFailure(mainWindow, error),
+            })
+
+            if (result.ok) {
+                setQuickTitles(result.quickTitles)
+                return result.quickTitles
+            }
+
+            const legacyQuickTitles = getQuickTitles()
+            return legacyQuickTitles
         } catch (error) {
             console.error('[settings:get-quickTitles] failed:', error)
             return [] as string[]
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, (_event, list: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, async (_event, list: unknown) => {
         try {
             if (!isStringArray(list)) {
                 console.warn('[settings:set-quickTitles] invalid payload, expected string[]')
-                return
+                return getQuickTitles()
             }
-            setQuickTitles(list)
+
+            const quickTitles = normalizeQuickTitlesForCsv(list)
+            const filePath = await resolveQuickTitlesCsvPath()
+            const result = await writeQuickTitlesCsv({
+                filePath,
+                quickTitles,
+                onError: (error) => notifyQuickTitlesFailure(mainWindow, error),
+            })
+
+            if (result.ok) {
+                setQuickTitles(quickTitles)
+                return quickTitles
+            }
+
+            return getQuickTitles()
         } catch (error) {
             console.error('[settings:set-quickTitles] failed:', error)
+            return getQuickTitles()
         }
     })
 

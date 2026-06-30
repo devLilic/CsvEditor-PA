@@ -7,6 +7,7 @@ import { registerUpdateHandlers } from './update-service'
 import { registerCsvHandlers } from './csv-handlers'
 import { registerCsvProjectHandlers } from './csv-project-handlers'
 import { registerSettingsHandlers } from './settings-handlers'
+import { registerQuickTitlesHandlers } from './quick-titles-handlers'
 import { registerPhoneImageHandlers } from './phone-image-handlers'
 import { registerTemplateEditorHandlers } from './template-editor-handlers'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
@@ -144,7 +145,8 @@ async function createWindow() {
   // =========================
   registerCsvHandlers(win)
   registerCsvProjectHandlers(win)
-  registerSettingsHandlers()
+  registerQuickTitlesHandlers(win)
+  registerSettingsHandlers(win)
   registerPhoneImageHandlers()
   registerTemplateEditorHandlers()
   // =========================

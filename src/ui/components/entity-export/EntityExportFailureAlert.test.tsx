@@ -27,12 +27,38 @@ describe('EntityExportFailureAlert', () => {
         })
 
         expect(screen.getByRole('alert')).toHaveTextContent(
-            'Nu s-a putut actualiza fișierul CSV pentru emisie.'
+            'Nu s-a putut actualiza fisierul CSV pentru emisie.'
         )
         expect(screen.getByRole('alert')).toHaveTextContent(
-            'Verifică folderul de export sau conexiunea la disc.'
+            'Verifica folderul de export sau conexiunea la disc.'
         )
         expect(screen.getByRole('alert')).toHaveTextContent('D:\\TV\\PA\\Export\\PA_titles.csv')
+    })
+
+    it('shows a specific message when quickTitles CSV save fails', () => {
+        let listener: Parameters<typeof window.electronAPI.onEntityExportError>[0] | undefined
+        vi.mocked(ipcMock.onEntityExportError).mockImplementationOnce((callback) => {
+            listener = callback
+            return vi.fn()
+        })
+
+        render(<EntityExportFailureAlert />)
+
+        act(() => {
+            listener?.({
+                kind: 'quickTitles',
+                filePath: 'D:\\TV\\PA\\Export\\PA_quickTitles.csv',
+                message: 'LOCKED',
+            })
+        })
+
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Quick Titles nu au putut fi salvate in PA_quickTitles.csv.'
+        )
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            'Verifica folderul de export si accesul la fisier.'
+        )
+        expect(screen.getByRole('alert')).toHaveTextContent('D:\\TV\\PA\\Export\\PA_quickTitles.csv')
     })
 
     it('unsubscribes when unmounted', () => {
@@ -63,7 +89,7 @@ describe('EntityExportFailureAlert', () => {
             })
         })
 
-        await user.click(screen.getByRole('button', { name: 'Închide' }))
+        await user.click(screen.getByRole('button', { name: 'Inchide' }))
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })

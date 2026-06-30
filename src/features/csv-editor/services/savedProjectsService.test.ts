@@ -65,6 +65,11 @@ describe('savedProjectsService', () => {
             filename: 'project.csv',
             content: 'a,b',
         })
+        expect(api.readQuickTitlesCsv).not.toHaveBeenCalled()
+        expect(api.writeQuickTitlesCsv).not.toHaveBeenCalled()
+        expect(api.clearQuickTitlesCsv).not.toHaveBeenCalled()
+        expect(api.getQuickTitles).not.toHaveBeenCalled()
+        expect(api.setQuickTitles).not.toHaveBeenCalled()
     })
 
     it('load returns content', async () => {
@@ -87,6 +92,11 @@ describe('savedProjectsService', () => {
         expect(input).toEqual({
             filename: 'project.csv',
         })
+        expect(api.readQuickTitlesCsv).not.toHaveBeenCalled()
+        expect(api.writeQuickTitlesCsv).not.toHaveBeenCalled()
+        expect(api.clearQuickTitlesCsv).not.toHaveBeenCalled()
+        expect(api.getQuickTitles).not.toHaveBeenCalled()
+        expect(api.setQuickTitles).not.toHaveBeenCalled()
     })
 
     it('delete returns success', async () => {

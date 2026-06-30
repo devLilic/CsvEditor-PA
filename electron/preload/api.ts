@@ -54,6 +54,18 @@ export const electronApi: RendererApi = {
         return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, list)
     },
 
+    readQuickTitlesCsv() {
+        return ipcRenderer.invoke(IPC_CHANNELS.QUICK_TITLES_READ_CSV)
+    },
+
+    writeQuickTitlesCsv(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.QUICK_TITLES_WRITE_CSV, request)
+    },
+
+    clearQuickTitlesCsv() {
+        return ipcRenderer.invoke(IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV)
+    },
+
     getAppConfig() {
         return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_CONFIG)
     },

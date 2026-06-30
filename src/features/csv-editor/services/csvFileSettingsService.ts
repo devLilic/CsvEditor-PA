@@ -4,6 +4,19 @@ import {
     type CsvFileSettings,
 } from '../domain/csvFileSettings'
 
+type CsvFileSettingsListener = (settings: CsvFileSettings) => void
+const csvFileSettingsListeners = new Set<CsvFileSettingsListener>()
+
+function emitCsvFileSettings(settings: CsvFileSettings) {
+    for (const listener of csvFileSettingsListeners) {
+        try {
+            listener(settings)
+        } catch (error) {
+            console.error('[csvFileSettingsService] listener error', error)
+        }
+    }
+}
+
 function getApi() {
     const api = (window as any)?.electronAPI
 
@@ -27,9 +40,18 @@ export const csvFileSettingsService = {
     async setCsvFileSettings(settings: CsvFileSettings): Promise<CsvFileSettings> {
         try {
             const savedSettings = await getApi().setCsvFileSettings(normalizeCsvFileSettings(settings))
-            return normalizeCsvFileSettings(savedSettings)
+            const normalizedSettings = normalizeCsvFileSettings(savedSettings)
+            emitCsvFileSettings(normalizedSettings)
+            return normalizedSettings
         } catch {
             return FALLBACK_CSV_FILE_SETTINGS
+        }
+    },
+
+    subscribeCsvFileSettings(listener: CsvFileSettingsListener): () => void {
+        csvFileSettingsListeners.add(listener)
+        return () => {
+            csvFileSettingsListeners.delete(listener)
         }
     },
 
