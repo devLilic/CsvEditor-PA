@@ -1,6 +1,6 @@
 {
   "name": "punctul-pe-azi-graphics",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "dist-electron/main/index.js",
   "description": "Editor de titluri.",
   "author": "devlilic13",
