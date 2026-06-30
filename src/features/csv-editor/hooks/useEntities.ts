@@ -1,6 +1,7 @@
 // src/features/csv-editor/hooks/useEntities.ts
 import { useCallback, useMemo } from 'react'
 import { useCsvContext } from '../context/CsvContext'
+import { csvReducer } from '../state/csv.reducer'
 import type { EntityType, CsvSection, SimpleTitle, Person, Location, SectionRow } from '../domain/entities'
 import type { SelectedEntity } from '../domain/csv.types'
 import { isSupportedEntityType } from '../domain/supportedEntityTypes'
@@ -27,6 +28,10 @@ export type StartNewProjectResult =
     | { ok: false; error?: string }
 
 export type ForceStartNewProjectWithoutBackupResult =
+    | { ok: true }
+    | { ok: false; error?: string }
+
+export type SavePersonResult =
     | { ok: true }
     | { ok: false; error?: string }
 
@@ -120,6 +125,51 @@ export function useEntities() {
         },
         [dispatch]
     )
+
+    const savePersonEntity = useCallback(async (input: {
+        sectionId: string
+        id?: string
+        data: Record<string, unknown>
+    }): Promise<SavePersonResult> => {
+        const name = String(input.data.name ?? '').trim()
+        if (!name) {
+            return { ok: false, error: 'INVALID_PERSON' }
+        }
+
+        const action = input.id
+            ? {
+                type: 'ENTITY_UPDATE' as const,
+                payload: {
+                    sectionId: input.sectionId,
+                    entityType: 'persons' as const,
+                    id: input.id,
+                    data: input.data,
+                },
+            }
+            : {
+                type: 'ENTITY_ADD' as const,
+                payload: {
+                    sectionId: input.sectionId,
+                    entityType: 'persons' as const,
+                    data: input.data,
+                },
+            }
+        const nextState = csvReducer(state, action)
+
+        if (nextState === state) {
+            return { ok: false, error: 'PERSON_NOT_SAVED' }
+        }
+
+        dispatch(action)
+
+        const writeRes = await csvService.write(serializeCsv(nextState.entities))
+        if (!writeRes.ok) {
+            console.error('Failed to save person:', writeRes.error)
+            return { ok: false, error: writeRes.error ?? 'WRITE_FAILED' }
+        }
+
+        return { ok: true }
+    }, [dispatch, state])
 
     // -------- DELETE --------
     const deleteEntity = useCallback(
@@ -222,6 +272,7 @@ export function useEntities() {
         setSelected,
         addEntity,
         updateEntity,
+        savePersonEntity,
         deleteEntity,
 
         // global ops

@@ -113,6 +113,46 @@ function NewProjectQuickTitlesHarness() {
     )
 }
 
+function SavePersonHarness() {
+    const { dispatch } = useCsvContext()
+    const { savePersonEntity, getBlockItems } = useEntities()
+    const persons = getBlockItems('invited-section', 'persons')
+
+    const seedData = () => {
+        dispatch({
+            type: 'CSV_LOADED',
+            payload: {
+                sections: [
+                    {
+                        id: 'invited-section',
+                        kind: 'invited',
+                        rows: [],
+                    },
+                ],
+            },
+        })
+    }
+
+    const savePerson = async () => {
+        const result = await savePersonEntity({
+            sectionId: 'invited-section',
+            data: {
+                name: 'ANA BUJOR',
+                occupation: 'Deputat',
+            },
+        })
+        window.dispatchEvent(new CustomEvent('save-person-result', { detail: result }))
+    }
+
+    return (
+        <div>
+            <button onClick={seedData}>seed person data</button>
+            <button onClick={savePerson}>save person</button>
+            <div data-testid="saved-person-name">{persons[0]?.data.name ?? ''}</div>
+        </div>
+    )
+}
+
 describe('useEntities startNewProject', () => {
     afterEach(() => {
         cleanup()
@@ -469,5 +509,66 @@ describe('useEntities startNewProject', () => {
         expect(screen.getByTestId('person-name')).toHaveTextContent('OLD NAME')
         expect(screen.getByTestId('location')).toHaveTextContent('OLD LOCATION')
         expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to clear quick titles CSV:', 'QUICK_TITLES_CLEAR_FAILED')
+    })
+})
+
+describe('useEntities savePersonEntity', () => {
+    afterEach(() => {
+        cleanup()
+    })
+
+    it('returns ok=true after the person is saved and the CSV write succeeds', async () => {
+        const user = userEvent.setup()
+        const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })
+        const resultSpy = vi.fn()
+        window.addEventListener('save-person-result', ((event: CustomEvent) => {
+            resultSpy(event.detail)
+        }) as EventListener)
+
+        render(
+            <CsvProvider>
+                <SavePersonHarness />
+            </CsvProvider>
+        )
+
+        await user.click(screen.getByRole('button', { name: 'seed person data' }))
+        await user.click(screen.getByRole('button', { name: 'save person' }))
+
+        await waitFor(() => {
+            expect(resultSpy).toHaveBeenCalledWith({ ok: true })
+        })
+
+        expect(screen.getByTestId('saved-person-name')).toHaveTextContent('ANA BUJOR')
+        expect(writeSpy).toHaveBeenCalledTimes(1)
+        expect(writeSpy.mock.calls[0][0]).toContain('ANA BUJOR')
+    })
+
+    it('returns ok=false when the CSV write fails', async () => {
+        const user = userEvent.setup()
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        vi.spyOn(csvService, 'write').mockResolvedValue({ ok: false, error: 'WRITE_FAILED' })
+        const resultSpy = vi.fn()
+        window.addEventListener('save-person-result', ((event: CustomEvent) => {
+            resultSpy(event.detail)
+        }) as EventListener)
+
+        render(
+            <CsvProvider>
+                <SavePersonHarness />
+            </CsvProvider>
+        )
+
+        await user.click(screen.getByRole('button', { name: 'seed person data' }))
+        await user.click(screen.getByRole('button', { name: 'save person' }))
+
+        await waitFor(() => {
+            expect(resultSpy).toHaveBeenCalledWith({
+                ok: false,
+                error: 'WRITE_FAILED',
+            })
+        })
+
+        expect(screen.getByTestId('saved-person-name')).toHaveTextContent('ANA BUJOR')
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save person:', 'WRITE_FAILED')
     })
 })

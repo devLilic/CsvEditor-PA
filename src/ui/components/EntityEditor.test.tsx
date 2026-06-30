@@ -19,6 +19,7 @@ const csvHooks = vi.hoisted(() => ({
     activeSection: { id: 'invited-1', kind: 'invited', rows: [] } as any,
     addEntity: vi.fn(),
     updateEntity: vi.fn(),
+    savePersonEntity: vi.fn(),
     clearSelection: vi.fn(),
     setActiveEntityType: vi.fn((type) => {
         csvHooks.activeEntityType = type
@@ -27,6 +28,7 @@ const csvHooks = vi.hoisted(() => ({
     getBlockItems: vi.fn(() => []),
     phoneImageModalProps: null as any,
     quickTitles: [] as string[],
+    setAllQuickTitles: vi.fn(),
 }))
 
 const phoneImageServiceMock = vi.hoisted(() => ({
@@ -45,6 +47,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
             getBlockItems: csvHooks.getBlockItems,
             addEntity: csvHooks.addEntity,
             updateEntity: csvHooks.updateEntity,
+            savePersonEntity: csvHooks.savePersonEntity,
         }),
         useSelectedEntity: () => ({
             selected: csvHooks.selected,
@@ -60,6 +63,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
             quickTitles: csvHooks.quickTitles,
             addQuickTitle: vi.fn(),
             removeQuickTitle: vi.fn(),
+            setAllQuickTitles: csvHooks.setAllQuickTitles,
         }),
     }
 })
@@ -109,6 +113,8 @@ beforeEach(() => {
     csvHooks.activeSection = { id: 'invited-1', kind: 'invited', rows: [] }
     csvHooks.addEntity.mockClear()
     csvHooks.updateEntity.mockClear()
+    csvHooks.savePersonEntity.mockReset()
+    csvHooks.savePersonEntity.mockResolvedValue({ ok: true })
     csvHooks.clearSelection.mockClear()
     csvHooks.setActiveEntityType.mockClear()
     csvHooks.selected = null
@@ -116,6 +122,8 @@ beforeEach(() => {
     csvHooks.getBlockItems.mockReturnValue([])
     csvHooks.phoneImageModalProps = null
     csvHooks.quickTitles = []
+    csvHooks.setAllQuickTitles.mockReset()
+    csvHooks.setAllQuickTitles.mockResolvedValue(undefined)
     phoneImageServiceMock.loadPhoneImageDataUrl.mockReset()
     phoneImageServiceMock.loadPhoneImageDataUrl.mockResolvedValue({
         ok: true,
@@ -272,10 +280,362 @@ describe('EntityEditor', () => {
 
         await user.click(screen.getByRole('button', { name: /Adaug/i }))
 
-        expect(csvHooks.addEntity).toHaveBeenCalledTimes(1)
+        expect(csvHooks.savePersonEntity).toHaveBeenCalledTimes(1)
+        expect(csvHooks.savePersonEntity).toHaveBeenCalledWith({
+            sectionId: 'invited-1',
+            id: undefined,
+            data: {
+                name: 'ANA POPESCU',
+                occupation: 'Reporter',
+            },
+        })
+    })
+
+    it('opens quick title modal after successful manual person create in invited section', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.quickTitles = ['POPESCU']
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(await screen.findByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
+        expect(screen.getByRole('textbox', { name: 'Prefix pentru ION POPESCU' })).toHaveValue('I. POPESCU')
+    })
+
+    it('keeps quick title modal closed when manual person create fails', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.savePersonEntity.mockResolvedValueOnce({ ok: false, error: 'WRITE_FAILED' })
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Person save failed:', 'WRITE_FAILED')
+    })
+
+    it('keeps quick title modal closed when creating a person in beta', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.activeSection = { id: 'beta-1', kind: 'beta', betaIndex: 1, betaTitle: 'Externe', rows: [] }
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+    })
+
+    it('keeps quick title modal closed when creating a phone call', async () => {
+        csvHooks.activeEntityType = 'phoneCalls'
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Expert')
+        await user.click(screen.getByRole('button', { name: 'Add Photo' }))
+        await user.click(screen.getByRole('button', { name: 'mock image saved' }))
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
         expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'persons', {
-            name: 'ANA POPESCU',
-            occupation: 'Reporter',
+            name: 'ION POPESCU',
+            occupation: 'Expert',
+            image: 'C:\\PhoneImages\\test.jpg',
+        })
+    })
+
+    it('opens quick title modal after successful manual person edit in invited section', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.selected = {
+            sectionId: 'invited-1',
+            entityType: 'persons',
+            id: 'person-1',
+        }
+        csvHooks.getBlockItems.mockReturnValue([
+            {
+                entityType: 'persons',
+                id: 'person-1',
+                data: {
+                    name: 'ION POPESCU',
+                    occupation: 'Reporter',
+                },
+            },
+        ])
+        csvHooks.quickTitles = ['POPESCU']
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.clear(screen.getByLabelText(/Func/))
+        await user.type(screen.getByLabelText(/Func/), 'Editor')
+        await user.click(screen.getByRole('button', { name: 'Update' }))
+
+        expect(csvHooks.savePersonEntity).toHaveBeenCalledWith({
+            sectionId: 'invited-1',
+            id: 'person-1',
+            data: {
+                name: 'ION POPESCU',
+                occupation: 'Editor',
+                image: '',
+            },
+        })
+        expect(await screen.findByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
+        expect(screen.getByRole('textbox', { name: 'Prefix pentru ION POPESCU' })).toHaveValue('I. POPESCU')
+    })
+
+    it('saves quick title from modal and closes it after persistence succeeds', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.quickTitles = ['POPESCU: ']
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        const dialog = await screen.findByRole('dialog', { name: /Prefix/ })
+        expect(dialog).toBeInTheDocument()
+
+        await user.click(screen.getByRole('button', { name: 'Save' }))
+
+        expect(csvHooks.setAllQuickTitles).toHaveBeenCalledWith([
+            'POPESCU: ',
+            'I. POPESCU: ',
+        ])
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+    })
+
+    it('suggests BUJOR when creating ANA BUJOR without existing quick titles', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.quickTitles = []
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ana Bujor')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })).toHaveValue('BUJOR')
+    })
+
+    it('creates BUJOR: when saving the ANA BUJOR suggestion', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.quickTitles = []
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ana Bujor')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+        await screen.findByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })
+        await user.click(screen.getByRole('button', { name: 'Save' }))
+
+        expect(csvHooks.setAllQuickTitles).toHaveBeenCalledWith(['BUJOR: '])
+    })
+
+    it('suggests I. BUJOR when creating IGOR BUJOR and BUJOR already exists', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.quickTitles = ['BUJOR: ']
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Igor Bujor')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru IGOR BUJOR' })).toHaveValue('I. BUJOR')
+    })
+
+    it('suggests POPESCU when editing a person to MARIA POPESCU without existing POPESCU', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.selected = {
+            sectionId: 'invited-1',
+            entityType: 'persons',
+            id: 'person-1',
+        }
+        csvHooks.getBlockItems.mockReturnValue([
+            {
+                entityType: 'persons',
+                id: 'person-1',
+                data: {
+                    name: 'ANA BUJOR',
+                    occupation: 'Reporter',
+                },
+            },
+        ])
+        csvHooks.quickTitles = ['BUJOR: ']
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.clear(screen.getByLabelText('Nume'))
+        await user.type(screen.getByLabelText('Nume'), 'Maria Popescu')
+        await user.click(screen.getByRole('button', { name: 'Update' }))
+
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru MARIA POPESCU' })).toHaveValue('POPESCU')
+    })
+
+    it('suggests POPESCU-IONESCU when editing a person to ION POPESCU-IONESCU', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.selected = {
+            sectionId: 'invited-1',
+            entityType: 'persons',
+            id: 'person-1',
+        }
+        csvHooks.getBlockItems.mockReturnValue([
+            {
+                entityType: 'persons',
+                id: 'person-1',
+                data: {
+                    name: 'ANA BUJOR',
+                    occupation: 'Reporter',
+                },
+            },
+        ])
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.clear(screen.getByLabelText('Nume'))
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu-Ionescu')
+        await user.click(screen.getByRole('button', { name: 'Update' }))
+
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru ION POPESCU-IONESCU' }))
+            .toHaveValue('POPESCU-IONESCU')
+    })
+
+    it('closes quick title modal on Cancel without saving a quick title', async () => {
+        csvHooks.activeEntityType = 'persons'
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+        expect(await screen.findByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
+
+        await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+        expect(csvHooks.setAllQuickTitles).not.toHaveBeenCalled()
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+    })
+
+    it('keeps quick title modal open and shows error when quick title save fails', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.setAllQuickTitles.mockRejectedValueOnce(new Error('CSV_FAILED'))
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.type(screen.getByLabelText('Nume'), 'Ion Popescu')
+        await user.type(screen.getByLabelText(/Func/), 'Reporter')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+        expect(await screen.findByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
+
+        await user.click(screen.getByRole('button', { name: 'Save' }))
+
+        expect(await screen.findByText('CSV_FAILED')).toBeInTheDocument()
+        expect(screen.getByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
+    })
+
+    it('keeps quick title modal closed when manual person edit fails', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.selected = {
+            sectionId: 'invited-1',
+            entityType: 'persons',
+            id: 'person-1',
+        }
+        csvHooks.getBlockItems.mockReturnValue([
+            {
+                entityType: 'persons',
+                id: 'person-1',
+                data: {
+                    name: 'ION POPESCU',
+                    occupation: 'Reporter',
+                },
+            },
+        ])
+        csvHooks.savePersonEntity.mockResolvedValueOnce({ ok: false, error: 'WRITE_FAILED' })
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.clear(screen.getByLabelText(/Func/))
+        await user.type(screen.getByLabelText(/Func/), 'Editor')
+        await user.click(screen.getByRole('button', { name: 'Update' }))
+
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Person save failed:', 'WRITE_FAILED')
+    })
+
+    it('keeps quick title modal closed when editing a person in beta', async () => {
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.activeSection = { id: 'beta-1', kind: 'beta', betaIndex: 1, betaTitle: 'Externe', rows: [] }
+        csvHooks.selected = {
+            sectionId: 'beta-1',
+            entityType: 'persons',
+            id: 'person-1',
+        }
+        csvHooks.getBlockItems.mockReturnValue([
+            {
+                entityType: 'persons',
+                id: 'person-1',
+                data: {
+                    name: 'ION POPESCU',
+                    occupation: 'Reporter',
+                },
+            },
+        ])
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.clear(screen.getByLabelText(/Func/))
+        await user.type(screen.getByLabelText(/Func/), 'Editor')
+        await user.click(screen.getByRole('button', { name: 'Update' }))
+
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+    })
+
+    it('keeps quick title modal closed when editing a phone call', async () => {
+        csvHooks.activeEntityType = 'phoneCalls'
+        csvHooks.selected = {
+            sectionId: 'invited-1',
+            entityType: 'persons',
+            id: 'person-1',
+        }
+        csvHooks.getBlockItems.mockImplementation((_sectionId, entityType) =>
+            entityType === 'phoneCalls'
+                ? [
+                      {
+                          entityType: 'persons',
+                          id: 'person-1',
+                          data: {
+                              name: 'ION POPESCU',
+                              occupation: 'Expert',
+                              image: 'WORK_PATH/ion_popescu.jpg',
+                          },
+                      },
+                  ]
+                : []
+        )
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.clear(screen.getByLabelText(/Func/))
+        await user.type(screen.getByLabelText(/Func/), 'Analyst')
+        await user.click(screen.getByRole('button', { name: 'Update' }))
+
+        expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
+        expect(csvHooks.updateEntity).toHaveBeenCalledWith('invited-1', 'persons', 'person-1', {
+            name: 'ION POPESCU',
+            occupation: 'Analyst',
+            image: 'WORK_PATH/ion_popescu.jpg',
         })
     })
 

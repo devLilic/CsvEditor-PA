@@ -10,8 +10,11 @@ import {
     useEntities,
     useSelectedEntity,
     useActiveEntityType,
+    useQuickTitles,
 } from '@/features/csv-editor'
 import { phoneImageSettingsService } from '@/features/csv-editor/services/phoneImageSettingsService'
+import { buildPersonQuickTitleSuggestion } from '@/features/quick-titles/domain/personQuickTitleSuggestion'
+import { normalizeAndDeduplicateQuickTitles } from '@/features/quick-titles/domain/quickTitle'
 import {
     type EditableTemplateEntityType,
     useTemplateDocument,
@@ -21,6 +24,7 @@ import { Preview16x9 } from './Preview16x9'
 import { QuickTitlesBar } from './QuickTitlesBar'
 import { InputField } from './common/InputField'
 import { PhoneImageModal } from './phone-image/PhoneImageModal'
+import { PersonQuickTitleDialog } from './quick-titles/PersonQuickTitleDialog'
 
 type FormState = {
     title?: string
@@ -39,10 +43,11 @@ function isEntityTypeAllowedInSection(entityType: EntityType, sectionKind?: stri
 }
 
 export function EntityEditor() {
-    const { activeSectionId, activeSection, getBlockItems, addEntity, updateEntity } = useEntities()
+    const { activeSectionId, activeSection, getBlockItems, addEntity, updateEntity, savePersonEntity } = useEntities()
 
     const { selected, clearSelection } = useSelectedEntity()
     const { activeEntityType, setActiveEntityType } = useActiveEntityType()
+    const { quickTitles, setAllQuickTitles } = useQuickTitles()
     const { document: templateDocument } = useTemplateDocument()
     const editorEntityType = getCsvEntityTypeForEditorView(activeEntityType)
     const isAllowedInActiveSection = isEntityTypeAllowedInSection(activeEntityType, activeSection?.kind)
@@ -52,6 +57,13 @@ export function EntityEditor() {
     const [phoneImageSettings, setPhoneImageSettings] = useState<PhoneImageSettings>(FALLBACK_PHONE_IMAGE_SETTINGS)
     const [phoneImageError, setPhoneImageError] = useState<string | null>(null)
     const [phoneImageModalOpen, setPhoneImageModalOpen] = useState(false)
+    const [quickTitleDialog, setQuickTitleDialog] = useState({
+        open: false,
+        initialValue: '',
+        personName: '',
+        isSaving: false,
+        error: '',
+    })
 
     // refs focus
     const titleRef = useRef<HTMLInputElement>(null)
@@ -215,7 +227,7 @@ export function EntityEditor() {
         }
     }
 
-    const saveEntity = () => {
+    const saveEntity = async () => {
         if (!isFormValid()) {
             setShowInvalid(true)
             setTimeout(() => setShowInvalid(false), 600)
@@ -223,6 +235,44 @@ export function EntityEditor() {
         }
 
         const payload = normalizeForm(form)
+
+        if (activeEntityType === 'persons') {
+            const savedPersonName = payload.name ?? ''
+            const shouldPromptQuickTitle =
+                activeSection?.kind === 'invited' &&
+                !payload.image?.trim()
+            const result = await savePersonEntity({
+                sectionId: selected?.sectionId ?? sectionId,
+                id: selected?.id,
+                data: payload,
+            })
+
+            if (!result.ok) {
+                console.error('Person save failed:', result.error)
+                return
+            }
+
+            if (selected && selectedItem) {
+                clearSelection()
+            }
+
+            setForm({})
+            requestAnimationFrame(() => focusPrimaryInput())
+
+            if (shouldPromptQuickTitle) {
+                setQuickTitleDialog({
+                    open: true,
+                    initialValue: buildPersonQuickTitleSuggestion({
+                        personName: savedPersonName,
+                        existingQuickTitles: quickTitles,
+                    }),
+                    personName: savedPersonName,
+                    isSaving: false,
+                    error: '',
+                })
+            }
+            return
+        }
 
         if (selected && selectedItem) {
             updateEntity(selected.sectionId, selected.entityType, selected.id, payload)
@@ -377,6 +427,37 @@ export function EntityEditor() {
                     <QuickTitlesBar onApplyPrefix={applyQuickTitle} focusEditor={focusTitleInput} />
                 </div>
             )}
+
+            <PersonQuickTitleDialog
+                open={quickTitleDialog.open}
+                initialValue={quickTitleDialog.initialValue}
+                personName={quickTitleDialog.personName}
+                isSaving={quickTitleDialog.isSaving}
+                error={quickTitleDialog.error || undefined}
+                onSave={async (value) => {
+                    setQuickTitleDialog((prev) => ({ ...prev, isSaving: true, error: '' }))
+
+                    try {
+                        await setAllQuickTitles(normalizeAndDeduplicateQuickTitles([
+                            ...quickTitles,
+                            value,
+                        ]))
+                        setQuickTitleDialog((prev) => ({
+                            ...prev,
+                            open: false,
+                            isSaving: false,
+                            error: '',
+                        }))
+                    } catch (error) {
+                        setQuickTitleDialog((prev) => ({
+                            ...prev,
+                            isSaving: false,
+                            error: error instanceof Error ? error.message : 'QUICK_TITLE_SAVE_FAILED',
+                        }))
+                    }
+                }}
+                onCancel={() => setQuickTitleDialog((prev) => ({ ...prev, open: false, error: '' }))}
+            />
         </div>
     )
 }
