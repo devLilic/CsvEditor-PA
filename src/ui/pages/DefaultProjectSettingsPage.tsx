@@ -256,7 +256,7 @@ export function DefaultProjectSettingsPage() {
     return (
         <main className="app-settings min-h-screen bg-gray-50 p-6">
             <div className="mx-auto flex max-w-3xl flex-col gap-6">
-                <header className="flex items-center justify-between gap-4">
+                <header className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900">
                             Punctul pe Azi - Setări proiect nou
@@ -266,13 +266,22 @@ export function DefaultProjectSettingsPage() {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={() => navigate('/csv-editor')}
-                        className="app-button rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                    >
-                        Înapoi la editor
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => navigate('/settings/lower-thirds')}
+                            className="app-button rounded border border-blue-300 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                        >
+                            Tipuri lower third
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/csv-editor')}
+                            className="app-button rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                        >
+                            Înapoi la editor
+                        </button>
+                    </div>
                 </header>
 
                 <section className="app-panel app-settings-section app-settings-interface flex flex-col gap-4 rounded bg-white p-5 shadow-sm">

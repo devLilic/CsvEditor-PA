@@ -3,10 +3,13 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
-import type { CsvFileDescriptor } from '../../src/shared/ipc-types'
+import type { CsvFileDescriptor, CsvWriteRequest } from '../../src/shared/ipc-types'
 import { getAppConfig, getCsvFilePath, getCsvFileSettings, setAppConfig, setCsvFilePath } from '../store'
 import { writeCsvBackup } from './csv-backup'
 import { resolveEntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
+import { normalizeLowerThirdTypes } from '../../src/features/lower-thirds/domain/lowerThirdTypesValidation'
+import { restoreLowerThirdAssignments, migrateHotTitlesToUrgent } from '../../src/features/lower-thirds/domain/lowerThirdAssignments'
+import { LOWER_THIRD_TYPES_CONFIG_KEY } from '../../src/features/lower-thirds/domain/lowerThirdTypesConfig'
 import { notifyEntityExportFailure } from './entity-export-notification'
 import { parseCsv } from '../../src/features/csv-editor/utils/csvParser'
 import {
@@ -16,7 +19,7 @@ import { serializeTitleBackup } from '../../src/features/title-backup/domain/tit
 import { getActiveTitleBackupFile } from '../../src/features/title-backup/domain/activeTitleBackupFile'
 import { reserveTitleBackupName, writeTitleBackupWithRetention } from './title-backup-retention'
 import {
-    exportEntityCsvFilesFromFullCsvContent,
+    exportEntityCsvFilesFromEntities,
     type EntityExportResult,
 } from './entity-export-service'
 
@@ -44,11 +47,20 @@ async function readConfiguredWorkingCsv() {
     }
 
     const content = await fsp.readFile(workingCsvPath, 'utf-8')
+    const exportPaths = resolveEntityExportPaths({
+        workingCsvPath,
+        exportFolderPath: getCsvFileSettings().exportCsvFolderPath,
+    })
+    const [titles, persons] = await Promise.all([
+        fsp.readFile(exportPaths.titlesPath, 'utf-8').catch(() => undefined),
+        fsp.readFile(exportPaths.personsPath, 'utf-8').catch(() => undefined),
+    ])
     return {
         ok: true,
         path: workingCsvPath,
         filename: path.basename(workingCsvPath),
         content,
+        previousExports: { titles, persons },
     }
 }
 
@@ -71,7 +83,8 @@ function getWorkingCsvPath(): string | null {
 async function exportEntityCsvsAfterWorkingCsvWrite(
     mainWindow: BrowserWindow,
     content: string,
-    workingCsvPath: string
+    workingCsvPath: string,
+    metadata?: Pick<CsvWriteRequest, 'entities' | 'lowerThirdTypes'>
 ): Promise<EntityExportResult> {
     try {
         const settings = getCsvFileSettings()
@@ -79,9 +92,21 @@ async function exportEntityCsvsAfterWorkingCsvWrite(
             workingCsvPath,
             exportFolderPath: settings.exportCsvFolderPath,
         })
-        return await exportEntityCsvFilesFromFullCsvContent({
+        const typeConfig = getAppConfig()[LOWER_THIRD_TYPES_CONFIG_KEY]
+        const lowerThirdTypes = metadata?.lowerThirdTypes ?? normalizeLowerThirdTypes(typeConfig)
+        const entities = metadata?.entities
+            ? migrateHotTitlesToUrgent(metadata.entities)
+            : restoreLowerThirdAssignments({
+                entities: migrateHotTitlesToUrgent(parseCsv(content)),
+                titlesExport: await fsp.readFile(exportPaths.titlesPath, 'utf-8').catch(() => undefined),
+                personsExport: await fsp.readFile(exportPaths.personsPath, 'utf-8').catch(() => undefined),
+                types: lowerThirdTypes,
+                onWarning: (message) => console.warn('[lower-thirds]', message),
+            })
+        return await exportEntityCsvFilesFromEntities({
             paths: exportPaths,
-            content,
+            entities,
+            lowerThirdTypes,
             onError: (error) => notifyEntityExportFailure(mainWindow, error),
             afterTitlesExport: async () => {
                 let activeTitleBackupFile = getActiveTitleBackupFile(getAppConfig())
@@ -183,9 +208,12 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
     })
 
     // 📝 Write CSV back to disk
-    ipcMain.handle(IPC_CHANNELS.CSV_WRITE, async (_event, content: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.CSV_WRITE, async (_event, request: unknown) => {
         try {
-            if (!isString(content)) {
+            const payload: CsvWriteRequest = isString(request)
+                ? { content: request }
+                : request as CsvWriteRequest
+            if (!isString(payload?.content)) {
                 return { ok: false, error: 'Invalid content type, expected string' }
             }
 
@@ -194,8 +222,8 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
                 return { ok: false, error: 'No working CSV configured' }
             }
 
-            await fsp.writeFile(csvPath, content, 'utf-8')
-            const exportResult = await exportEntityCsvsAfterWorkingCsvWrite(mainWindow, content, csvPath)
+            await fsp.writeFile(csvPath, payload.content, 'utf-8')
+            const exportResult = await exportEntityCsvsAfterWorkingCsvWrite(mainWindow, payload.content, csvPath, payload)
             if (!exportResult.ok) {
                 return {
                     ok: false,

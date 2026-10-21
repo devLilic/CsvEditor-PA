@@ -4,7 +4,8 @@ type TedSampleData = Record<string, string>
 
 const TED_SAMPLE_DATA: Record<TedEntityType, TedSampleData> = {
     titles: {
-        title: 'SAMPLE TITLE',
+        title: 'Prețurile la energie cresc',
+        supratitle: 'SAMPLE SUPRATITLE',
     },
     persons: {
         name: 'SAMPLE NAME',

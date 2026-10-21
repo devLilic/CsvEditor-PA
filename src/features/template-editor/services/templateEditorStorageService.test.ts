@@ -25,6 +25,7 @@ describe('templateEditorStorageService', () => {
         expect(result).toEqual({
             ok: true,
             document,
+            migrated: false,
             error: undefined,
         })
         expect(api.getUserTemplateDocument).toHaveBeenCalledOnce()

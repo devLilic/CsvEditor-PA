@@ -9,6 +9,8 @@ import { createDefaultProjectEntities } from '../domain/defaultProject'
 import { defaultProjectSettingsService } from '../services/defaultProjectSettingsService'
 import { csvFileSettingsService } from '../services/csvFileSettingsService'
 import { titleBackupReservationService } from '@/features/title-backup/services/titleBackupReservationService'
+import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import { restoreLowerThirdAssignments, migrateHotTitlesToUrgent } from '@/features/lower-thirds/domain/lowerThirdAssignments'
 
 /**
  * Hook responsabil exclusiv de initializarea CSV:
@@ -41,7 +43,14 @@ export function useCsvInitialization() {
             if (csvFileSettings.workingCsvPath) {
                 const workingCsv = await csvService.getWorkingCsv()
                 if (workingCsv.ok && workingCsv.content) {
-                    const entities = parseCsv(workingCsv.content)
+                    const lowerThirdTypes = await lowerThirdTypesService.get()
+                    const entities = restoreLowerThirdAssignments({
+                        entities: migrateHotTitlesToUrgent(parseCsv(workingCsv.content)),
+                        titlesExport: workingCsv.previousExports?.titles,
+                        personsExport: workingCsv.previousExports?.persons,
+                        types: lowerThirdTypes,
+                        onWarning: (message) => console.warn('[lower-thirds]', message),
+                    })
                     dispatch({
                         type: 'CSV_LOADED',
                         payload: entities,

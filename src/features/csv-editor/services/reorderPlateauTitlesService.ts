@@ -5,6 +5,7 @@ import type { PlateauTitleListItem } from '../domain/plateauTitleList'
 import { reorderPlateauTitleItems } from '../domain/reorderPlateauTitleItems'
 import { serializeCsv } from '../utils/csvSerializer'
 import { csvService } from './csvService'
+import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 
 export type ReorderPlateauTitlesResult =
     | { ok: true }
@@ -58,7 +59,8 @@ export const reorderPlateauTitlesService = {
 
         input.dispatch(reorderAction)
 
-        const writeResult = await csvService.write(serializeCsv(nextState.entities))
+        const lowerThirdTypes = await lowerThirdTypesService.get()
+        const writeResult = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes)
         if (!writeResult.ok) {
             console.error('Failed to reorder title list:', writeResult.error)
             input.dispatch({

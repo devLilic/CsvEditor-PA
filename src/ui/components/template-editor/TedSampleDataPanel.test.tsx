@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mergeTedSampleData } from '@/features/template-editor/domain/tedSampleData'
 import type { TedEntityType } from '@/features/template-editor/domain/tedTypes'
@@ -36,8 +36,15 @@ function renderPanel(entityType: TedEntityType) {
 }
 
 describe('TedSampleDataPanel', () => {
+    it('starts Titles previews with a sentence-case title and uppercase supratitle sample', () => {
+        renderPanel('titles')
+
+        expect(screen.getByText('title: Prețurile la energie cresc')).toBeInTheDocument()
+        expect(screen.getByText('supratitle: SAMPLE SUPRATITLE')).toBeInTheDocument()
+    })
+
     it.each([
-        ['titles', ['title']],
+        ['titles', ['title', 'supratitle']],
         ['persons', ['name', 'occupation']],
         ['locations', ['location']],
         ['phoneCalls', ['name', 'occupation', 'image']],
@@ -75,7 +82,7 @@ describe('TedSampleDataPanel', () => {
         })
     })
 
-    it('selects the phone sample image as a real file path', () => {
+    it('selects the phone sample image as a real file path', async () => {
         const onOverridesChange = vi.fn()
         const file = new File(['image'], 'phone.jpg', { type: 'image/jpeg' })
         Object.defineProperty(file, 'path', { value: 'C:\\PhoneImages\\phone.jpg' })
@@ -91,9 +98,9 @@ describe('TedSampleDataPanel', () => {
             target: { files: [file] },
         })
 
-        expect(onOverridesChange).toHaveBeenCalledWith({
+        await waitFor(() => expect(onOverridesChange).toHaveBeenCalledWith({
             image: 'C:\\PhoneImages\\phone.jpg',
-        })
+        }))
     })
 
     it('updates Preview16x9 through sample data without changing the template', () => {

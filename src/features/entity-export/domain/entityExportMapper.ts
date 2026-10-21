@@ -1,5 +1,7 @@
 import type { EntitiesState } from '../../csv-editor/domain/entities'
 import { parseCsv } from '../../csv-editor/utils/csvParser'
+import { DEFAULT_LOWER_THIRD_TYPES } from '../../lower-thirds/domain/lowerThirdTypes'
+import type { LowerThirdTypeDefinition } from '../../lower-thirds/domain/lowerThirdTypes'
 import { serializeEntityCsv } from './entityCsvSerializer'
 import {
     mapPaLocationsExport,
@@ -14,6 +16,7 @@ import {
 export interface ExportTitle {
     nr: string
     title: string
+    supratitle?: string
 }
 
 export interface ExportPerson {
@@ -41,10 +44,11 @@ function hasImage(person: ExportPerson): boolean {
 
 export function mapTitlesToExportCsv(titles: ExportTitle[]): string {
     return serializeEntityCsv(
-        ['Nr', 'Titlu'],
+        ['Nr', 'Titlu', 'Supratitlu'],
         titles.map((title) => [
             ['Nr', title.nr],
             ['Titlu', title.title],
+            ['Supratitlu', title.supratitle ?? ''],
         ]).map(Object.fromEntries)
     )
 }
@@ -87,17 +91,17 @@ export function mapWaitTitlesLocationsToExportCsv(titles: string[], locations: s
     return mapPaWaitTitlesLocationsValues(titles, locations)
 }
 
-export function mapEntitiesStateToExportCsvs(state: EntitiesState): EntityExportCsvs {
+export function mapEntitiesStateToExportCsvs(state: EntitiesState, lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES): EntityExportCsvs {
     return {
-        titlesCsv: mapPaTitlesExport(state),
+        titlesCsv: mapPaTitlesExport(state, lowerThirdTypes),
         titlesWithHotCsv: mapPaTitlesWithHotExport(state),
-        personsCsv: mapPaPersonsExport(state),
+        personsCsv: mapPaPersonsExport(state, lowerThirdTypes),
         locationsCsv: mapPaLocationsExport(state),
         phonesCsv: mapPaPhonesExport(state),
         waitTitlesLocationsCsv: mapPaWaitTitlesLocationsExport(state),
     }
 }
 
-export function mapFullCsvContentToExportCsvs(content: string): EntityExportCsvs {
-    return mapEntitiesStateToExportCsvs(parseCsv(content))
+export function mapFullCsvContentToExportCsvs(content: string, lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES): EntityExportCsvs {
+    return mapEntitiesStateToExportCsvs(parseCsv(content), lowerThirdTypes)
 }

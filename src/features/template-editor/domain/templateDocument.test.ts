@@ -1,32 +1,50 @@
 import { describe, expect, it } from 'vitest'
 import { broadcastTemplates } from '@/templates/broadcast'
+import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import {
-    TEMPLATE_DOCUMENT_SHOW,
     TEMPLATE_DOCUMENT_VERSION,
+    createTemplateDocumentFromTemplates,
+    migrateLegacyTemplateDocument,
     resolveTemplateDocumentTemplates,
     validateTemplateDocument,
 } from './templateDocument'
 
 function createValidDocument() {
-    return {
-        version: TEMPLATE_DOCUMENT_VERSION,
-        show: TEMPLATE_DOCUMENT_SHOW,
-        templates: {
-            titles: broadcastTemplates.titles,
-            persons: broadcastTemplates.persons,
-            locations: broadcastTemplates.locations,
-            phoneCalls: broadcastTemplates.phoneCalls,
-            hotTitles: broadcastTemplates.hotTitles,
-            waitTitles: broadcastTemplates.waitTitles,
-            waitLocations: broadcastTemplates.waitLocations,
-        },
-    }
+    return createTemplateDocumentFromTemplates(broadcastTemplates)
 }
 
 describe('TemplateDocument validation', () => {
     it('accepts a valid PA document', () => {
         expect(createValidDocument().show).toBe('punctul-pe-azi')
         expect(validateTemplateDocument(createValidDocument())).toBe(true)
+    })
+
+    it('accepts additional configured lower-third variants', () => {
+        const document = createValidDocument()
+        document.lowerThirdVariants.titles['special-title'] = {
+            ...document.lowerThirdVariants.titles.ordinary,
+            id: 'custom-title-special-title',
+        }
+
+        expect(validateTemplateDocument(document)).toBe(true)
+    })
+
+    it('migrates v1 title and person designs into ordinary and seeds the remaining variants', () => {
+        const legacyTemplates = JSON.parse(JSON.stringify(broadcastTemplates))
+        const legacyDocument = {
+            version: 1,
+            show: 'punctul-pe-azi',
+            templates: legacyTemplates,
+        }
+
+        const migrated = migrateLegacyTemplateDocument(legacyDocument)
+        expect(migrated?.version).toBe(TEMPLATE_DOCUMENT_VERSION)
+        expect(migrated?.lowerThirdVariants.titles.ordinary.layers).toEqual(legacyTemplates.titles.layers)
+        expect(migrated?.lowerThirdVariants.persons.ordinary.layers).toEqual(legacyTemplates.persons.layers)
+        expect(migrated?.lowerThirdVariants.titles['breaking-news'].name)
+            .toBe(DEFAULT_LOWER_THIRD_TYPES.find((type) => type.id === 'breaking-news')?.templates.titles.name)
+        expect(migrated?.lowerThirdVariants.persons.urgent.id)
+            .not.toBe(migrated?.lowerThirdVariants.persons.ordinary.id)
     })
 
     it('rejects a document without templates', () => {
@@ -102,7 +120,7 @@ describe('TemplateDocument validation', () => {
     it('rejects a document with the wrong version', () => {
         const document = {
             ...createValidDocument(),
-            version: 2,
+            version: TEMPLATE_DOCUMENT_VERSION + 1,
         }
 
         expect(validateTemplateDocument(document)).toBe(false)
@@ -120,7 +138,7 @@ describe('TemplateDocument validation', () => {
     it('falls back to hardcoded templates when the document is invalid', () => {
         const document = {
             ...createValidDocument(),
-            version: 2,
+            version: TEMPLATE_DOCUMENT_VERSION + 1,
         }
 
         expect(resolveTemplateDocumentTemplates(document, broadcastTemplates)).toBe(broadcastTemplates)

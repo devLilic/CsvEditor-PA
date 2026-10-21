@@ -1,8 +1,10 @@
 import bundledDefaultTemplateDocument from '@/templates/broadcast/defaultTemplates.pa.json'
 import {
     isTemplateDocument,
+    migrateLegacyTemplateDocument,
     type TemplateDocument,
 } from './templateDocument'
+import { ensureTitlesSupratitleLayers } from './supratitleLayers'
 
 type TemplateResolverInput = {
     userDocument?: unknown
@@ -19,13 +21,22 @@ export function resolveTemplateDocument({
     bundledDefaultDocument = bundledDefaultTemplateDocument,
     hardcodedDocument,
 }: TemplateResolverInput): TemplateDocument {
-    if (isTemplateDocument(userDocument)) {
-        return clone(userDocument)
-    }
+    const migratedUserDocument = migrateLegacyTemplateDocument(userDocument)
+    if (migratedUserDocument) return withTitlesSupratitleLayers(migratedUserDocument)
+    if (isTemplateDocument(userDocument)) return withTitlesSupratitleLayers(userDocument)
 
-    if (isTemplateDocument(bundledDefaultDocument)) {
-        return clone(bundledDefaultDocument)
-    }
+    const migratedBundledDocument = migrateLegacyTemplateDocument(bundledDefaultDocument)
+    if (migratedBundledDocument) return withTitlesSupratitleLayers(migratedBundledDocument)
+    if (isTemplateDocument(bundledDefaultDocument)) return withTitlesSupratitleLayers(bundledDefaultDocument)
 
-    return clone(hardcodedDocument)
+    return withTitlesSupratitleLayers(hardcodedDocument)
+}
+
+function withTitlesSupratitleLayers(document: TemplateDocument): TemplateDocument {
+    const nextDocument = clone(document)
+    nextDocument.templates.titles = ensureTitlesSupratitleLayers(nextDocument.templates.titles)
+    for (const [typeId, template] of Object.entries(nextDocument.lowerThirdVariants.titles)) {
+        nextDocument.lowerThirdVariants.titles[typeId] = ensureTitlesSupratitleLayers(template)
+    }
+    return nextDocument
 }

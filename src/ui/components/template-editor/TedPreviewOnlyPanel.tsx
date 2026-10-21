@@ -1,14 +1,19 @@
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
+import type { LowerThirdTypeDefinition } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import { Preview16x9 } from '../preview16x9/Preview16x9'
 
 type TedPreviewOnlyPanelProps = {
     template: BroadcastTemplate
     sampleData: Record<string, string>
+    templateVariant?: string
+    lowerThirdPalette?: LowerThirdTypeDefinition['palette']
 }
 
 export function TedPreviewOnlyPanel({
     template,
     sampleData,
+    templateVariant,
+    lowerThirdPalette,
 }: TedPreviewOnlyPanelProps) {
     return (
         <div
@@ -20,6 +25,8 @@ export function TedPreviewOnlyPanel({
                 sampleData={sampleData}
                 fitMode="width"
                 maxHeight={700}
+                templateVariant={templateVariant}
+                lowerThirdPalette={lowerThirdPalette}
             />
         </div>
     )

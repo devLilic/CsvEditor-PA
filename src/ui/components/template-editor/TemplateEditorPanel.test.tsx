@@ -2,15 +2,25 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { broadcastTemplates } from '@/templates/broadcast'
+import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import { TemplateEditorPanel } from './TemplateEditorPanel'
+
+const lowerThirdVariants = {
+    titles: Object.fromEntries(DEFAULT_LOWER_THIRD_TYPES.map((type) => [type.id, broadcastTemplates.titles])),
+    persons: Object.fromEntries(DEFAULT_LOWER_THIRD_TYPES.map((type) => [type.id, broadcastTemplates.persons])),
+}
 
 const templateDocumentState = vi.hoisted(() => ({
     isLoaded: true,
     isDirty: false,
     updateTemplate: vi.fn(),
+    updateLowerThirdVariant: vi.fn(),
+    setTemplateEntityEnabled: vi.fn(),
     resetTemplateToDefault: vi.fn(),
+    resetLowerThirdVariantToDefault: vi.fn(),
     saveTemplates: vi.fn(),
     setActiveTedEntityType: vi.fn(),
+    setActiveLowerThirdTypeId: vi.fn(),
     setTedSampleOverrides: vi.fn(),
 }))
 
@@ -18,6 +28,7 @@ vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
     useTemplateDocument: () => ({
         document: {
             templates: broadcastTemplates,
+            lowerThirdVariants,
         },
         ...templateDocumentState,
     }),
@@ -27,6 +38,8 @@ vi.mock('@/ui/context/TedModeContext', () => ({
     useTedMode: () => ({
         activeTedEntityType: 'titles',
         setActiveTedEntityType: templateDocumentState.setActiveTedEntityType,
+        activeLowerThirdTypeId: 'ordinary',
+        setActiveLowerThirdTypeId: templateDocumentState.setActiveLowerThirdTypeId,
         tedSampleOverrides: {},
         setTedSampleOverrides: templateDocumentState.setTedSampleOverrides,
     }),
@@ -35,16 +48,26 @@ vi.mock('@/ui/context/TedModeContext', () => ({
 beforeEach(() => {
     templateDocumentState.isDirty = false
     templateDocumentState.updateTemplate.mockReset()
+    templateDocumentState.updateLowerThirdVariant.mockReset()
+    templateDocumentState.setTemplateEntityEnabled.mockReset()
     templateDocumentState.updateTemplate.mockImplementation(() => {
         templateDocumentState.isDirty = true
     })
+    templateDocumentState.updateLowerThirdVariant.mockImplementation(() => {
+        templateDocumentState.isDirty = true
+    })
     templateDocumentState.resetTemplateToDefault.mockReset()
+    templateDocumentState.resetLowerThirdVariantToDefault.mockReset()
     templateDocumentState.resetTemplateToDefault.mockImplementation(() => {
+        templateDocumentState.isDirty = true
+    })
+    templateDocumentState.resetLowerThirdVariantToDefault.mockImplementation(() => {
         templateDocumentState.isDirty = true
     })
     templateDocumentState.saveTemplates.mockReset()
     templateDocumentState.saveTemplates.mockResolvedValue({ ok: true })
     templateDocumentState.setActiveTedEntityType.mockClear()
+    templateDocumentState.setActiveLowerThirdTypeId.mockClear()
     templateDocumentState.setTedSampleOverrides.mockClear()
 })
 
@@ -95,8 +118,9 @@ describe('TemplateEditorPanel', () => {
         })
         rerender(<TemplateEditorPanel isTedMode />)
 
-        expect(templateDocumentState.updateTemplate).toHaveBeenCalledWith(
+        expect(templateDocumentState.updateLowerThirdVariant).toHaveBeenCalledWith(
             'titles',
+            'ordinary',
             expect.objectContaining({
                 layers: expect.arrayContaining([
                     expect.objectContaining({
@@ -107,6 +131,14 @@ describe('TemplateEditorPanel', () => {
             }),
         )
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    })
+
+    it('can hide and reactivate a template type from the main screen', async () => {
+        const user = userEvent.setup()
+        render(<TemplateEditorPanel isTedMode />)
+
+        await user.click(screen.getByRole('checkbox', { name: 'Show hotTitles in main screen' }))
+        expect(templateDocumentState.setTemplateEntityEnabled).toHaveBeenCalledWith('hotTitles', false)
     })
 
     it('does not set dirty when sample input changes', () => {
@@ -129,7 +161,7 @@ describe('TemplateEditorPanel', () => {
         await user.click(screen.getByRole('button', { name: 'Reset to default' }))
         rerender(<TemplateEditorPanel isTedMode />)
 
-        expect(templateDocumentState.resetTemplateToDefault).toHaveBeenCalledWith('titles')
+        expect(templateDocumentState.resetLowerThirdVariantToDefault).toHaveBeenCalledWith('titles', 'ordinary')
         expect(templateDocumentState.saveTemplates).not.toHaveBeenCalled()
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
     })

@@ -85,11 +85,12 @@ export function PersonQuickTitleDialog({
                     </div>
 
                     <label className="block">
-                        <span className="mb-1 block text-xs font-medium text-gray-600">
+                        <span className="sr-only">
                             Prefix pentru {personName}
                         </span>
                         <input
                             ref={inputRef}
+                            placeholder={`Prefix pentru ${personName}`}
                             value={value}
                             onChange={(event) => setValue(event.target.value)}
                             disabled={isSaving}

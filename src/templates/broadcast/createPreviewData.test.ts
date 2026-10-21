@@ -5,6 +5,7 @@ describe('createPreviewData', () => {
     it('maps title data for titles', () => {
         expect(createPreviewData('titles', { title: 'Breaking News' })).toEqual({
             title: 'Breaking News',
+            supratitle: '',
         })
     })
 
@@ -34,7 +35,7 @@ describe('createPreviewData', () => {
     })
 
     it('fills missing supported fields with empty strings', () => {
-        expect(createPreviewData('titles', {})).toEqual({ title: '' })
+        expect(createPreviewData('titles', {})).toEqual({ title: '', supratitle: '' })
         expect(createPreviewData('persons', {})).toEqual({ name: '', occupation: '' })
         expect(createPreviewData('phoneCalls', {})).toEqual({ name: '', occupation: '', image: '' })
         expect(createPreviewData('locations', {})).toEqual({ location: '' })

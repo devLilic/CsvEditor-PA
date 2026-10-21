@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
+import { DEFAULT_LOWER_THIRD_TYPE_ID } from '@/features/lower-thirds/domain/lowerThirdTypes'
+import { useLowerThirdTypes } from '@/ui/hooks/useLowerThirdTypes'
 import {
     type EditableTemplateEntityType,
     useTemplateDocument,
@@ -19,23 +21,45 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
         isLoaded,
         isDirty,
         updateTemplate,
+        updateLowerThirdVariant,
+        setTemplateEntityEnabled,
         resetTemplateToDefault,
+        resetLowerThirdVariantToDefault,
         saveTemplates,
     } = useTemplateDocument()
+    const { types: lowerThirdTypes } = useLowerThirdTypes()
     const {
         activeTedEntityType: activeEntityType,
         setActiveTedEntityType: setActiveEntityType,
+        activeLowerThirdTypeId: selectedLowerThirdTypeId,
+        setActiveLowerThirdTypeId: setSelectedLowerThirdTypeId,
         tedSampleOverrides: sampleOverrides,
         setTedSampleOverrides: setSampleOverrides,
     } = useTedMode()
     const [saveError, setSaveError] = useState<string | null>(null)
     const [saveWarning, setSaveWarning] = useState<string | null>(null)
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
-    const template = document.templates[activeEntityType]
+    const lowerThirdKind = activeEntityType === 'titles' || activeEntityType === 'persons'
+        ? activeEntityType
+        : null
+    const selectedLowerThirdType = lowerThirdTypes.find((type) => type.id === selectedLowerThirdTypeId)
+        ?? lowerThirdTypes.find((type) => type.id === DEFAULT_LOWER_THIRD_TYPE_ID)
+        ?? lowerThirdTypes[0]
+    const template = lowerThirdKind && selectedLowerThirdType
+        ? document.lowerThirdVariants[lowerThirdKind][selectedLowerThirdType.id]
+            ?? document.lowerThirdVariants[lowerThirdKind][DEFAULT_LOWER_THIRD_TYPE_ID]
+        : document.templates[activeEntityType]
+    const associatedTemplateName = lowerThirdKind && selectedLowerThirdType
+        ? selectedLowerThirdType.templates[lowerThirdKind].name
+        : null
     if (!isTedMode) return null
 
     const applyTemplateUpdate = (nextTemplate: BroadcastTemplate) => {
-        updateTemplate(activeEntityType as EditableTemplateEntityType, nextTemplate)
+        if (lowerThirdKind && selectedLowerThirdType) {
+            updateLowerThirdVariant(lowerThirdKind, selectedLowerThirdType.id, nextTemplate)
+        } else {
+            updateTemplate(activeEntityType as EditableTemplateEntityType, nextTemplate)
+        }
         setSaveStatus('idle')
         setSaveError(null)
     }
@@ -57,7 +81,11 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
     }
 
     const handleReset = () => {
-        resetTemplateToDefault(activeEntityType)
+        if (lowerThirdKind && selectedLowerThirdType) {
+            resetLowerThirdVariantToDefault(lowerThirdKind, selectedLowerThirdType.id)
+        } else {
+            resetTemplateToDefault(activeEntityType)
+        }
         setSaveStatus('idle')
         setSaveError(null)
         setSaveWarning(null)
@@ -91,6 +119,69 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
                     overrides={sampleOverrides}
                     onOverridesChange={setSampleOverrides}
                 />
+
+                {lowerThirdKind && (
+                    <fieldset className="rounded border bg-white p-3">
+                        <legend className="px-1 text-xs font-semibold text-gray-700">
+                            Lower-third variant
+                        </legend>
+                        <label className="flex flex-col gap-1 text-xs text-gray-700">
+                            Variant
+                            <select
+                                aria-label="Lower-third variant"
+                                value={selectedLowerThirdType?.id ?? DEFAULT_LOWER_THIRD_TYPE_ID}
+                                onChange={(event) => {
+                                    setSelectedLowerThirdTypeId(event.target.value)
+                                    setSaveStatus('idle')
+                                    setSaveError(null)
+                                    setSaveWarning(null)
+                                }}
+                                className="rounded border border-gray-300 bg-white px-2 py-1.5 text-sm"
+                            >
+                                {lowerThirdTypes.map((type) => (
+                                    <option key={type.id} value={type.id}>
+                                        {type.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        {selectedLowerThirdType && (
+                            <p className="mt-2 text-xs text-gray-500">
+                                Associated template: {associatedTemplateName}
+                            </p>
+                        )}
+                    </fieldset>
+                )}
+
+                <fieldset className="rounded border bg-white p-3">
+                    <legend className="px-1 text-xs font-semibold text-gray-700">
+                        Main screen availability
+                    </legend>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                        {(['titles', 'persons', 'locations', 'phoneCalls', 'hotTitles', 'waitTitles', 'waitLocations'] as const).map((entityType) => {
+                            const enabled = !(document.disabledEntityTypes ?? []).includes(entityType)
+                            return (
+                                <label key={entityType} className="flex items-center gap-2 text-xs text-gray-700">
+                                    <input
+                                        type="checkbox"
+                                        aria-label={`Show ${entityType} in main screen`}
+                                        checked={enabled}
+                                        onChange={(event) => {
+                                            setTemplateEntityEnabled(entityType, event.target.checked)
+                                            setSaveStatus('idle')
+                                            setSaveError(null)
+                                            setSaveWarning(null)
+                                        }}
+                                    />
+                                    {entityType === 'hotTitles' ? 'Hot Titles' : entityType === 'phoneCalls' ? 'Phones' : entityType === 'waitTitles' ? 'Wait Titles' : entityType === 'waitLocations' ? 'Wait Locations' : entityType[0].toUpperCase() + entityType.slice(1)}
+                                </label>
+                            )
+                        })}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                        Hidden types stay saved and can be enabled here at any time.
+                    </p>
+                </fieldset>
 
                 <TemplateLayerAccordion
                     template={template}

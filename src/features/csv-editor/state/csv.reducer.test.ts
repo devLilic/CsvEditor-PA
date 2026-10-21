@@ -4,6 +4,7 @@ import { initialCsvState } from './csv.types'
 import type { CsvState } from './csv.types'
 import { EntityTypes } from '../domain/entities'
 import type { CsvSection } from '../domain/entities'
+import { mapPaTitlesExport } from '../../entity-export/domain/paEntityExportMapper'
 
 function stateWithSections(sections: CsvSection[], activeSectionId = sections[0]?.id ?? null): CsvState {
     return {
@@ -213,6 +214,30 @@ describe('csvReducer - entities', () => {
         expect(nextState.activeSectionId).toBe(invited.id)
         expect(nextState.activeViewType).toBe('titles')
         expect(nextState.activeEntityType).toBe('titles')
+    })
+
+    it('ENTITY_ADD preserves a title supratitle through the PA_titles export', () => {
+        const invited = invitedSection()
+        const state = stateWithSections([invited], invited.id)
+
+        const nextState = csvReducer(state, {
+            type: 'ENTITY_ADD',
+            payload: {
+                sectionId: invited.id,
+                entityType: 'titles',
+                data: { title: 'Breaking News', supratitle: 'ULTIMA ORA' },
+            },
+        })
+
+        expect(nextState.entities.sections[0].rows[0].title).toMatchObject({
+            title: 'Breaking News',
+            supratitle: 'ULTIMA ORA',
+        })
+        expect(mapPaTitlesExport(nextState.entities)).toBe([
+            'Nr;Titlu;Supratitlu;Template',
+            '--- INVITATI ---;;;',
+            '1;Breaking News;ULTIMA ORA;01_Titlu',
+        ].join('\n'))
     })
 
     it('ENTITY_ADD keeps phoneCalls as the active view when adding a real persons entity', () => {

@@ -53,6 +53,7 @@ describe('serializeCsv PLATOU title dividers', () => {
         expect(rows[1]).toEqual({
             [CSV_COLUMNS.TITLE_NR]: '',
             [CSV_COLUMNS.TITLE]: TITLE_DIVIDER_MARKER,
+            [CSV_COLUMNS.SUPRATITLE]: '',
             [CSV_COLUMNS.PERSON_NAME]: '',
             [CSV_COLUMNS.PERSON_OCCUPATION]: '',
             [CSV_COLUMNS.PERSON_IMAGE]: '',

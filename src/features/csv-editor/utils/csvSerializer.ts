@@ -14,6 +14,7 @@ function emptyCsvRow(): Record<string, string> {
     return {
         [CSV_COLUMNS.TITLE_NR]: '',
         [CSV_COLUMNS.TITLE]: '',
+        [CSV_COLUMNS.SUPRATITLE]: '',
         [CSV_COLUMNS.PERSON_NAME]: '',
         [CSV_COLUMNS.PERSON_OCCUPATION]: '',
         [CSV_COLUMNS.PERSON_IMAGE]: '',
@@ -61,9 +62,10 @@ function packSectionRows(section: CsvSection, options: SerializeCsvOptions): Rec
             titleNr += 1
         }
 
-        out.push({
+        const csvRow: Record<string, string> = {
             [CSV_COLUMNS.TITLE_NR]: titleText.trim() !== '' ? String(titleNr) : '',
             [CSV_COLUMNS.TITLE]: titleText,
+            [CSV_COLUMNS.SUPRATITLE]: r.title?.supratitle ?? '',
 
             [CSV_COLUMNS.PERSON_NAME]: r.person?.name ?? '',
             [CSV_COLUMNS.PERSON_OCCUPATION]: r.person?.occupation ?? '',
@@ -78,7 +80,9 @@ function packSectionRows(section: CsvSection, options: SerializeCsvOptions): Rec
                 section.kind === 'invited' ? (r.waitTitle?.title ?? '') : '',
             [CSV_COLUMNS.WAIT_LOCATION]:
                 section.kind === 'invited' ? (r.waitLocation?.location ?? '') : '',
-        })
+        }
+
+        out.push(csvRow)
     }
 
     return out

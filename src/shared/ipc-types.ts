@@ -4,6 +4,8 @@ import type { DefaultProjectSettings } from '../features/csv-editor/domain/defau
 import type { PhoneImageSettings } from '../features/csv-editor/domain/phoneImageSettings'
 import type { CsvFileSettings } from '../features/csv-editor/domain/csvFileSettings'
 import type { TemplateDocument } from '../features/template-editor/domain/templateDocument'
+import type { EntitiesState } from '../features/csv-editor/domain/entities'
+import type { LowerThirdTypeDefinition } from '../features/lower-thirds/domain/lowerThirdTypes'
 
 export interface CsvFileDescriptor {
     path: string
@@ -15,12 +17,20 @@ export interface CsvGetWorkingResponse {
     path?: string
     filename?: string
     content?: string
+    previousExports?: { titles?: string; persons?: string }
     error?: string
 }
 
 export interface CsvWriteResponse {
     ok: boolean
     error?: string
+}
+
+export interface CsvWriteRequest {
+    content: string
+    /** Renderer metadata used only to generate PA exports; never serialized into the working CSV. */
+    entities?: EntitiesState
+    lowerThirdTypes?: LowerThirdTypeDefinition[]
 }
 
 export interface CsvBackupResponse {
@@ -224,7 +234,7 @@ export interface PhoneImageListWorkPathImagesResponse {
 }
 
 export type TemplateEditorGetUserTemplateDocumentResponse =
-    | { ok: true; document: TemplateDocument | null }
+    | { ok: true; document: TemplateDocument | null; migrated?: boolean }
     | { ok: false; error: 'INVALID_TEMPLATE_JSON' | string }
 
 export interface TemplateEditorSaveTemplateDocumentRequest {
@@ -252,7 +262,7 @@ export interface IpcInvokeMap {
     }
 
     [IPC_CHANNELS.CSV_WRITE]: {
-        request: string // CSV content
+        request: string | CsvWriteRequest
         response: CsvWriteResponse
     }
 

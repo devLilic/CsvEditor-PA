@@ -14,10 +14,11 @@ describe('entity export mapper', () => {
             {
                 nr: '3',
                 title: 'Titlu test',
+                supratitle: 'Supratitlu exemplu',
             },
         ])).toBe([
-            'Nr;Titlu',
-            '3;Titlu test',
+            'Nr;Titlu;Supratitlu',
+            '3;Titlu test;Supratitlu exemplu',
         ].join('\n'))
     })
 
@@ -95,7 +96,7 @@ describe('entity export mapper', () => {
     })
 
     it('returns header-only CSV for empty lists', () => {
-        expect(mapTitlesToExportCsv([])).toBe('Nr;Titlu')
+        expect(mapTitlesToExportCsv([])).toBe('Nr;Titlu;Supratitlu')
         expect(mapPersonsToExportCsv([])).toBe('Nume;Functie')
         expect(mapPhonesToExportCsv([])).toBe('Nume;Functie;Image')
         expect(mapLocationsToExportCsv([])).toBe('Locatie')
@@ -112,9 +113,9 @@ describe('entity export mapper', () => {
                 title: 'Al doilea titlu',
             },
         ])).toBe([
-            'Nr;Titlu',
-            '003;Primul titlu',
-            '7A;Al doilea titlu',
+            'Nr;Titlu;Supratitlu',
+            '003;Primul titlu;',
+            '7A;Al doilea titlu;',
         ].join('\n'))
     })
 
@@ -131,6 +132,7 @@ describe('entity export mapper', () => {
                                 id: 'title-1',
                                 nr: '007',
                                 title: 'Titlu din state',
+                            supratitle: '',
                             },
                         },
                         {
@@ -164,19 +166,19 @@ describe('entity export mapper', () => {
 
         expect(result).toEqual({
             titlesCsv: [
-                'Nr;Titlu',
-                '--- INVITATI ---;',
-                '1;Titlu din state',
+                'Nr;Titlu;Supratitlu;Template',
+                '--- INVITATI ---;;;',
+                '1;Titlu din state;;01_Titlu',
             ].join('\n'),
             titlesWithHotCsv: [
-                'Nr;Titlu;Ultima Ora',
-                '--- INVITATI ---;;',
-                '1;Titlu din state;',
+                'Nr;Titlu;Supratitlu;Ultima Ora',
+                '--- INVITATI ---;;;',
+                '1;Titlu din state;;',
             ].join('\n'),
             personsCsv: [
-                'Sectiune;Nume;Functie',
-                '--- INVITATI ---;;',
-                ';Ion;Invitat',
+                'Sectiune;Nume;Functie;Template',
+                '--- INVITATI ---;;;',
+                ';Ion;Invitat;02_Nume',
             ].join('\n'),
             locationsCsv: [
                 'Locatie',
@@ -199,21 +201,21 @@ describe('entity export mapper', () => {
 
         expect(result).toEqual({
             titlesCsv: [
-                'Nr;Titlu',
-                '--- INVITATI ---;',
-                '1;Titlu CSV',
-                '2;Alt titlu',
+                'Nr;Titlu;Supratitlu;Template',
+                '--- INVITATI ---;;;',
+                '1;Titlu CSV;;01_Titlu',
+                '2;Alt titlu;;01_Titlu',
             ].join('\n'),
             titlesWithHotCsv: [
-                'Nr;Titlu;Ultima Ora',
-                '--- INVITATI ---;;',
-                '1;Titlu CSV;',
-                '2;Alt titlu;',
+                'Nr;Titlu;Supratitlu;Ultima Ora',
+                '--- INVITATI ---;;;',
+                '1;Titlu CSV;;',
+                '2;Alt titlu;;',
             ].join('\n'),
             personsCsv: [
-                'Sectiune;Nume;Functie',
-                '--- INVITATI ---;;',
-                ';Ion;Invitat',
+                'Sectiune;Nume;Functie;Template',
+                '--- INVITATI ---;;;',
+                ';Ion;Invitat;02_Nume',
             ].join('\n'),
             locationsCsv: [
                 'Locatie',
@@ -235,18 +237,18 @@ describe('entity export mapper', () => {
 
         expect(result).toEqual({
             titlesCsv: [
-                'Nr;Titlu',
-                '--- INVITATI ---;',
-                '1;Titlu implicit',
+                'Nr;Titlu;Supratitlu;Template',
+                '--- INVITATI ---;;;',
+                '1;Titlu implicit;;01_Titlu',
             ].join('\n'),
             titlesWithHotCsv: [
-                'Nr;Titlu;Ultima Ora',
-                '--- INVITATI ---;;',
-                '1;Titlu implicit;',
+                'Nr;Titlu;Supratitlu;Ultima Ora',
+                '--- INVITATI ---;;;',
+                '1;Titlu implicit;;',
             ].join('\n'),
             personsCsv: [
-                'Sectiune;Nume;Functie',
-                '--- INVITATI ---;;',
+                'Sectiune;Nume;Functie;Template',
+                '--- INVITATI ---;;;',
             ].join('\n'),
             locationsCsv: 'Locatie',
             phonesCsv: 'Nume;Functie;Image',
@@ -277,25 +279,25 @@ describe('entity export mapper', () => {
         ].join('\n'))
 
         expect(result.titlesCsv).toBe([
-            'Nr;Titlu',
-            '--- beta 1 - Extern ---;',
-            '1;Titlu beta',
-            '--- INVITATI ---;',
-            '1;Titlu platou',
+            'Nr;Titlu;Supratitlu;Template',
+            '--- beta 1 - Extern ---;;;',
+            '1;Titlu beta;;01_Titlu',
+            '--- INVITATI ---;;;',
+            '1;Titlu platou;;01_Titlu',
         ].join('\n'))
         expect(result.titlesWithHotCsv).toBe([
-            'Nr;Titlu;Ultima Ora',
-            '--- beta 1 - Extern ---;;',
-            '1;Titlu beta;',
-            '--- INVITATI ---;;',
-            '1;Titlu platou;Ultima ora',
+            'Nr;Titlu;Supratitlu;Ultima Ora',
+            '--- beta 1 - Extern ---;;;',
+            '1;Titlu beta;;',
+            '--- INVITATI ---;;;',
+            '1;Titlu platou;;Ultima ora',
         ].join('\n'))
         expect(result.personsCsv).toBe([
-            'Sectiune;Nume;Functie',
-            '--- beta 1 - Extern ---;;',
-            ';Invitat beta;Rol beta',
-            '--- INVITATI ---;;',
-            ';Invitat platou;Rol platou',
+            'Sectiune;Nume;Functie;Template',
+            '--- beta 1 - Extern ---;;;',
+            ';Invitat beta;Rol beta;02_Nume',
+            '--- INVITATI ---;;;',
+            ';Invitat platou;Rol platou;02_Nume',
         ].join('\n'))
     })
 })

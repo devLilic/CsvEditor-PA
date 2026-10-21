@@ -1,5 +1,5 @@
 // src/ui/components/layout/EditorBody.tsx
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { EntityList } from '../EntityList'
 import { EntityEditor } from '../EntityEditor'
 import { EntityTypeTabsLeft } from '../EntityTypeTabsLeft'
@@ -11,6 +11,10 @@ import { settingsService } from '@/features/csv-editor/services/settingsService'
 import type { AppConfig } from '@/shared/ipc-types'
 import { useResizablePanel } from '@/ui/hooks/useResizablePanel'
 import { useTedMode } from '@/ui/context/TedModeContext'
+import { useActiveEntityType, useEntities, useSelectedEntity } from '@/features/csv-editor'
+import { DEFAULT_LOWER_THIRD_TYPE_ID } from '@/features/lower-thirds/domain/lowerThirdTypes'
+import { useLowerThirdTypes } from '@/ui/hooks/useLowerThirdTypes'
+import type { RepeatSupratitleRequest } from '../repeatSupratitle'
 
 const DEFAULT_LEFT_PANEL_WIDTH = 700
 const MIN_LEFT_PANEL_WIDTH = 420
@@ -47,14 +51,39 @@ function createConfigWithLeftPanelWidth(config: AppConfig, leftPanelWidth: numbe
 }
 
 export function EditorBody() {
+    const [repeatSupratitleRequest, setRepeatSupratitleRequest] = useState<RepeatSupratitleRequest | null>(null)
     const {
         isTedMode,
         activeTedEntityType,
+        activeLowerThirdTypeId,
         tedSampleOverrides,
     } = useTedMode()
     const { document: templateDocument } = useTemplateDocument()
+    const { types: lowerThirdTypes } = useLowerThirdTypes()
+    const { activeSection } = useEntities()
+    const { activeEntityType, setActiveEntityType } = useActiveEntityType()
+    const { clearSelection } = useSelectedEntity()
     const tedSampleData = mergeTedSampleData(activeTedEntityType, tedSampleOverrides)
-    const tedTemplate = templateDocument.templates[activeTedEntityType]
+    const lowerThirdKind = activeTedEntityType === 'titles' || activeTedEntityType === 'persons'
+        ? activeTedEntityType
+        : null
+    const activeLowerThirdType = lowerThirdTypes.find((type) => type.id === activeLowerThirdTypeId)
+        ?? lowerThirdTypes.find((type) => type.id === DEFAULT_LOWER_THIRD_TYPE_ID)
+    const tedTemplate = lowerThirdKind
+        ? templateDocument.lowerThirdVariants[lowerThirdKind][activeLowerThirdType?.id ?? DEFAULT_LOWER_THIRD_TYPE_ID]
+            ?? templateDocument.lowerThirdVariants[lowerThirdKind][DEFAULT_LOWER_THIRD_TYPE_ID]
+            ?? templateDocument.templates[activeTedEntityType]
+        : templateDocument.templates[activeTedEntityType]
+    const tedTemplateVariant = lowerThirdKind && activeLowerThirdType
+        ? activeLowerThirdType.templates[lowerThirdKind].name
+        : undefined
+    const tedLowerThirdPalette = lowerThirdKind ? activeLowerThirdType?.palette : undefined
+    const mainEntityTypes = activeSection?.kind === 'beta'
+        ? ['titles', 'persons'] as const
+        : ['titles', 'persons', 'locations', 'phoneCalls', 'waitTitles', 'waitLocations'] as const
+    const availableMainEntityTypes = mainEntityTypes.filter((entityType) => (
+        !(templateDocument.disabledEntityTypes ?? []).includes(entityType)
+    ))
     const saveLeftPanelWidth = useCallback(async (nextWidth: number) => {
         const currentConfig = await settingsService.getConfig()
         await settingsService.setConfig(createConfigWithLeftPanelWidth(
@@ -97,6 +126,13 @@ export function EditorBody() {
         }
     }, [setLeftPanelWidth])
 
+    useEffect(() => {
+        if (!isTedMode && availableMainEntityTypes.length > 0 && !availableMainEntityTypes.includes(activeEntityType as typeof availableMainEntityTypes[number])) {
+            clearSelection()
+            setActiveEntityType(availableMainEntityTypes[0])
+        }
+    }, [activeEntityType, availableMainEntityTypes, clearSelection, isTedMode, setActiveEntityType])
+
     return (
         <div
             className={`app-body flex-1 grid gap-0 p-4 min-h-0 min-w-0 overflow-hidden ${
@@ -118,7 +154,11 @@ export function EditorBody() {
                 <div className="pt-3 flex-1 min-h-0 min-w-0">
                     {isTedMode
                         ? <TemplateEditorPanel isTedMode />
-                        : <EntityList />}
+                        : availableMainEntityTypes.length > 0
+                            ? <EntityList onRepeatSupratitle={setRepeatSupratitleRequest} />
+                            : <div className="p-3 text-sm text-gray-600">
+                                No enabled types for this section. Re-enable one in Edit Templates.
+                            </div>}
                 </div>
             </div>
 
@@ -135,8 +175,22 @@ export function EditorBody() {
             {/* RIGHT */}
             <div className="min-h-0 min-w-0 overflow-hidden">
                 {isTedMode
-                    ? <TedPreviewOnlyPanel template={tedTemplate} sampleData={tedSampleData} />
-                    : <EntityEditor />}
+                    ? <TedPreviewOnlyPanel
+                        template={tedTemplate}
+                        sampleData={tedSampleData}
+                        templateVariant={tedTemplateVariant}
+                        lowerThirdPalette={tedLowerThirdPalette}
+                    />
+                    : availableMainEntityTypes.length > 0
+                        ? <EntityEditor
+                            repeatSupratitleRequest={repeatSupratitleRequest}
+                            onRepeatSupratitleRequestHandled={(requestId) => {
+                                setRepeatSupratitleRequest((current) => current?.requestId === requestId ? null : current)
+                            }}
+                        />
+                        : <div className="flex h-full items-center justify-center rounded border bg-white p-4 text-center text-sm text-gray-600">
+                            Enable a template type in Edit Templates to continue.
+                        </div>}
             </div>
         </div>
     )

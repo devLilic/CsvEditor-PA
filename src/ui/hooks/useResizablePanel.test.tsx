@@ -9,8 +9,12 @@ const MAX_WIDTH = 1100
 
 function ResizablePanelHarness({
     onResizeEnd,
+    axis,
+    maxWidth = MAX_WIDTH,
 }: {
     onResizeEnd?: (width: number) => void
+    axis?: 'x' | 'y'
+    maxWidth?: number
 }) {
     const {
         width,
@@ -21,7 +25,8 @@ function ResizablePanelHarness({
     } = useResizablePanel({
         defaultWidth: DEFAULT_WIDTH,
         minWidth: MIN_WIDTH,
-        maxWidth: MAX_WIDTH,
+        maxWidth,
+        axis,
         onResizeEnd,
     })
 
@@ -90,6 +95,7 @@ describe('useResizablePanel', () => {
                 new PointerEvent('pointerdown', {
                     bubbles: true,
                     clientX: 100,
+                    clientY: 100,
                 }),
             )
         })
@@ -101,6 +107,7 @@ describe('useResizablePanel', () => {
                 new PointerEvent('pointermove', {
                     bubbles: true,
                     clientX: 250,
+                    clientY: 250,
                 }),
             )
         })
@@ -112,11 +119,51 @@ describe('useResizablePanel', () => {
                 new PointerEvent('pointerup', {
                     bubbles: true,
                     clientX: 250,
+                    clientY: 250,
                 }),
             )
         })
 
         expect(screen.getByTestId('is-resizing')).toHaveTextContent('false')
         expect(onResizeEnd).toHaveBeenCalledWith(850)
+    })
+
+    it('uses vertical pointer movement for a horizontal splitter and clamps the result', () => {
+        const onResizeEnd = vi.fn()
+        render(<ResizablePanelHarness axis="y" onResizeEnd={onResizeEnd} />)
+
+        act(() => {
+            screen.getByRole('separator').dispatchEvent(new PointerEvent('pointerdown', {
+                bubbles: true,
+                clientX: 100,
+                clientY: 300,
+            }))
+        })
+        expect(document.body.style.cursor).toBe('row-resize')
+
+        act(() => {
+            window.dispatchEvent(new PointerEvent('pointermove', {
+                bubbles: true,
+                clientX: 100,
+                clientY: 0,
+            }))
+        })
+        expect(screen.getByTestId('width')).toHaveTextContent(String(MIN_WIDTH))
+
+        act(() => {
+            window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+        })
+        expect(onResizeEnd).toHaveBeenCalledWith(MIN_WIDTH)
+    })
+
+    it('clamps resetWidth to a dynamic maximum', async () => {
+        const user = userEvent.setup()
+        const onResizeEnd = vi.fn()
+        render(<ResizablePanelHarness axis="y" maxWidth={500} onResizeEnd={onResizeEnd} />)
+
+        await user.click(screen.getByRole('button', { name: 'reset' }))
+
+        expect(screen.getByTestId('width')).toHaveTextContent('500')
+        expect(onResizeEnd).toHaveBeenCalledWith(500)
     })
 })

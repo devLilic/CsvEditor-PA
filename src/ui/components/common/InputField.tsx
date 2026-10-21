@@ -10,6 +10,7 @@ interface InputFieldProps {
     inputRef?: RefObject<HTMLInputElement>
     uppercase?: boolean
     invalid?: boolean
+    hideLabel?: boolean
 }
 
 export function InputField({
@@ -21,6 +22,7 @@ export function InputField({
                                inputRef,
                                uppercase = false,
                                invalid = false,
+                               hideLabel = false,
                            }: InputFieldProps) {
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && onEnter) {
@@ -31,7 +33,7 @@ export function InputField({
 
     return (
         <label className="flex flex-col gap-1">
-      <span className="text-sm text-gray-600">
+      <span className={`${hideLabel ? 'sr-only' : 'text-sm text-gray-600'}`}>
         {label}
       </span>
             <input

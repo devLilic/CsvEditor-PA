@@ -127,6 +127,28 @@ describe('previewMath - text resolution', () => {
 
         expect(text).toBe('')
     })
+
+    it('resolves composite person text with per-field casing and no orphan comma', () => {
+        const text = resolveLayerText({
+            fieldId: 'name',
+            textParts: [
+                { fieldId: 'name', transform: 'uppercase' },
+                { fieldId: 'occupation', prefix: ', ' },
+            ],
+            data: { name: 'Ion Popescu', occupation: 'director general' },
+        })
+
+        expect(text).toBe('ION POPESCU, director general')
+        expect(resolveLayerText({
+            fieldId: 'name',
+            textParts: [
+                { fieldId: 'name', transform: 'uppercase' },
+                { fieldId: 'occupation', prefix: ', ' },
+            ],
+            data: { name: 'Ion Popescu', occupation: '' },
+            sampleData: { occupation: 'sample role' },
+        })).toBe('ION POPESCU')
+    })
 })
 
 describe('previewMath - layer sorting', () => {

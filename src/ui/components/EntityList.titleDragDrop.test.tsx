@@ -1,5 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import { act } from 'react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EntityList } from './EntityList'
 import { EditModeProvider, useEditMode } from '@/ui/context/EditModeContext'
@@ -57,6 +56,7 @@ vi.mock('@dnd-kit/utilities', () => ({
 
 vi.mock('@/features/csv-editor/services/settingsService', () => ({
     settingsService: {
+        getConfig: vi.fn().mockResolvedValue({}),
         getPlateauTitleDragDropEnabled: vi.fn(),
     },
 }))
@@ -118,7 +118,7 @@ function EditModeOn() {
     return <button onClick={toggleEditMode}>toggle edit mode</button>
 }
 
-function renderEntityList({ editMode = true } = {}) {
+async function renderEntityList({ editMode = true } = {}) {
     const view = render(
         <EditModeProvider>
             <TitleFilterProvider>
@@ -133,6 +133,12 @@ function renderEntityList({ editMode = true } = {}) {
             screen.getByRole('button', { name: 'toggle edit mode' }).click()
         })
     }
+
+    // The async settings lookup runs from EntityList's mount effect. Flush it
+    // inside act so it cannot update React after an individual test finishes.
+    await act(async () => {
+        await Promise.resolve()
+    })
 
     return view
 }
@@ -166,6 +172,8 @@ function toPlateauTitleListItem(item: any) {
 }
 
 beforeEach(() => {
+    vi.mocked(settingsService.getConfig).mockReset()
+    vi.mocked(settingsService.getConfig).mockResolvedValue({} as Awaited<ReturnType<typeof settingsService.getConfig>>)
     dndHooks.onDragEnd = null
     dndHooks.sortableTransform = null
     csvHooks.activeSectionId = 'invited-1'
@@ -196,7 +204,7 @@ afterEach(() => {
 
 describe('EntityList title drag-and-drop', () => {
     it('shows handles in PLATOU Titles with Edit Mode and setting enabled', async () => {
-        renderEntityList()
+        await renderEntityList()
 
         expect(await screen.findAllByRole('button', { name: 'Muta elementul' })).toHaveLength(4)
     })
@@ -204,7 +212,7 @@ describe('EntityList title drag-and-drop', () => {
     it('keeps sortable movement on the vertical axis', async () => {
         dndHooks.sortableTransform = { x: 240, y: 18, scaleX: 1, scaleY: 1 }
 
-        renderEntityList()
+        await renderEntityList()
 
         const handle = (await screen.findAllByRole('button', { name: 'Muta elementul' }))[0]
         const sortableRow = handle.closest('[style]')
@@ -213,7 +221,7 @@ describe('EntityList title drag-and-drop', () => {
     })
 
     it('renders the title drag handle before the title number', async () => {
-        renderEntityList()
+        await renderEntityList()
 
         const handle = (await screen.findAllByRole('button', { name: 'Muta elementul' }))[0]
         const number = screen.getByText('1.')
@@ -222,7 +230,7 @@ describe('EntityList title drag-and-drop', () => {
     })
 
     it('renders the divider drag handle before the divider line', async () => {
-        renderEntityList()
+        await renderEntityList()
         await screen.findAllByRole('button', { name: 'Muta elementul' })
 
         const divider = (await screen.findAllByTestId('plateau-title-divider'))[0]
@@ -234,8 +242,8 @@ describe('EntityList title drag-and-drop', () => {
         expect(Boolean(handle!.compareDocumentPosition(line!) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
     })
 
-    it('hides handles in normal mode', () => {
-        renderEntityList({ editMode: false })
+    it('hides handles in normal mode', async () => {
+        await renderEntityList({ editMode: false })
 
         expect(screen.queryByRole('button', { name: 'Muta elementul' })).not.toBeInTheDocument()
     })
@@ -243,37 +251,37 @@ describe('EntityList title drag-and-drop', () => {
     it('hides handles when the setting is false', async () => {
         vi.mocked(settingsService.getPlateauTitleDragDropEnabled).mockResolvedValue(false)
 
-        renderEntityList()
+        await renderEntityList()
 
         expect(screen.queryByRole('button', { name: 'Muta elementul' })).not.toBeInTheDocument()
     })
 
-    it('hides handles in BETA', () => {
+    it('hides handles in BETA', async () => {
         csvHooks.activeSectionId = 'beta-1'
         csvHooks.activeSection = { id: 'beta-1', kind: 'beta', rows: [] }
         csvHooks.getBlockItems.mockReturnValue([
             { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: { title: 'BETA TITLE' } },
         ])
 
-        renderEntityList()
+        await renderEntityList()
 
         expect(screen.queryByRole('button', { name: 'Muta elementul' })).not.toBeInTheDocument()
     })
 
-    it('renders the divider as a visual line', () => {
-        renderEntityList()
+    it('renders the divider as a visual line', async () => {
+        await renderEntityList()
 
         expect(screen.getAllByRole('separator')).toHaveLength(2)
     })
 
-    it('does not render the CSV divider marker', () => {
-        renderEntityList()
+    it('does not render the CSV divider marker', async () => {
+        await renderEntityList()
 
         expect(screen.queryByText(TITLE_DIVIDER_MARKER)).not.toBeInTheDocument()
     })
 
     it('shows an error for an invalid drop', async () => {
-        renderEntityList()
+        await renderEntityList()
         await screen.findByTestId('dnd-context')
 
         await act(async () => {
@@ -287,7 +295,7 @@ describe('EntityList title drag-and-drop', () => {
     })
 
     it('does not start persistence for an invalid drop', async () => {
-        renderEntityList()
+        await renderEntityList()
         await screen.findByTestId('dnd-context')
 
         await act(async () => {
@@ -326,7 +334,7 @@ describe('EntityList title drag-and-drop', () => {
             return { ok: true }
         })
 
-        const view = renderEntityList()
+        const view = await renderEntityList()
         expect(await screen.findAllByRole('separator')).toHaveLength(2)
 
         await act(async () => {
@@ -339,7 +347,7 @@ describe('EntityList title drag-and-drop', () => {
         expect(csvHooks.reorderPlateauTitleItems).toHaveBeenCalledWith('row-title-2', 'divider-1')
 
         view.unmount()
-        renderEntityList({ editMode: false })
+        await renderEntityList({ editMode: false })
 
         expect(screen.getAllByRole('separator')).toHaveLength(1)
         expect(screen.getByText('T1')).toBeInTheDocument()

@@ -31,6 +31,12 @@ import { PlateauTitleDivider } from './titles/PlateauTitleDivider'
 import { useEditMode } from '@/ui/context/EditModeContext'
 import { useTitleFilter } from '@/ui/context/TitleFilterContext'
 import { showErrorToast } from './common/toast'
+import {
+    DEFAULT_LOWER_THIRD_TYPE_ID,
+    DEFAULT_LOWER_THIRD_TYPES,
+} from '@/features/lower-thirds/domain/lowerThirdTypes'
+import { useLowerThirdTypes } from '@/ui/hooks/useLowerThirdTypes'
+import type { RepeatSupratitleRequest } from './repeatSupratitle'
 
 const CONSECUTIVE_TITLE_DIVIDERS_DROP_ERROR = 'Nu pot exista două separatoare consecutive.'
 
@@ -91,7 +97,9 @@ function SortableRow({ id, children }: { id: string; children: (dragHandle: Reac
     )
 }
 
-export function EntityList() {
+export function EntityList({ onRepeatSupratitle }: {
+    onRepeatSupratitle?: (request: RepeatSupratitleRequest) => void
+} = {}) {
     const {
         activeSectionId,
         activeSection,
@@ -105,10 +113,12 @@ export function EntityList() {
     const { select, isSelected } = useSelectedEntity()
     const { editMode } = useEditMode()
     const { titleFilter } = useTitleFilter()
+    const { types: lowerThirdTypes } = useLowerThirdTypes()
     const [deletingDividerId, setDeletingDividerId] = useState<string | null>(null)
     const [enablePlateauTitleDragDrop, setEnablePlateauTitleDragDrop] = useState<boolean | null>(null)
     const [recentlyChangedTitleId, setRecentlyChangedTitleId] = useState<string | null>(null)
     const listRef = useRef<HTMLDivElement>(null)
+    const repeatRequestIdRef = useRef(0)
     const previousListStateRef = useRef<{
         contextKey: string
         itemCount: number
@@ -329,6 +339,13 @@ export function EntityList() {
 
             const isTitle = item.entityType === 'titles'
             const isPersons = item.entityType === 'persons'
+            const storedLowerThirdTypeId = item.data?.lowerThirdTypeId ?? DEFAULT_LOWER_THIRD_TYPE_ID
+            const lowerThirdTypeId = lowerThirdTypes.some((type) => type.id === storedLowerThirdTypeId)
+                ? storedLowerThirdTypeId
+                : DEFAULT_LOWER_THIRD_TYPE_ID
+            const lowerThirdType = lowerThirdTypes.find((type) => type.id === lowerThirdTypeId)
+                ?? lowerThirdTypes.find((type) => type.id === DEFAULT_LOWER_THIRD_TYPE_ID)
+                ?? DEFAULT_LOWER_THIRD_TYPES[0]
             const isDuplicatePlateauTitle = isTitle && duplicatePlateauTitleIds.has(item.id)
             const isRecentlyChangedTitle = isTitle && recentlyChangedTitleId === item.id
             const displayNr = isTitle ? titleNumberById.get(item.id) ?? null : null
@@ -336,6 +353,7 @@ export function EntityList() {
                 ? item.data?.name ?? ''
                 : item.data?.title ?? item.data?.location ?? ''
             const subText = isPersons ? item.data?.occupation ?? '' : ''
+            const supratitle = isTitle ? item.data?.supratitle?.trim() ?? '' : ''
 
             renderedItem = (
                 <div
@@ -362,18 +380,37 @@ export function EntityList() {
                         {dragHandle}
                         <div className="min-w-0 overflow-hidden">
                             {showNr && displayNr !== null ? (
-                                <div className="flex min-w-0 gap-2">
-                                    <span className="app-title-number shrink-0 font-semibold text-gray-500">
-                                        {displayNr}.
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="flex shrink-0 items-center gap-2">
+                                        <span className="app-title-number font-semibold text-gray-500">
+                                            {displayNr}.
+                                        </span>
+                                        <span
+                                            aria-label={lowerThirdType.name}
+                                            title={lowerThirdType.name}
+                                            className="h-3 w-3 shrink-0 rounded-full border border-black/20"
+                                            style={{ backgroundColor: lowerThirdType.palette.indicatorColor }}
+                                        />
                                     </span>
-                                    <span className="truncate font-bold">
-                                        {mainText}
+                                    <span className="flex min-w-0 flex-col">
+                                        {supratitle && (
+                                            <span className="truncate text-xs font-bold text-gray-600">
+                                                {supratitle}
+                                            </span>
+                                        )}
+                                        <span className="truncate font-bold">{mainText}</span>
                                     </span>
                                 </div>
                             ) : isPersons ? (
                                 <div className="flex min-w-0 flex-col">
-                                    <span className="truncate font-bold">
-                                        {mainText}
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <span
+                                            aria-label={lowerThirdType.name}
+                                            title={lowerThirdType.name}
+                                            className="h-3 w-3 shrink-0 rounded-full border border-black/20"
+                                            style={{ backgroundColor: lowerThirdType.palette.indicatorColor }}
+                                        />
+                                        <span className="truncate font-bold">{mainText}</span>
                                     </span>
                                     <span className="truncate text-sm text-gray-600">
                                         {subText}
@@ -387,7 +424,25 @@ export function EntityList() {
                         </div>
                     </div>
 
-                    <div className="app-row-actions flex shrink-0 items-center gap-2">
+                    <div className="app-row-actions app-repeat-row-actions flex shrink-0 items-center gap-2">
+                        {isTitle && supratitle && onRepeatSupratitle && (
+                            <button
+                                type="button"
+                                title="Repetă supratitlu"
+                                aria-label={`Repetă supratitlu: ${supratitle}`}
+                                onClick={(event) => {
+                                    event.stopPropagation()
+                                    onRepeatSupratitle({
+                                        requestId: ++repeatRequestIdRef.current,
+                                        supratitle,
+                                        lowerThirdTypeId: lowerThirdType.id,
+                                    })
+                                }}
+                                className="app-button border border-blue-300 bg-white px-2 py-1 text-xs text-blue-800 rounded hover:bg-blue-50"
+                            >
+                                Repetă supratitlu
+                            </button>
+                        )}
                         {editMode && (
                             <button
                                 title="Sterge"

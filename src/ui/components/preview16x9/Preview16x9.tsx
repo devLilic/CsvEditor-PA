@@ -1,4 +1,6 @@
 import type { BroadcastTemplate } from '@/shared/preview/templateContract'
+import type { LowerThirdTypeDefinition } from '@/features/lower-thirds/domain/lowerThirdTypes'
+import type { BroadcastLayer, BroadcastShapeLayer, BroadcastTextLayer } from '@/shared/preview/templateContract'
 import {
     calculatePreviewFrame,
     calculatePreviewFrameByWidth,
@@ -15,6 +17,9 @@ type Preview16x9Props = {
     fitMode?: 'contain' | 'width'
     maxHeight?: number
     className?: string
+    /** The configured name identifies a selected lower-third variant for preview styling. */
+    templateVariant?: string
+    lowerThirdPalette?: LowerThirdTypeDefinition['palette']
 }
 
 export function Preview16x9({
@@ -24,6 +29,8 @@ export function Preview16x9({
     fitMode = 'contain',
     maxHeight,
     className,
+    templateVariant,
+    lowerThirdPalette,
 }: Preview16x9Props) {
     const { ref, size } = useMeasuredElement<HTMLDivElement>()
     const designWidth = template.canvas.width
@@ -45,7 +52,33 @@ export function Preview16x9({
             containerHeight: boundedHeight,
         })
 
-    const visibleLayers = sortVisibleLayers(template.layers)
+    const visibleLayers = sortVisibleLayers(template.layers).filter((layer) => {
+        if (!layer.visibleWhenField) return true
+
+        const liveValue = data?.[layer.visibleWhenField]
+        const sampleValue = sampleData?.[layer.visibleWhenField]
+        const value = liveValue === undefined || liveValue === null || String(liveValue).trim() === ''
+            ? sampleValue
+            : liveValue
+
+        return value !== undefined && value !== null && String(value).trim() !== ''
+    }).map((layer): BroadcastLayer => {
+        if (!templateVariant || !lowerThirdPalette) return layer
+        if (layer.type === 'text') {
+            return {
+                ...layer,
+                textStyle: { ...layer.textStyle, color: lowerThirdPalette.textColor },
+            } satisfies BroadcastTextLayer
+        }
+        if (layer.type === 'shape' && layer.visible !== false) {
+            return {
+                ...layer,
+                fill: { ...layer.fill, value: lowerThirdPalette.backgroundColor },
+                opacity: lowerThirdPalette.opacity,
+            } satisfies BroadcastShapeLayer
+        }
+        return layer
+    })
 
     return (
         <div
@@ -64,6 +97,7 @@ export function Preview16x9({
                     position: 'relative',
                     width: frame.width,
                     height: frame.height,
+                    marginInline: 'auto',
                     overflow: 'hidden',
                     backgroundColor: '#000000',
                 }}
@@ -81,7 +115,9 @@ export function Preview16x9({
                         transformOrigin: 'top left',
                     }}
                 >
-                    <BackgroundRenderer background={template.canvas.background} />
+                    <BackgroundRenderer
+                        background={template.canvas.background}
+                    />
                     {visibleLayers.map((layer) => (
                         <LayerRenderer
                             key={layer.id}

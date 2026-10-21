@@ -1,10 +1,13 @@
-import { cleanup, render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import type { ComponentProps, ReactNode } from 'react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EntityEditor } from './EntityEditor'
 import { EditModeProvider } from '@/ui/context/EditModeContext'
 import { TemplateDocumentProvider } from '@/features/template-editor/state/TemplateDocumentProvider'
+import { settingsService } from '@/features/csv-editor/services/settingsService'
+import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 
 const csvHooks = vi.hoisted(() => ({
     activeEntityType: 'titles' as
@@ -24,7 +27,7 @@ const csvHooks = vi.hoisted(() => ({
     setActiveEntityType: vi.fn((type) => {
         csvHooks.activeEntityType = type
     }),
-    selected: null as null | { sectionId: string; entityType: 'persons'; id: string },
+    selected: null as null | { sectionId: string; entityType: 'persons' | 'titles'; id: string },
     getBlockItems: vi.fn(() => []),
     phoneImageModalProps: null as any,
     quickTitles: [] as string[],
@@ -148,12 +151,18 @@ afterEach(() => {
     cleanup()
 })
 
-function renderEntityEditor() {
+function renderEntityEditor(props: ComponentProps<typeof EntityEditor> = {}) {
     return render(
         <TestProviders>
-            <EntityEditor />
+            <EntityEditor {...props} />
         </TestProviders>
     )
+}
+
+function expectHiddenInputLabel(label: string, placeholder: string) {
+    const input = screen.getByLabelText(label)
+    expect(input).toHaveAttribute('placeholder', placeholder)
+    expect(input.closest('label')?.querySelector('span')).toHaveClass('sr-only')
 }
 
 function TestProviders({ children }: { children: ReactNode }) {
@@ -167,6 +176,169 @@ function TestProviders({ children }: { children: ReactNode }) {
 }
 
 describe('EntityEditor', () => {
+    it('starts a clean repeated-supertitle draft with the saved graphic type and title focus', async () => {
+        vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        const onHandled = vi.fn()
+        const view = renderEntityEditor()
+        await screen.findByRole('radio', { name: 'Breaking News' })
+        view.rerender(<TestProviders><EntityEditor
+            repeatSupratitleRequest={{ requestId: 1, supratitle: 'ANA POPESCU', lowerThirdTypeId: 'breaking-news' }}
+            onRepeatSupratitleRequestHandled={onHandled}
+        /></TestProviders>)
+
+        await waitFor(() => expect(screen.getByLabelText('Supratitlu')).toHaveValue('ANA POPESCU'))
+        expect(screen.getByLabelText('Titlu')).toHaveValue('')
+        expect(screen.getByLabelText('Titlu')).toHaveFocus()
+        expect(screen.getByRole('radio', { name: 'Breaking News' })).toHaveAttribute('aria-checked', 'true')
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(onHandled).toHaveBeenCalledWith(1)
+
+        await userEvent.type(screen.getByLabelText('Titlu'), 'CITAT NOU')
+        await userEvent.click(screen.getByRole('button', { name: /Adaugă/i }))
+        expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', expect.objectContaining({
+            title: 'CITAT NOU',
+            supratitle: 'ANA POPESCU',
+            lowerThirdTypeId: 'breaking-news',
+        }))
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('')
+        expect(screen.getByLabelText('Titlu')).toHaveValue('')
+        expect(screen.getByRole('radio', { name: 'Breaking News' })).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it('asks before replacing an unsaved title draft and supports cancel and confirm', async () => {
+        vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        const user = userEvent.setup()
+        const onHandled = vi.fn()
+        const view = renderEntityEditor()
+        await user.type(screen.getByLabelText('Titlu'), 'Draft local')
+        view.rerender(<TestProviders><EntityEditor
+            repeatSupratitleRequest={{ requestId: 2, supratitle: 'INVITAT', lowerThirdTypeId: 'ordinary' }}
+            onRepeatSupratitleRequestHandled={onHandled}
+        /></TestProviders>)
+
+        expect(await screen.findByRole('dialog', { name: 'Modificări nesalvate' })).toBeInTheDocument()
+        expect(screen.getByLabelText('Titlu')).toHaveValue('Draft local')
+        await user.click(screen.getByRole('button', { name: 'Anulează' }))
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(screen.getByLabelText('Titlu')).toHaveValue('Draft local')
+        expect(onHandled).toHaveBeenCalledWith(2)
+
+        view.rerender(<TestProviders><EntityEditor
+            repeatSupratitleRequest={{ requestId: 3, supratitle: 'INVITAT', lowerThirdTypeId: 'ordinary' }}
+            onRepeatSupratitleRequestHandled={onHandled}
+        /></TestProviders>)
+        expect(await screen.findByRole('dialog')).toBeInTheDocument()
+        await user.click(screen.getByRole('button', { name: 'Confirmă' }))
+        await waitFor(() => expect(screen.getByLabelText('Supratitlu')).toHaveValue('INVITAT'))
+        expect(screen.getByLabelText('Titlu')).toHaveValue('')
+        expect(screen.getByLabelText('Titlu')).toHaveFocus()
+        expect(onHandled).toHaveBeenCalledWith(3)
+    })
+
+    it('checks dynamic title fields when replacing an edited selection and keeps it on cancel', async () => {
+        vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        const titleItem = {
+            type: 'title',
+            entityType: 'titles',
+            id: 'title-1',
+            data: { title: 'TITLUL SALVAT', supratitle: 'SUPRATITLU SALVAT' },
+        }
+        csvHooks.selected = { sectionId: 'invited-1', entityType: 'titles', id: 'title-1' }
+        csvHooks.getBlockItems.mockReturnValue([titleItem])
+
+        const user = userEvent.setup()
+        const onHandled = vi.fn()
+        const view = renderEntityEditor()
+        await waitFor(() => {
+            expect(screen.getByLabelText('Supratitlu')).toHaveValue('SUPRATITLU SALVAT')
+            expect(screen.getByLabelText('Titlu')).toHaveValue('TITLUL SALVAT')
+        })
+        await user.clear(screen.getByLabelText('Supratitlu'))
+        await user.type(screen.getByLabelText('Supratitlu'), 'SUPRATITLU MODIFICAT')
+
+        view.rerender(<TestProviders><EntityEditor
+            repeatSupratitleRequest={{ requestId: 4, supratitle: 'ALT INVITAT', lowerThirdTypeId: 'ordinary' }}
+            onRepeatSupratitleRequestHandled={onHandled}
+        /></TestProviders>)
+
+        expect(await screen.findByRole('dialog', { name: 'Modificări nesalvate' })).toBeInTheDocument()
+        await user.click(screen.getByRole('button', { name: 'Anulează' }))
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('SUPRATITLU MODIFICAT')
+        expect(screen.getByLabelText('Titlu')).toHaveValue('TITLUL SALVAT')
+        expect(csvHooks.clearSelection).not.toHaveBeenCalled()
+        expect(onHandled).toHaveBeenCalledWith(4)
+    })
+
+    it('reflects and saves the selected lower-third type for an edited title', async () => {
+        const getTypesSpy = vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        const titleItem = {
+            type: 'title',
+            entityType: 'titles',
+            id: 'title-1',
+            data: { title: 'BREAKING NEWS', lowerThirdTypeId: 'breaking-news' },
+        }
+        csvHooks.selected = { sectionId: 'invited-1', entityType: 'titles', id: 'title-1' }
+        csvHooks.getBlockItems.mockReturnValue([titleItem])
+
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        const breakingType = await screen.findByRole('radio', { name: 'Breaking News' })
+        expect(breakingType).toHaveAttribute('aria-checked', 'true')
+        expect(breakingType).toHaveClass('py-0.5', 'border-0', 'outline-none')
+        expect(breakingType).toHaveStyle({ backgroundColor: '#000000', color: '#ffff00' })
+        await user.click(screen.getByRole('radio', { name: 'Obișnuit' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
+
+        expect(csvHooks.updateEntity).toHaveBeenCalledWith(
+            'invited-1',
+            'titles',
+            'title-1',
+            expect.objectContaining({ lowerThirdTypeId: 'ordinary' }),
+        )
+        getTypesSpy.mockRestore()
+    })
+
+    it('keeps the selected lower-third type active after adding a title', async () => {
+        const getTypesSpy = vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.click(await screen.findByRole('radio', { name: 'Breaking News' }))
+        await user.type(screen.getByLabelText('Titlu'), 'Titlu de test')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', expect.objectContaining({
+            title: 'Titlu de test',
+            lowerThirdTypeId: 'breaking-news',
+        }))
+        expect(screen.getByRole('radio', { name: 'Breaking News' })).toHaveAttribute('aria-checked', 'true')
+        getTypesSpy.mockRestore()
+    })
+
+    it('keeps the selected lower-third type active after adding a person', async () => {
+        const getTypesSpy = vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.activeSection = { id: 'beta-1', kind: 'beta', rows: [] }
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.click(await screen.findByRole('radio', { name: 'Breaking News' }))
+        await user.type(screen.getByLabelText('Nume'), 'Ana Bujor')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(csvHooks.savePersonEntity).toHaveBeenCalledWith(expect.objectContaining({
+            sectionId: 'beta-1',
+            data: expect.objectContaining({
+                name: 'ANA BUJOR',
+                lowerThirdTypeId: 'breaking-news',
+            }),
+        }))
+        expect(screen.getByRole('radio', { name: 'Breaking News' })).toHaveAttribute('aria-checked', 'true')
+        getTypesSpy.mockRestore()
+    })
+
     it('uses titleTemplate for titles', () => {
         const { container } = renderEntityEditor()
 
@@ -180,7 +352,7 @@ describe('EntityEditor', () => {
         const { container } = renderEntityEditor()
 
         expect(container.querySelector('[data-layer-id="person-name-text"]')).toBeInTheDocument()
-        expect(container.querySelector('[data-layer-id="person-occupation-text"]')).toBeInTheDocument()
+        expect(container.querySelector('[data-layer-id="person-occupation-text"]')).not.toBeInTheDocument()
         expect(container.querySelector('[data-layer-id="title-main-text"]')).not.toBeInTheDocument()
     })
 
@@ -203,6 +375,27 @@ describe('EntityEditor', () => {
         )
         expect(screen.getByTestId('preview16x9-root')).toBeInTheDocument()
         expect(screen.getByLabelText('Titlu')).toBeInTheDocument()
+        expect(screen.getByLabelText('Supratitlu')).toBeInTheDocument()
+        expect(screen.getByLabelText('Titlu')).toHaveAttribute('placeholder', 'Titlu')
+        expect(screen.getByLabelText('Titlu').closest('label')?.querySelector('span')).toHaveClass('sr-only')
+        expect(screen.getByLabelText('Supratitlu')).toHaveAttribute('placeholder', 'Supratitlu')
+        expect(screen.getByLabelText('Supratitlu').closest('label')?.querySelector('span')).toHaveClass('sr-only')
+        expect(screen.getByRole('button', { name: 'Adaugă (Enter)' })).toBeInTheDocument()
+    })
+
+    it('uses hidden accessible labels and matching placeholders for every editor field', () => {
+        const view = renderEntityEditor()
+        expectHiddenInputLabel('Supratitlu', 'Supratitlu')
+        expectHiddenInputLabel('Titlu', 'Titlu')
+
+        csvHooks.activeEntityType = 'persons'
+        view.rerender(<TestProviders><EntityEditor /></TestProviders>)
+        expectHiddenInputLabel('Nume', 'Nume')
+        expectHiddenInputLabel('Funcție', 'Funcție')
+
+        csvHooks.activeEntityType = 'locations'
+        view.rerender(<TestProviders><EntityEditor /></TestProviders>)
+        expectHiddenInputLabel('Locație', 'Locație')
     })
 
     it('passes template and data to the new preview API', async () => {
@@ -211,11 +404,11 @@ describe('EntityEditor', () => {
 
         expect(screen.getByTestId('preview16x9-root')).toBeInTheDocument()
         expect(container.querySelector('[data-layer-id="title-main-text"]')).toBeInTheDocument()
-        expect(screen.getByText('TITLU')).toBeInTheDocument()
+        expect(container.querySelector('[data-layer-id="title-main-text"]')).toHaveTextContent('Titlu')
 
         await user.type(screen.getByLabelText('Titlu'), 'Breaking News')
 
-        expect(screen.getByText('BREAKING NEWS')).toBeInTheDocument()
+        expect(screen.getByTestId('preview16x9-root')).toHaveTextContent('Breaking News')
     })
 
     it('does not render the old Preview16x9 entityType/content/measureText UI', () => {
@@ -236,7 +429,7 @@ describe('EntityEditor', () => {
         await user.type(titleInput, 'Breaking News')
 
         expect(titleInput).toHaveValue('Breaking News')
-        expect(screen.getByText('BREAKING NEWS')).toBeInTheDocument()
+        expect(screen.getByTestId('preview16x9-root')).toHaveTextContent('Breaking News')
         expect(addButton).toBeEnabled()
     })
 
@@ -263,7 +456,59 @@ describe('EntityEditor', () => {
 
         expect(csvHooks.addEntity).toHaveBeenCalledTimes(1)
         expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', {
-            title: 'BREAKING NEWS',
+            title: 'Breaking News',
+        })
+    })
+
+    it('binds the editable supratitle input to the preview and saved title payload', async () => {
+        const user = userEvent.setup()
+        const { container } = renderEntityEditor()
+        const firstTwoFields = screen.getAllByRole('textbox').slice(0, 2)
+
+        expect(firstTwoFields[0]).toBe(screen.getByLabelText('Supratitlu'))
+        expect(firstTwoFields[1]).toBe(screen.getByLabelText('Titlu'))
+
+        await user.type(screen.getByLabelText('Supratitlu'), 'Live Update')
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('LIVE UPDATE')
+        await user.keyboard('{Enter}')
+        expect(screen.getByLabelText('Titlu')).toHaveFocus()
+
+        await user.type(screen.getByLabelText('Titlu'), 'Breaking News')
+
+        expect(container.querySelector('[data-layer-id="supratitle-text"]')).toBeInTheDocument()
+        expect(screen.getByText('LIVE UPDATE')).toBeInTheDocument()
+
+        await user.keyboard('{Enter}')
+
+        expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', {
+            title: 'Breaking News',
+            supratitle: 'LIVE UPDATE',
+        })
+    })
+
+    it('loads and updates the selected title with separate sentence-case and uppercase values', async () => {
+        csvHooks.selected = { sectionId: 'invited-1', entityType: 'titles', id: 'title-1' }
+        csvHooks.getBlockItems.mockReturnValue([{
+            type: 'title',
+            entityType: 'titles',
+            id: 'title-1',
+            rowId: 'row-1',
+            data: { id: 'title-1', title: 'Prețurile la energie cresc', supratitle: 'ULTIMA ORA' },
+        }] as any)
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        expect(await screen.findByLabelText('Supratitlu')).toHaveValue('ULTIMA ORA')
+        expect(screen.getByLabelText('Titlu')).toHaveValue('Prețurile la energie cresc')
+        await user.clear(screen.getByLabelText('Supratitlu'))
+        await user.type(screen.getByLabelText('Supratitlu'), 'economie')
+        await user.clear(screen.getByLabelText('Titlu'))
+        await user.type(screen.getByLabelText('Titlu'), 'Prețurile la energie cresc')
+        await user.click(screen.getByRole('button', { name: /Update/ }))
+
+        expect(csvHooks.updateEntity).toHaveBeenCalledWith('invited-1', 'titles', 'title-1', {
+            supratitle: 'ECONOMIE',
+            title: 'Prețurile la energie cresc',
         })
     })
 
@@ -275,8 +520,7 @@ describe('EntityEditor', () => {
         await user.type(screen.getByLabelText('Nume'), 'Ana Popescu')
         await user.type(screen.getByLabelText('Funcție'), 'Reporter')
 
-        expect(screen.getByText('ANA POPESCU')).toBeInTheDocument()
-        expect(screen.getByText('Reporter')).toBeInTheDocument()
+        expect(screen.getByText('ANA POPESCU, Reporter')).toBeInTheDocument()
 
         await user.click(screen.getByRole('button', { name: /Adaug/i }))
 
@@ -302,7 +546,7 @@ describe('EntityEditor', () => {
         await user.click(screen.getByRole('button', { name: /Adaug/i }))
 
         expect(await screen.findByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
-        expect(screen.getByRole('textbox', { name: 'Prefix pentru ION POPESCU' })).toHaveValue('I. POPESCU')
+        expect(screen.getByRole('textbox', { name: 'Prefix pentru ION POPESCU' })).toHaveValue('ION POPESCU')
     })
 
     it('keeps quick title modal closed when manual person create fails', async () => {
@@ -376,7 +620,7 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Editor')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(csvHooks.savePersonEntity).toHaveBeenCalledWith({
             sectionId: 'invited-1',
@@ -388,7 +632,7 @@ describe('EntityEditor', () => {
             },
         })
         expect(await screen.findByRole('dialog', { name: /Prefix/ })).toBeInTheDocument()
-        expect(screen.getByRole('textbox', { name: 'Prefix pentru ION POPESCU' })).toHaveValue('I. POPESCU')
+        expect(screen.getByRole('textbox', { name: 'Prefix pentru ION POPESCU' })).toHaveValue('ION POPESCU')
     })
 
     it('saves quick title from modal and closes it after persistence succeeds', async () => {
@@ -408,12 +652,12 @@ describe('EntityEditor', () => {
 
         expect(csvHooks.setAllQuickTitles).toHaveBeenCalledWith([
             'POPESCU: ',
-            'I. POPESCU: ',
+            'ION POPESCU: ',
         ])
         expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
     })
 
-    it('suggests BUJOR when creating ANA BUJOR without existing quick titles', async () => {
+    it('suggests the full name when creating ANA BUJOR without existing quick titles', async () => {
         csvHooks.activeEntityType = 'persons'
         csvHooks.quickTitles = []
         const user = userEvent.setup()
@@ -423,10 +667,10 @@ describe('EntityEditor', () => {
         await user.type(screen.getByLabelText(/Func/), 'Reporter')
         await user.click(screen.getByRole('button', { name: /Adaug/i }))
 
-        expect(await screen.findByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })).toHaveValue('BUJOR')
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })).toHaveValue('ANA BUJOR')
     })
 
-    it('creates BUJOR: when saving the ANA BUJOR suggestion', async () => {
+    it('creates the full-name quick title when saving the ANA BUJOR suggestion', async () => {
         csvHooks.activeEntityType = 'persons'
         csvHooks.quickTitles = []
         const user = userEvent.setup()
@@ -438,10 +682,10 @@ describe('EntityEditor', () => {
         await screen.findByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })
         await user.click(screen.getByRole('button', { name: 'Save' }))
 
-        expect(csvHooks.setAllQuickTitles).toHaveBeenCalledWith(['BUJOR: '])
+        expect(csvHooks.setAllQuickTitles).toHaveBeenCalledWith(['ANA BUJOR: '])
     })
 
-    it('suggests I. BUJOR when creating IGOR BUJOR and BUJOR already exists', async () => {
+    it('suggests the full name when creating IGOR BUJOR and BUJOR already exists', async () => {
         csvHooks.activeEntityType = 'persons'
         csvHooks.quickTitles = ['BUJOR: ']
         const user = userEvent.setup()
@@ -451,10 +695,10 @@ describe('EntityEditor', () => {
         await user.type(screen.getByLabelText(/Func/), 'Reporter')
         await user.click(screen.getByRole('button', { name: /Adaug/i }))
 
-        expect(await screen.findByRole('textbox', { name: 'Prefix pentru IGOR BUJOR' })).toHaveValue('I. BUJOR')
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru IGOR BUJOR' })).toHaveValue('IGOR BUJOR')
     })
 
-    it('suggests POPESCU when editing a person to MARIA POPESCU without existing POPESCU', async () => {
+    it('suggests the complete name when editing a person to MARIA POPESCU', async () => {
         csvHooks.activeEntityType = 'persons'
         csvHooks.selected = {
             sectionId: 'invited-1',
@@ -477,12 +721,12 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText('Nume'))
         await user.type(screen.getByLabelText('Nume'), 'Maria Popescu')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
-        expect(await screen.findByRole('textbox', { name: 'Prefix pentru MARIA POPESCU' })).toHaveValue('POPESCU')
+        expect(await screen.findByRole('textbox', { name: 'Prefix pentru MARIA POPESCU' })).toHaveValue('MARIA POPESCU')
     })
 
-    it('suggests POPESCU-IONESCU when editing a person to ION POPESCU-IONESCU', async () => {
+    it('suggests the complete hyphenated name when editing a person', async () => {
         csvHooks.activeEntityType = 'persons'
         csvHooks.selected = {
             sectionId: 'invited-1',
@@ -504,10 +748,10 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText('Nume'))
         await user.type(screen.getByLabelText('Nume'), 'Ion Popescu-Ionescu')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(await screen.findByRole('textbox', { name: 'Prefix pentru ION POPESCU-IONESCU' }))
-            .toHaveValue('POPESCU-IONESCU')
+            .toHaveValue('ION POPESCU-IONESCU')
     })
 
     it('closes quick title modal on Cancel without saving a quick title', async () => {
@@ -567,7 +811,7 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Editor')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
         expect(consoleErrorSpy).toHaveBeenCalledWith('Person save failed:', 'WRITE_FAILED')
@@ -597,7 +841,7 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Editor')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
     })
@@ -629,7 +873,7 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Analyst')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(screen.queryByRole('dialog', { name: /Prefix/ })).not.toBeInTheDocument()
         expect(csvHooks.updateEntity).toHaveBeenCalledWith('invited-1', 'persons', 'person-1', {
@@ -810,10 +1054,10 @@ describe('EntityEditor', () => {
         renderEntityEditor()
 
         expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'phoneCalls')
-        expect(screen.getByRole('button', { name: 'Update' })).toBeEnabled()
+        expect(screen.getByRole('button', { name: /Update/ })).toBeEnabled()
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Analyst')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(csvHooks.updateEntity).toHaveBeenCalledWith('invited-1', 'persons', 'person-1', {
             name: 'ION POPESCU',
@@ -846,7 +1090,7 @@ describe('EntityEditor', () => {
 
         await user.clear(screen.getByLabelText(/Func/))
         await user.type(screen.getByLabelText(/Func/), 'Consultant')
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(csvHooks.addEntity).not.toHaveBeenCalled()
         expect(csvHooks.updateEntity).toHaveBeenCalledTimes(1)
@@ -885,7 +1129,7 @@ describe('EntityEditor', () => {
         await user.click(screen.getByRole('button', { name: 'mock image saved' }))
         expect(screen.getByText('Poză adăugată: test.jpg')).toBeInTheDocument()
 
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(csvHooks.updateEntity).toHaveBeenCalledWith('invited-1', 'persons', 'person-1', {
             name: 'ION POPESCU',
@@ -1006,5 +1250,40 @@ describe('EntityEditor', () => {
 
         expect(screen.getByLabelText('Nume')).toBeInTheDocument()
         expect(screen.getByTestId('preview16x9-root')).toBeInTheDocument()
+    })
+
+    it('loads and persists preview height while preserving the rest of the layout config', async () => {
+        const getConfigSpy = vi.spyOn(settingsService, 'getConfig').mockResolvedValue({
+            layout: { leftPanelWidth: 820, previewHeight: 360 },
+            theme: 'dark',
+        })
+        const setConfigSpy = vi.spyOn(settingsService, 'setConfig').mockResolvedValue({})
+        const { container } = renderEntityEditor()
+        const previewContainer = screen.getByTestId('entity-preview-container')
+
+        await waitFor(() => {
+            expect(previewContainer).toHaveStyle({ height: '360px' })
+        })
+        expect(screen.getByRole('separator', { name: 'Resize preview and editor' }))
+            .toHaveAttribute('aria-orientation', 'horizontal')
+        expect(container.querySelector('[data-testid="preview16x9-root"]'))
+            .toHaveClass('h-full')
+
+        act(() => {
+            screen.getByRole('separator', { name: 'Resize preview and editor' }).dispatchEvent(
+                new PointerEvent('pointerdown', { bubbles: true, clientY: 400 }),
+            )
+            window.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientY: 300 }))
+            window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientY: 300 }))
+        })
+
+        await waitFor(() => {
+            expect(setConfigSpy).toHaveBeenCalledWith({
+                layout: { leftPanelWidth: 820, previewHeight: 260 },
+                theme: 'dark',
+            })
+        })
+        getConfigSpy.mockRestore()
+        setConfigSpy.mockRestore()
     })
 })

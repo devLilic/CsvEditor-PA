@@ -5,6 +5,7 @@ import {AppMenuNavigationListener} from '@/ui/components/AppMenuNavigationListen
 import {EntityExportFailureAlert} from '@/ui/components/entity-export/EntityExportFailureAlert'
 import {CsvEditorPage} from '@/ui/pages/CsvEditorPage'
 import {DefaultProjectSettingsPage} from '@/ui/pages/DefaultProjectSettingsPage'
+import {SettingsPage} from '@/ui/pages/SettingsPage'
 
 export default function App() {
     return (
@@ -16,6 +17,7 @@ export default function App() {
 
                 <Route path="/csv-editor" element={<CsvEditorPage/>}/>
                 <Route path="/settings/default-project" element={<DefaultProjectSettingsPage/>}/>
+                <Route path="/settings/lower-thirds" element={<SettingsPage/>}/>
             </Routes>
         </HashRouter>
     )

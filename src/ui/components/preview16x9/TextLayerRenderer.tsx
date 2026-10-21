@@ -14,12 +14,15 @@ export function TextLayerRenderer({ layer, data, sampleData }: TextLayerRenderer
     const textFitPaddingPx = 8
     const text = resolveLayerText({
         fieldId: layer.fieldId,
+        textParts: layer.textParts,
         data,
         sampleData,
         fieldDefaultValue: layer.fieldDefaultValue,
         fallbackText: layer.fallbackText,
     })
-    const displayText = layer.textStyle.transform === 'uppercase' ? text.toUpperCase() : text
+    const displayText = !layer.textParts?.length && layer.textStyle.transform === 'uppercase'
+        ? text.toUpperCase()
+        : text
     const fitEnabled = layer.fitInBox !== false
     const borderWidth = layer.border?.width ?? 1
     const borderStyle = layer.border?.style ?? 'solid'

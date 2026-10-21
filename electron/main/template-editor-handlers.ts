@@ -2,7 +2,11 @@ import { app, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'node:url'
-import { isTemplateDocument } from '../../src/features/template-editor/domain/templateDocument'
+import {
+    isLegacyTemplateDocument,
+    isTemplateDocument,
+    migrateLegacyTemplateDocument,
+} from '../../src/features/template-editor/domain/templateDocument'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import type {
     TemplateEditorGetUserTemplateDocumentResponse,
@@ -54,11 +58,16 @@ async function readUserTemplateDocument(): Promise<TemplateEditorGetUserTemplate
         const content = await fsp.readFile(templatePath, 'utf-8')
         const document = JSON.parse(content)
 
-        if (!isTemplateDocument(document)) {
-            return { ok: false, error: 'INVALID_TEMPLATE_JSON' }
+        if (isTemplateDocument(document)) {
+            return { ok: true, document }
         }
 
-        return { ok: true, document }
+        if (isLegacyTemplateDocument(document)) {
+            const migrated = migrateLegacyTemplateDocument(document)
+            if (migrated) return { ok: true, document: migrated, migrated: true }
+        }
+
+        return { ok: false, error: 'INVALID_TEMPLATE_JSON' }
     } catch (error) {
         if (error instanceof SyntaxError) {
             return { ok: false, error: 'INVALID_TEMPLATE_JSON' }

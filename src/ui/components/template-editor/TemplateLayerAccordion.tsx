@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type {
     BroadcastLayer,
     BroadcastTemplate,
@@ -39,6 +40,8 @@ export function TemplateLayerAccordion({
     template,
     onTemplateChange,
 }: TemplateLayerAccordionProps) {
+    const [expandedLayerId, setExpandedLayerId] = useState<string | null>(null)
+
     const applyTemplateUpdate = (nextTemplate: BroadcastTemplate) => {
         onTemplateChange(nextTemplate)
     }
@@ -58,6 +61,56 @@ export function TemplateLayerAccordion({
         updateLayerValue: (layer: BroadcastLayer) => BroadcastLayer
     ) => {
         applyTemplateUpdate(updateLayerById(cloneTemplate(template), layerId, updateLayerValue))
+    }
+
+    const nextLayerId = (prefix: string) => {
+        const existingIds = new Set(template.layers.map((layer) => layer.id))
+        let suffix = 1
+        while (existingIds.has(`${prefix}-${suffix}`)) suffix += 1
+        return `${prefix}-${suffix}`
+    }
+
+    const addTextLayer = () => {
+        const id = nextLayerId('custom-text')
+        const layer = {
+            id,
+            type: 'text' as const,
+            x: 40,
+            y: 40,
+            width: Math.max(1, template.canvas.width - 80),
+            height: 96,
+            zIndex: Math.max(0, ...template.layers.map((item) => item.zIndex)) + 1,
+            fieldId: '',
+            fallbackText: 'New text',
+            fieldDefaultValue: 'New text',
+            textStyle: {
+                fontFamily: 'Arial',
+                fontSize: 48,
+                fontWeight: 700,
+                color: '#ffffff',
+                align: 'left' as const,
+            },
+        }
+        applyTemplateUpdate({ ...cloneTemplate(template), layers: [...template.layers, layer] })
+        setExpandedLayerId(id)
+    }
+
+    const addShapeLayer = () => {
+        const id = nextLayerId('custom-shape')
+        const layer = {
+            id,
+            type: 'shape' as const,
+            x: 40,
+            y: 40,
+            width: Math.max(1, template.canvas.width - 80),
+            height: 120,
+            zIndex: Math.min(0, ...template.layers.map((item) => item.zIndex)) - 1,
+            shapeType: 'rect' as const,
+            fill: { type: 'solid' as const, value: '#1f2937' },
+            borderRadius: 0,
+        }
+        applyTemplateUpdate({ ...cloneTemplate(template), layers: [...template.layers, layer] })
+        setExpandedLayerId(id)
     }
 
     return (
@@ -92,8 +145,37 @@ export function TemplateLayerAccordion({
                 </div>
             </details>
 
+            <div className="flex flex-wrap gap-2">
+                <button
+                    type="button"
+                    onClick={addTextLayer}
+                    className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
+                >
+                    Add text layer
+                </button>
+                <button
+                    type="button"
+                    onClick={addShapeLayer}
+                    className="rounded border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-50"
+                >
+                    Add shape layer
+                </button>
+            </div>
+
             {template.layers.map((layer) => (
-                <details key={layer.id} className="rounded border bg-white">
+                <details
+                    key={layer.id}
+                    open={expandedLayerId === layer.id}
+                    onToggle={(event) => {
+                        const isOpen = event.currentTarget.open
+                        setExpandedLayerId((currentId) => (
+                            isOpen
+                                ? layer.id
+                                : currentId === layer.id ? null : currentId
+                        ))
+                    }}
+                    className="rounded border bg-white"
+                >
                     <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-gray-900">
                         {layer.id} ({layer.type})
                     </summary>

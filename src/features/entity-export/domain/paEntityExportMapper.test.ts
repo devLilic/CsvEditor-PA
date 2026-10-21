@@ -72,14 +72,14 @@ function paState(): EntitiesState {
 describe('PA entity export mapper', () => {
     it('writes PA_titles.csv with section markers and per-section numbers', () => {
         expect(mapPaTitlesExport(paState())).toBe([
-            'Nr;Titlu',
-            '--- beta 1 - Externe ---;',
-            '1;T1',
-            '2;T2',
-            '--- beta 2 - Consiliu ---;',
-            '1;T3',
-            '--- INVITATI ---;',
-            '1;T4',
+            'Nr;Titlu;Supratitlu;Template',
+            '--- beta 1 - Externe ---;;;',
+            '1;T1;;01_Titlu',
+            '2;T2;;01_Titlu',
+            '--- beta 2 - Consiliu ---;;;',
+            '1;T3;;01_Titlu',
+            '--- INVITATI ---;;;',
+            '1;T4;;01_Titlu',
         ].join('\n'))
     })
 
@@ -87,15 +87,15 @@ describe('PA entity export mapper', () => {
         const csv = mapPaPersonsExport(paState())
 
         expect(csv).toBe([
-            'Sectiune;Nume;Functie',
-            '--- beta 1 - Externe ---;;',
-            ';A;Funcție A',
-            ';B;Funcție B',
-            '--- beta 2 - Consiliu ---;;',
-            ';C;Funcție C',
-            '--- INVITATI ---;;',
-            ';D;Funcție D',
-            ';E;Funcție E',
+            'Sectiune;Nume;Functie;Template',
+            '--- beta 1 - Externe ---;;;',
+            ';A;Funcție A;02_Nume',
+            ';B;Funcție B;02_Nume',
+            '--- beta 2 - Consiliu ---;;;',
+            ';C;Funcție C;02_Nume',
+            '--- INVITATI ---;;;',
+            ';D;Funcție D;02_Nume',
+            ';E;Funcție E;02_Nume',
         ].join('\n'))
         expect(csv).not.toContain('Image')
         expect(csv).not.toContain('PHONE')

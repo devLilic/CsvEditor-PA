@@ -70,13 +70,14 @@ describe('broadcastTemplates', () => {
         expect(['color', 'image']).toContain(template.canvas.background.type)
         expect(template.layers.filter((layer) => layer.type === 'shape').length).toBeGreaterThanOrEqual(2)
         expect(textLayers.some((layer) => layer.fieldId === 'name')).toBe(true)
-        expect(textLayers.some((layer) => layer.fieldId === 'occupation')).toBe(true)
 
         const nameLayer = textLayers.find((layer) => layer.fieldId === 'name')
-        const occupationLayer = textLayers.find((layer) => layer.fieldId === 'occupation')
 
-        expect(nameLayer?.textStyle.transform).toBe('uppercase')
-        expect(occupationLayer?.textStyle.transform).toBeUndefined()
+        expect(nameLayer?.textParts).toEqual([
+            { fieldId: 'name', fallbackText: 'Nume Persoana', transform: 'uppercase' },
+            { fieldId: 'occupation', prefix: ', ', fallbackText: 'Functie Persoana' },
+        ])
+        expect(textLayers).toHaveLength(1)
         expect(template.id).not.toMatch(/hot|wait/i)
         expect(template.layers.map((layer) => layer.id).join(' ')).not.toMatch(/hot|wait/i)
     })

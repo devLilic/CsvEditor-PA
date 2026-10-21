@@ -1,5 +1,6 @@
 type PreviewSourceData = {
     title?: string
+    supratitle?: string
     name?: string
     occupation?: string
     location?: string
@@ -11,7 +12,10 @@ export function createPreviewData(
     data: PreviewSourceData
 ): Record<string, string> {
     if (entityType === 'titles' || entityType === 'hotTitles' || entityType === 'waitTitles') {
-        return { title: data.title ?? '' }
+        return {
+            title: data.title ?? '',
+            ...(entityType === 'titles' ? { supratitle: data.supratitle ?? '' } : {}),
+        }
     }
 
     if (entityType === 'persons') {

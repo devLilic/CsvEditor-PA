@@ -6,6 +6,12 @@ import {
     type TemplateDocumentTemplates,
 } from './templateDocument'
 import { resolveTemplateDocument } from './templateResolver'
+import {
+    ensureTitlesSupratitleLayers,
+    hasTitlesSupratitleLayers,
+    SUPRATITLE_SHAPE_LAYER_ID,
+    SUPRATITLE_TEXT_LAYER_ID,
+} from './supratitleLayers'
 
 const requiredTemplateKeys = ['titles', 'persons', 'locations', 'phoneCalls', 'hotTitles', 'waitTitles', 'waitLocations']
 
@@ -43,7 +49,10 @@ describe('templateResolver', () => {
             hardcodedDocument,
         })
 
-        expect(result.templates).toEqual(userDocument.templates)
+        expect(result.templates).toEqual({
+            ...userDocument.templates,
+            titles: ensureTitlesSupratitleLayers(userDocument.templates.titles),
+        })
     })
 
     it('uses the bundled default when the user document is missing', () => {
@@ -55,7 +64,10 @@ describe('templateResolver', () => {
             hardcodedDocument,
         })
 
-        expect(result.templates).toEqual(bundledDefaultDocument.templates)
+        expect(result.templates).toEqual({
+            ...bundledDefaultDocument.templates,
+            titles: ensureTitlesSupratitleLayers(bundledDefaultDocument.templates.titles),
+        })
     })
 
     it('uses the bundled default when the user document is invalid', () => {
@@ -68,7 +80,10 @@ describe('templateResolver', () => {
             hardcodedDocument,
         })
 
-        expect(result.templates).toEqual(bundledDefaultDocument.templates)
+        expect(result.templates).toEqual({
+            ...bundledDefaultDocument.templates,
+            titles: ensureTitlesSupratitleLayers(bundledDefaultDocument.templates.titles),
+        })
     })
 
     it('uses hardcoded templates when the bundled default is invalid', () => {
@@ -80,7 +95,10 @@ describe('templateResolver', () => {
             hardcodedDocument,
         })
 
-        expect(result.templates).toEqual(hardcodedDocument.templates)
+        expect(result.templates).toEqual({
+            ...hardcodedDocument.templates,
+            titles: ensureTitlesSupratitleLayers(hardcodedDocument.templates.titles),
+        })
     })
 
     it('falls back from invalid user data through invalid bundled PA default to hardcoded PA templates', () => {
@@ -92,7 +110,10 @@ describe('templateResolver', () => {
             hardcodedDocument,
         })
 
-        expect(result).toEqual(hardcodedDocument)
+        expect(result.templates).toEqual({
+            ...hardcodedDocument.templates,
+            titles: ensureTitlesSupratitleLayers(hardcodedDocument.templates.titles),
+        })
     })
 
     it('returns all required template keys', () => {
@@ -122,5 +143,64 @@ describe('templateResolver', () => {
         expect(userDocument).toEqual(initialUserDocument)
         expect(bundledDefaultDocument).toEqual(initialBundledDocument)
         expect(hardcodedDocument).toEqual(initialHardcodedDocument)
+    })
+
+    it('adds missing supratitle layers once and keeps customized built-in layer properties', () => {
+        const userDocument = createDocument('user')
+        const titleLayers = userDocument.templates.titles.layers
+        titleLayers.push({
+            id: SUPRATITLE_TEXT_LAYER_ID,
+            type: 'text',
+            x: 320,
+            y: 744,
+            width: 900,
+            height: 40,
+            zIndex: 91,
+            fieldId: 'customSupratitle',
+            inputLabel: 'Custom heading',
+            fallbackText: 'CUSTOM',
+            visibleWhenField: 'customSupratitle',
+            textStyle: {
+                fontFamily: 'Arial',
+                fontSize: 28,
+                fontWeight: 400,
+                color: '#123456',
+                align: 'center',
+            },
+        })
+
+        const firstLoad = resolveTemplateDocument({ userDocument, hardcodedDocument: createDocument('fallback') })
+        const secondLoad = resolveTemplateDocument({ userDocument: firstLoad, hardcodedDocument: createDocument('fallback') })
+        const migratedTitleLayers = firstLoad.templates.titles.layers
+
+        expect(migratedTitleLayers.filter((layer) => layer.id === SUPRATITLE_SHAPE_LAYER_ID)).toHaveLength(1)
+        expect(migratedTitleLayers.filter((layer) => layer.id === SUPRATITLE_TEXT_LAYER_ID)).toHaveLength(1)
+        expect(migratedTitleLayers.find((layer) => layer.id === SUPRATITLE_TEXT_LAYER_ID)).toMatchObject({
+            x: 320,
+            y: 744,
+            width: 900,
+            fieldId: 'customSupratitle',
+            inputLabel: 'Custom heading',
+            fallbackText: 'CUSTOM',
+        })
+        expect(secondLoad.templates.titles.layers).toEqual(migratedTitleLayers)
+    })
+
+    it('clears only the old main-title uppercase transform for sentence-case titles', () => {
+        const legacyTitle = clone(broadcastTemplates.titles)
+        const mainTitle = legacyTitle.layers.find((layer) => layer.id === 'title-main-text')
+        if (!mainTitle || mainTitle.type !== 'text') throw new Error('Expected main title text layer')
+        mainTitle.textStyle.transform = 'uppercase'
+
+        const compatible = ensureTitlesSupratitleLayers(legacyTitle)
+        const compatibleMainTitle = compatible.layers.find((layer) => layer.id === 'title-main-text')
+
+        expect(hasTitlesSupratitleLayers(compatible)).toBe(true)
+        expect(compatibleMainTitle?.type === 'text' && compatibleMainTitle.textStyle.transform).toBeUndefined()
+        expect(compatibleMainTitle?.textStyle).toMatchObject({
+            fontFamily: mainTitle.textStyle.fontFamily,
+            fontSize: mainTitle.textStyle.fontSize,
+            color: mainTitle.textStyle.color,
+        })
     })
 })

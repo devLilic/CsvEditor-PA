@@ -8,6 +8,7 @@ describe('parseCsv PA common CSV', () => {
         expect(CSV_COLUMNS).toEqual({
             TITLE_NR: 'Nr',
             TITLE: 'Titlu',
+            SUPRATITLE: 'Supratitlu',
             PERSON_NAME: 'Nume',
             PERSON_OCCUPATION: 'Functie',
             PERSON_IMAGE: 'Image',
@@ -36,6 +37,24 @@ describe('parseCsv PA common CSV', () => {
             waitLocation: { location: 'Studio' },
         })
         expect(result.sections[0].rows[0].person?.image).toBeUndefined()
+    })
+
+    it('reads the Supratitlu column while continuing to accept older headers without it', () => {
+        const oldFormat = parseCsv([
+            header,
+            '1;Titlu vechi;;;;;;;',
+        ].join('\n'))
+        const newFormat = parseCsv([
+            'Nr;Titlu;Supratitlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare',
+            '1;Titlu nou;Supratitlu nou;;;;;;;',
+        ].join('\n'))
+
+        expect(oldFormat.sections[0].rows[0].title).toMatchObject({ title: 'Titlu vechi' })
+        expect(oldFormat.sections[0].rows[0].title?.supratitle).toBeUndefined()
+        expect(newFormat.sections[0].rows[0].title).toMatchObject({
+            title: 'Titlu nou',
+            supratitle: 'Supratitlu nou',
+        })
     })
 
     it('parses a person with Image as a phone person with image', () => {

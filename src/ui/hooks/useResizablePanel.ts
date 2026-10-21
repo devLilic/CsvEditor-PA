@@ -5,6 +5,7 @@ type UseResizablePanelOptions = {
     defaultWidth: number
     minWidth: number
     maxWidth: number
+    axis?: 'x' | 'y'
     onResizeEnd?: (width: number) => void
 }
 
@@ -24,6 +25,7 @@ export function useResizablePanel({
     defaultWidth,
     minWidth,
     maxWidth,
+    axis = 'x',
     onResizeEnd,
 }: UseResizablePanelOptions): UseResizablePanelResult {
     const [width, setWidthState] = useState(defaultWidth)
@@ -36,6 +38,10 @@ export function useResizablePanel({
         }
     }, [])
 
+    useEffect(() => {
+        setWidthState((currentWidth) => clamp(currentWidth, minWidth, maxWidth))
+    }, [maxWidth, minWidth])
+
     const setWidth = useCallback(
         (nextWidth: number) => {
             setWidthState(clamp(nextWidth, minWidth, maxWidth))
@@ -44,27 +50,29 @@ export function useResizablePanel({
     )
 
     const resetWidth = useCallback(() => {
-        setWidthState(defaultWidth)
-        onResizeEnd?.(defaultWidth)
-    }, [defaultWidth, onResizeEnd])
+        const resetValue = clamp(defaultWidth, minWidth, maxWidth)
+        setWidthState(resetValue)
+        onResizeEnd?.(resetValue)
+    }, [defaultWidth, maxWidth, minWidth, onResizeEnd])
 
     const startResize = useCallback(
         (event: ReactPointerEvent) => {
             event.preventDefault()
             cleanupRef.current?.()
 
-            const startX = event.clientX
+            const startPosition = axis === 'x' ? event.clientX : event.clientY
             const startWidth = width
             let nextWidth = startWidth
             const previousCursor = document.body.style.cursor
             const previousUserSelect = document.body.style.userSelect
 
             setIsResizing(true)
-            document.body.style.cursor = 'col-resize'
+            document.body.style.cursor = axis === 'x' ? 'col-resize' : 'row-resize'
             document.body.style.userSelect = 'none'
 
             const handlePointerMove = (moveEvent: PointerEvent) => {
-                const deltaX = moveEvent.clientX - startX
+                const nextPosition = axis === 'x' ? moveEvent.clientX : moveEvent.clientY
+                const deltaX = nextPosition - startPosition
                 nextWidth = clamp(
                     startWidth + deltaX,
                     minWidth,
@@ -93,7 +101,7 @@ export function useResizablePanel({
             window.addEventListener('pointerup', handlePointerEnd)
             window.addEventListener('pointercancel', handlePointerEnd)
         },
-        [maxWidth, minWidth, onResizeEnd, width],
+        [axis, maxWidth, minWidth, onResizeEnd, width],
     )
 
     return {

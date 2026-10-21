@@ -607,6 +607,22 @@ html {
     transition: opacity 120ms ease;
 }
 
+.app-repeat-row-actions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.app-list-row:hover .app-repeat-row-actions,
+.app-list-row:focus-within .app-repeat-row-actions {
+    opacity: 1;
+}
+
+@media (hover: none) {
+    .app-repeat-row-actions {
+        opacity: 1 !important;
+    }
+}
+
 :root[data-theme='dark'] .app-list-row:hover .app-row-actions,
 :root[data-theme='dark'] .app-list-row:focus-within .app-row-actions {
     opacity: 1;
@@ -1161,4 +1177,9 @@ html {
 
 .animate-shake {
     animation: subtle-shake 0.4s ease-in-out;
+}
+
+/* Keep editor controls free of browser outlines; focus rings remain available. */
+.app-editor :is(button, input, select, textarea, [tabindex]):focus {
+    outline: none;
 }

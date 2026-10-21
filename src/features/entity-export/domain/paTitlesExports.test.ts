@@ -27,7 +27,7 @@ function stateWithDividers(): EntitiesState {
                     { id: 'divider-before', titleDivider: createTitleDivider('divider-before') },
                     {
                         id: 'invited-title-1',
-                        title: { id: 'it1', title: 'Platou 1' },
+                        title: { id: 'it1', title: 'Platou 1', supratitle: 'Supra 1' },
                         hotTitle: { id: 'hot1', title: 'Hot 1' },
                     },
                     { id: 'divider-middle', titleDivider: createTitleDivider('divider-middle') },
@@ -50,35 +50,35 @@ function stateWithDividers(): EntitiesState {
 }
 
 describe('PA title exports', () => {
-    it('writes PA_titles.csv with only Nr and Titlu, markers, ordered titles, and no hot titles or dividers', () => {
+    it('writes PA_titles.csv with the additive Supratitlu column, markers, ordered titles, and no hot titles or dividers', () => {
         const csv = mapPaTitlesExport(stateWithDividers())
 
         expect(csv).toBe([
-            'Nr;Titlu',
-            '--- beta 1 - Externe ---;',
-            '1;Beta 1',
-            '2;Beta 2',
-            '--- INVITATI ---;',
-            '1;Platou 1',
-            '2;Platou 2',
+            'Nr;Titlu;Supratitlu;Template',
+            '--- beta 1 - Externe ---;;;',
+            '1;Beta 1;;01_Titlu',
+            '2;Beta 2;;01_Titlu',
+            '--- INVITATI ---;;;',
+            '1;Platou 1;Supra 1;01_Titlu',
+            '2;Platou 2;;01_Titlu',
         ].join('\n'))
         expect(csv).not.toContain('Ultima Ora')
         expect(csv).not.toContain('Hot 1')
         expect(csv).not.toContain(TITLE_DIVIDER_MARKER)
     })
 
-    it('writes PA_titles_with_hot.csv with Nr, Titlu, Ultima Ora, markers, hot titles, ordered titles, and no dividers', () => {
+    it('writes PA_titles_with_hot.csv with Supratitlu, hot titles, ordered titles, and no dividers', () => {
         const csv = mapPaTitlesWithHotExport(stateWithDividers())
 
         expect(csv).toBe([
-            'Nr;Titlu;Ultima Ora',
-            '--- beta 1 - Externe ---;;',
-            '1;Beta 1;',
-            '2;Beta 2;',
-            '--- INVITATI ---;;',
-            '1;Platou 1;Hot 1',
-            '2;Platou 2;Hot 2',
-            ';;Hot 3',
+            'Nr;Titlu;Supratitlu;Ultima Ora',
+            '--- beta 1 - Externe ---;;;',
+            '1;Beta 1;;',
+            '2;Beta 2;;',
+            '--- INVITATI ---;;;',
+            '1;Platou 1;Supra 1;Hot 1',
+            '2;Platou 2;;Hot 2',
+            ';;;Hot 3',
         ].join('\n'))
         expect(csv).toContain('Ultima Ora')
         expect(csv).toContain('Hot 1')

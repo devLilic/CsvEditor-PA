@@ -18,6 +18,21 @@ const csvHooks = vi.hoisted(() => ({
     activeSection: { id: 'invited-1', kind: 'invited', rows: [] } as any,
     selected: null as null | { sectionId: string; entityType: 'titles'; id: string },
     quickTitles: ['INVITAT: ', 'MODERATOR: '] as string[],
+    templateDocument: {
+        templates: {
+            titles: {
+                layers: [
+                    { type: 'text', fieldId: 'supratitle', inputLabel: 'Supratitlu' },
+                ],
+            },
+            persons: {},
+            locations: {},
+            phoneCalls: {},
+            hotTitles: {},
+            waitTitles: {},
+            waitLocations: {},
+        },
+    },
     getBlockItems: vi.fn(() => []),
     addEntity: vi.fn(),
     updateEntity: vi.fn(),
@@ -76,23 +91,27 @@ vi.mock('@/features/csv-editor/services/phoneImageSettingsService', () => ({
 vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
     TemplateDocumentProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
     useTemplateDocument: () => ({
-        document: {
-            templates: {
-                titles: {},
-                persons: {},
-                locations: {},
-                phoneCalls: {},
-                hotTitles: {},
-                waitTitles: {},
-                waitLocations: {},
-            },
-        },
+        document: csvHooks.templateDocument,
     }),
 }))
 
 vi.mock('./Preview16x9', () => ({
     Preview16x9: () => <div data-testid="preview16x9-root" />,
 }))
+
+beforeEach(() => {
+    class ResizeObserverMock {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+    }
+
+    Object.defineProperty(window, 'ResizeObserver', {
+        writable: true,
+        configurable: true,
+        value: ResizeObserverMock,
+    })
+})
 
 beforeEach(() => {
     csvHooks.activeEntityType = 'titles'
@@ -143,6 +162,82 @@ async function seedRepeatedQuickTitle(user: ReturnType<typeof userEvent.setup>) 
 }
 
 describe('EntityEditor QuickTitle toggle', () => {
+    it('uses a guest full-name QuickTitle to start a quote and fills Supratitlu', async () => {
+        csvHooks.quickTitles = ['ANA BUJOR: ']
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType: 'persons', id: 'person-1', rowId: 'row-1', data: { name: 'ANA BUJOR' } },
+        ])
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.click(screen.getByRole('button', { name: 'ANA BUJOR:' }))
+
+        const title = titleInput()
+        expect(title).toHaveValue('""')
+        expect(title).toHaveFocus()
+        expect(title.selectionStart).toBe(1)
+        expect(title.selectionEnd).toBe(1)
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('ANA BUJOR:')
+        expect(screen.getByRole('button', { name: 'ANA BUJOR:' })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('keeps a matching Beta quick title as a normal prefix', async () => {
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.activeSection = { id: 'beta-1', kind: 'beta', rows: [] }
+        csvHooks.quickTitles = ['ANA BUJOR: ']
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType: 'persons', id: 'person-1', rowId: 'row-1', data: { name: 'ANA BUJOR' } },
+        ])
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.click(screen.getByRole('button', { name: 'ANA BUJOR:' }))
+
+        expect(titleInput()).toHaveValue('ANA BUJOR: ')
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('')
+    })
+
+    it('clears Supratitlu and only removes quote marks when a guest QuickTitle is toggled off', async () => {
+        csvHooks.quickTitles = ['ANA BUJOR: ']
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType: 'persons', id: 'person-1', rowId: 'row-1', data: { name: 'ANA BUJOR' } },
+        ])
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.click(screen.getByRole('button', { name: 'ANA BUJOR:' }))
+        await user.keyboard('Text citat')
+        expect(titleInput()).toHaveValue('"Text citat"')
+
+        await user.click(screen.getByRole('button', { name: 'ANA BUJOR:' }))
+
+        expect(titleInput()).toHaveValue('Text citat')
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('')
+        expect(screen.getByLabelText('Supratitlu')).toHaveFocus()
+        expect(screen.getByRole('button', { name: 'ANA BUJOR:' })).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('saves the guest name as Supratitlu and restores an empty quote for the next title', async () => {
+        csvHooks.quickTitles = ['ANA BUJOR: ']
+        csvHooks.getBlockItems.mockReturnValue([
+            { entityType: 'persons', id: 'person-1', rowId: 'row-1', data: { name: 'ANA BUJOR' } },
+        ])
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        await user.click(screen.getByRole('button', { name: 'ANA BUJOR:' }))
+        await user.keyboard('Text citat')
+        await user.keyboard('{Enter}')
+
+        expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', {
+            supratitle: 'ANA BUJOR:',
+            title: '"Text citat"',
+        })
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('ANA BUJOR:')
+        expect(titleInput()).toHaveValue('""')
+        expect(titleInput().selectionStart).toBe(1)
+    })
+
     it('inserts the QuickTitle on first click', async () => {
         const user = userEvent.setup()
         renderEntityEditor()
@@ -150,6 +245,7 @@ describe('EntityEditor QuickTitle toggle', () => {
         await user.click(screen.getByRole('button', { name: 'INVITAT:' }))
 
         expect(titleInput()).toHaveValue('INVITAT: ')
+        expect(titleInput()).toHaveFocus()
         expect(screen.getByRole('button', { name: 'INVITAT:' })).toHaveAttribute('aria-pressed', 'true')
         expect(screen.getByRole('button', { name: 'MODERATOR:' })).toHaveAttribute('aria-pressed', 'false')
     })
@@ -172,6 +268,7 @@ describe('EntityEditor QuickTitle toggle', () => {
         await user.click(screen.getByRole('button', { name: 'INVITAT:' }))
 
         expect(titleInput()).toHaveValue('Ion Popescu')
+        expect(screen.getByLabelText('Supratitlu')).toHaveFocus()
         expect(screen.getByRole('button', { name: 'INVITAT:' })).toHaveAttribute('aria-pressed', 'false')
     })
 
@@ -249,7 +346,7 @@ describe('EntityEditor QuickTitle toggle', () => {
         await user.keyboard('{Enter}')
 
         expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', {
-            title: 'INVITAT: ION POPESCU',
+            title: 'INVITAT: Ion Popescu',
         })
         expect(titleInput()).toHaveValue('INVITAT: ')
         expect(screen.getByRole('button', { name: 'INVITAT:' })).toHaveAttribute('aria-pressed', 'true')
@@ -263,10 +360,10 @@ describe('EntityEditor QuickTitle toggle', () => {
         await user.click(screen.getByRole('button', { name: 'INVITAT:' }))
         await user.type(titleInput(), 'Ion Popescu')
         await user.click(screen.getByRole('button', { name: 'INVITAT:' }))
-        await user.keyboard('{Enter}')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
 
         expect(csvHooks.addEntity).toHaveBeenCalledWith('invited-1', 'titles', {
-            title: 'ION POPESCU',
+            title: 'Ion Popescu',
         })
         expect(titleInput()).toHaveValue('')
         expect(screen.getByRole('button', { name: 'INVITAT:' })).toHaveAttribute('aria-pressed', 'false')
@@ -288,13 +385,13 @@ describe('EntityEditor QuickTitle toggle', () => {
         renderEntityEditor()
 
         await user.click(screen.getByRole('button', { name: 'INVITAT:' }))
-        await user.click(screen.getByRole('button', { name: 'Update' }))
+        await user.click(screen.getByRole('button', { name: /Update/ }))
 
         expect(csvHooks.updateEntity).toHaveBeenCalledWith(
             'invited-1',
             'titles',
             'title-1',
-            { title: 'INVITAT: ION POPESCU' },
+            { supratitle: '', title: 'INVITAT: Ion Popescu' },
         )
         expect(titleInput()).toHaveValue('INVITAT: ')
         expect(screen.getByRole('button', { name: 'INVITAT:' })).toHaveAttribute('aria-pressed', 'true')

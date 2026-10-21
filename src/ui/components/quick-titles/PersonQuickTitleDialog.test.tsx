@@ -45,7 +45,10 @@ describe('PersonQuickTitleDialog', () => {
     it('sets the input initialValue', () => {
         renderDialog({ initialValue: 'POPESCU' })
 
-        expect(screen.getByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })).toHaveValue('POPESCU')
+        const input = screen.getByRole('textbox', { name: 'Prefix pentru ANA BUJOR' })
+        expect(input).toHaveValue('POPESCU')
+        expect(input).toHaveAttribute('placeholder', 'Prefix pentru ANA BUJOR')
+        expect(input.closest('label')?.querySelector('span')).toHaveClass('sr-only')
     })
 
     it('allows the input to be edited', async () => {

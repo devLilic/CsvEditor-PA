@@ -30,34 +30,34 @@ describe('getFirstNameInitial', () => {
 })
 
 describe('buildPersonQuickTitleSuggestion', () => {
-    it('suggests BUJOR when the prefix does not exist', () => {
+    it('suggests the complete person name', () => {
         expect(buildPersonQuickTitleSuggestion({
             personName: 'ANA BUJOR',
             existingQuickTitles: [],
-        })).toBe('BUJOR')
+        })).toBe('ANA BUJOR')
     })
 
-    it('suggests I. BUJOR when BUJOR exists', () => {
+    it('still suggests the complete person name when a surname quick title exists', () => {
         expect(buildPersonQuickTitleSuggestion({
             personName: 'IGOR BUJOR',
             existingQuickTitles: ['BUJOR'],
-        })).toBe('I. BUJOR')
+        })).toBe('IGOR BUJOR')
     })
 
-    it('treats BUJOR, BUJOR:, and BUJOR:  as duplicates', () => {
+    it('does not shorten a full name when a matching quick title already exists', () => {
         for (const existingQuickTitle of ['BUJOR', 'BUJOR:', 'BUJOR:  ']) {
             expect(buildPersonQuickTitleSuggestion({
                 personName: 'IGOR BUJOR',
                 existingQuickTitles: [existingQuickTitle],
-            })).toBe('I. BUJOR')
+            })).toBe('IGOR BUJOR')
         }
     })
 
-    it('keeps I. BUJOR as the suggestion when that prefix also exists', () => {
+    it('normalizes spacing in the full person name', () => {
         expect(buildPersonQuickTitleSuggestion({
-            personName: 'IGOR BUJOR',
-            existingQuickTitles: ['BUJOR: ', 'I. BUJOR: '],
-        })).toBe('I. BUJOR')
+            personName: '  IGOR   BUJOR  ',
+            existingQuickTitles: [],
+        })).toBe('IGOR BUJOR')
     })
 
     it('does not mutate existingQuickTitles', () => {

@@ -3,6 +3,7 @@ import type { TemplateDocument } from '@/features/template-editor/domain/templat
 type GetUserTemplateDocumentResult = {
     ok: boolean
     document: unknown | null
+    migrated?: boolean
     error?: string
 }
 
@@ -41,6 +42,7 @@ export const templateEditorStorageService = {
             return {
                 ok: Boolean(response.ok),
                 document: 'document' in response ? response.document ?? null : null,
+                migrated: Boolean(response.migrated),
                 error: typeof response.error === 'string' ? response.error : undefined,
             }
         } catch (error) {

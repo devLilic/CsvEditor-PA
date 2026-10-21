@@ -22,6 +22,8 @@ export type BaseLayer = {
     height: number
     zIndex: number
     visible?: boolean
+    /** Render this layer only when the named data or sample-data field has content. */
+    visibleWhenField?: string
     opacity?: number
     rotation?: number
     rotationOrigin?:
@@ -39,6 +41,15 @@ export type BaseLayer = {
 export type BroadcastTextLayer = BaseLayer & {
     type: 'text'
     fieldId: string
+    /** When present, this bound field is editable on the entity form with this label. */
+    inputLabel?: string
+    textParts?: Array<{
+        fieldId: string
+        prefix?: string
+        fieldDefaultValue?: string
+        fallbackText?: string
+        transform?: 'uppercase'
+    }>
     fallbackText?: string
     fieldDefaultValue?: string
     fitInBox?: boolean

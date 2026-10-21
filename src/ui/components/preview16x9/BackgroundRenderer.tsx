@@ -5,14 +5,55 @@ type BackgroundRendererProps = {
     background?: BroadcastBackground
 }
 
+export function resolvePublicBackgroundAsset(
+    value: string,
+    baseUrl: string,
+    documentBaseUri: string,
+): string {
+    const relativePath = value
+        .replace(/\\/g, '/')
+        .replace(/^\.\//, '')
+        .replace(/^\/+/, '')
+        .replace(/^public\//i, '')
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('/')
+    return new URL(relativePath, new URL(baseUrl, documentBaseUri)).href
+}
+
+function windowsPathToFileUrl(value: string): string {
+    const normalized = value.replace(/\\/g, '/')
+    if (normalized.startsWith('//')) {
+        const [host, ...segments] = normalized.slice(2).split('/')
+        return `file://${host}/${segments.map((segment) => encodeURIComponent(segment)).join('/')}`
+    }
+
+    const [drive, ...segments] = normalized.split('/')
+    return `file:///${drive}/${segments.map((segment) => encodeURIComponent(segment)).join('/')}`
+}
+
+export function resolveBackgroundImageSrc(value: string): string {
+    const source = value.trim()
+    if (!source) return ''
+    if (/^(?:data:|https?:|blob:|file:)/i.test(source)) return source
+    if (/^[a-z]:[\\/]/i.test(source) || source.startsWith('\\\\')) {
+        return windowsPathToFileUrl(source)
+    }
+
+    // Public asset references are app-relative in both Vite and packaged builds.
+    return resolvePublicBackgroundAsset(source, import.meta.env.BASE_URL, document.baseURI)
+}
+
 export function BackgroundRenderer({ background }: BackgroundRendererProps) {
-    const [hasImageError, setHasImageError] = useState(false)
+    const [errorSource, setErrorSource] = useState('')
+    const backgroundValue = background?.type === 'image' ? background.value : ''
+    const resolvedImageSrc = resolveBackgroundImageSrc(backgroundValue)
 
     useEffect(() => {
-        setHasImageError(false)
-    }, [background])
+        setErrorSource('')
+    }, [backgroundValue])
 
-    if (!background || (background.type === 'image' && (!background.value.trim() || hasImageError))) {
+    if (!background || (background.type === 'image' && (!background.value.trim() || errorSource === resolvedImageSrc || !resolvedImageSrc))) {
         return (
             <div
                 aria-hidden="true"
@@ -39,8 +80,8 @@ export function BackgroundRenderer({ background }: BackgroundRendererProps) {
             aria-hidden="true"
             data-preview-background="image"
             className="absolute inset-0 h-full w-full"
-            src={background.value}
-            onError={() => setHasImageError(true)}
+            src={resolvedImageSrc}
+            onError={() => setErrorSource(resolvedImageSrc)}
             style={{ objectFit: background.objectFit ?? 'cover' }}
             alt=""
         />

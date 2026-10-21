@@ -6,6 +6,8 @@ import type {
     CsvGetWorkingResponse,
     CsvWriteResponse,
 } from '@/shared/ipc-types'
+import type { EntitiesState } from '../domain/entities'
+import type { LowerThirdTypeDefinition } from '@/features/lower-thirds/domain/lowerThirdTypes'
 
 /**
  * Accessor lazy pentru preload API.
@@ -93,13 +95,15 @@ export const csvService = {
     /**
      * Scrie CSV-ul curent pe disc
      */
-    async write(content: string): Promise<CsvWriteResponse> {
+    async write(content: string, entities?: EntitiesState, lowerThirdTypes?: LowerThirdTypeDefinition[]): Promise<CsvWriteResponse> {
         if (typeof content !== 'string') {
             return { ok: false, error: 'INVALID_CONTENT' }
         }
 
         try {
-            const res = await getApi().writeCsv(content)
+            const res = await getApi().writeCsv(entities
+                ? { content, entities, lowerThirdTypes }
+                : content)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }

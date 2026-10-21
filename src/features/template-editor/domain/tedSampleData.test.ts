@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { createTedSampleData } from './tedSampleData'
 
 describe('tedSampleData', () => {
-    it('titles have sample title', () => {
+    it('titles have sentence-case sample title and supratitle', () => {
         expect(createTedSampleData('titles')).toEqual({
-            title: 'SAMPLE TITLE',
+            title: 'Prețurile la energie cresc',
+            supratitle: 'SAMPLE SUPRATITLE',
         })
     })
 

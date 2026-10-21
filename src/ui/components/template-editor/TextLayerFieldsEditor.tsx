@@ -10,10 +10,12 @@ type TextLayerFieldsEditorProps = {
 function StringInput({
     label,
     value,
+    placeholder,
     onChange,
 }: {
     label: string
     value: string
+    placeholder?: string
     onChange: (value: string) => void
 }) {
     return (
@@ -21,6 +23,7 @@ function StringInput({
             {label}
             <input
                 value={value}
+                placeholder={placeholder}
                 onChange={(event) => onChange(event.target.value)}
                 className="rounded border border-gray-300 px-2 py-1 text-sm font-normal text-gray-900"
             />
@@ -84,7 +87,18 @@ export function TextLayerFieldsEditor({
 
     return (
         <>
-            <StringInput label="Field id" value={layer.fieldId} onChange={(fieldId) => updateLayer({ fieldId })} />
+            <StringInput
+                label="Field id"
+                value={layer.fieldId}
+                placeholder="Optional: bind to a data field"
+                onChange={(fieldId) => updateLayer({ fieldId })}
+            />
+            <StringInput
+                label="Entity input label"
+                value={layer.inputLabel ?? ''}
+                placeholder="Optional: add an input to the main entity form"
+                onChange={(inputLabel) => updateLayer({ inputLabel: inputLabel || undefined })}
+            />
             <StringInput
                 label="Fallback"
                 value={layer.fallbackText ?? ''}
@@ -135,19 +149,21 @@ export function TextLayerFieldsEditor({
                     align: align as BroadcastTextLayer['textStyle']['align'],
                 })}
             />
-            <SelectInput
-                label="Transform"
-                value={layer.textStyle.transform ?? ''}
-                options={[
-                    { label: 'none', value: '' },
-                    { label: 'uppercase', value: 'uppercase' },
-                ]}
-                onChange={(transform) => updateTextStyle({
-                    transform: transform
-                        ? transform as BroadcastTextLayer['textStyle']['transform']
-                        : undefined,
-                })}
-            />
+            {!layer.textParts?.length && (
+                <SelectInput
+                    label="Transform"
+                    value={layer.textStyle.transform ?? ''}
+                    options={[
+                        { label: 'none', value: '' },
+                        { label: 'uppercase', value: 'uppercase' },
+                    ]}
+                    onChange={(transform) => updateTextStyle({
+                        transform: transform
+                            ? transform as BroadcastTextLayer['textStyle']['transform']
+                            : undefined,
+                    })}
+                />
+            )}
             <NumericInputWithSlider
                 label="Line height"
                 value={layer.textStyle.lineHeight ?? 1}

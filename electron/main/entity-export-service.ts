@@ -7,6 +7,7 @@ import {
     type EntityExportCsvs,
 } from '../../src/features/entity-export/domain/entityExportMapper'
 import type { EntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
+import type { LowerThirdTypeDefinition } from '../../src/features/lower-thirds/domain/lowerThirdTypes'
 
 const fsp = fs.promises
 const DEFAULT_RETRY_COUNT = 3
@@ -43,6 +44,7 @@ export interface ExportEntityCsvFilesFromFullCsvContentInput {
 export interface ExportEntityCsvFilesFromEntitiesInput {
     paths: EntityExportPaths
     entities: EntitiesState
+    lowerThirdTypes?: LowerThirdTypeDefinition[]
     retryCount?: number
     onError?: (error: EntityExportError) => void
     afterTitlesExport?: () => Promise<void>
@@ -213,7 +215,7 @@ export async function exportEntityCsvFilesFromEntities(
 ): Promise<EntityExportResult> {
     return exportEntityCsvFiles({
         paths: input.paths,
-        csvs: mapEntitiesStateToExportCsvs(input.entities),
+        csvs: mapEntitiesStateToExportCsvs(input.entities, input.lowerThirdTypes),
         retryCount: input.retryCount,
         onError: input.onError,
         afterTitlesExport: input.afterTitlesExport,

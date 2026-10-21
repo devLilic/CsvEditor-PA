@@ -12,13 +12,22 @@ import { broadcastTemplates } from '@/templates/broadcast'
 import bundledDefaultTemplateDocument from '@/templates/broadcast/defaultTemplates.pa.json'
 import paBg from '@/assets/bg/PA_bg.png'
 import paPhoneBg from '@/assets/bg/PA_phone_bg.png'
+import phoneCallsBackground from '@/assets/bg/phoneCalls_background.png'
 import {
     createTemplateDocumentFromTemplates,
+    isTemplateDocument,
     type TemplateDocument,
     type TemplateDocumentTemplates,
 } from '@/features/template-editor/domain/templateDocument'
 import { resolveTemplateDocument } from '@/features/template-editor/domain/templateResolver'
 import { enforceFixedTemplateFields } from '@/features/template-editor/domain/fixedTemplateFields'
+import {
+    ensureSingleLinePersonTemplate,
+    hasSingleLinePersonTemplate,
+} from '@/features/template-editor/domain/personTemplateCompatibility'
+import { hasTitlesSupratitleLayers } from '@/features/template-editor/domain/supratitleLayers'
+import { isLegacyTemplateDocument } from '@/features/template-editor/domain/templateDocument'
+import type { LowerThirdEntityKind } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import { templateEditorStorageService } from '@/features/template-editor/services/templateEditorStorageService'
 
 export type EditableTemplateEntityType = keyof TemplateDocumentTemplates
@@ -31,14 +40,16 @@ type SaveTemplatesResult = {
 
 const DEV_DEFAULT_SAVE_WARNING =
     'Template-urile au fost salvate local, dar defaultTemplates.pa.json nu a putut fi actualizat.'
-
 export type TemplateDocumentContextValue = {
     document: TemplateDocument
     defaultDocument: TemplateDocument
     isLoaded: boolean
     isDirty: boolean
     updateTemplate(entityType: EditableTemplateEntityType, template: BroadcastTemplate): void
+    updateLowerThirdVariant(kind: LowerThirdEntityKind, typeId: string, template: BroadcastTemplate): void
+    setTemplateEntityEnabled(entityType: EditableTemplateEntityType, enabled: boolean): void
     resetTemplateToDefault(entityType: EditableTemplateEntityType): void
+    resetLowerThirdVariantToDefault(kind: LowerThirdEntityKind, typeId: string): void
     discardUnsavedChanges(): void
     saveTemplates(): Promise<SaveTemplatesResult>
     markClean(): void
@@ -51,13 +62,18 @@ function clone<T>(value: T): T {
 }
 
 function hydrateRuntimeAssets(document: TemplateDocument): TemplateDocument {
-    const nextDocument = enforceFixedTemplateFields(clone(document))
+    const nextDocument = ensureSingleLinePersonTemplate(enforceFixedTemplateFields(clone(document)))
     const backgroundMap: Record<string, string> = {
         'src/assets/bg/PA_bg.png': paBg,
         'src/assets/bg/PA_phone_bg.png': paPhoneBg,
+        'src/assets/bg/phoneCalls_background.png': phoneCallsBackground,
     }
 
-    for (const template of Object.values(nextDocument.templates)) {
+    const allTemplates = [
+        ...Object.values(nextDocument.templates),
+        ...Object.values(nextDocument.lowerThirdVariants).flatMap((variants) => Object.values(variants)),
+    ]
+    for (const template of allTemplates) {
         const background = template.canvas.background
         if (background.type === 'image') {
             background.value = backgroundMap[background.value] ?? background.value
@@ -72,9 +88,14 @@ function dehydrateRuntimeAssets(document: TemplateDocument): TemplateDocument {
     const backgroundMap: Record<string, string> = {
         [paBg]: 'src/assets/bg/PA_bg.png',
         [paPhoneBg]: 'src/assets/bg/PA_phone_bg.png',
+        [phoneCallsBackground]: 'src/assets/bg/phoneCalls_background.png',
     }
 
-    for (const template of Object.values(nextDocument.templates)) {
+    const allTemplates = [
+        ...Object.values(nextDocument.templates),
+        ...Object.values(nextDocument.lowerThirdVariants).flatMap((variants) => Object.values(variants)),
+    ]
+    for (const template of allTemplates) {
         const background = template.canvas.background
         if (background.type === 'image') {
             background.value = backgroundMap[background.value] ?? background.value
@@ -129,13 +150,19 @@ export function TemplateDocumentProvider({
                 bundledDefaultDocument: nextDefaultDocument,
                 hardcodedDocument,
             }))
+            const hasUnpersistedCompatibilityMigration = response.ok
+                && (response.migrated === true
+                    || isLegacyTemplateDocument(response.document)
+                    || (isTemplateDocument(response.document)
+                        && (!hasTitlesSupratitleLayers(response.document.templates.titles)
+                            || !hasSingleLinePersonTemplate(response.document))))
 
             if (!isMounted) return
 
             setDefaultDocument(nextDefaultDocument)
             setDocument(nextDocument)
             setCleanDocument(nextDocument)
-            setIsDirty(false)
+            setIsDirty(hasUnpersistedCompatibilityMigration)
             setIsLoaded(true)
         }
 
@@ -156,7 +183,66 @@ export function TemplateDocumentProvider({
                 ...currentDocument.templates,
                 [entityType]: clone(template),
             },
+            ...(entityType === 'titles' || entityType === 'persons'
+                ? {
+                    lowerThirdVariants: {
+                        ...currentDocument.lowerThirdVariants,
+                        [entityType]: {
+                            ...currentDocument.lowerThirdVariants[entityType],
+                            ordinary: clone(template),
+                        },
+                    },
+                }
+                : {}),
         }))
+        setIsDirty(true)
+    }, [])
+
+    const updateLowerThirdVariant = useCallback((
+        kind: LowerThirdEntityKind,
+        typeId: string,
+        template: BroadcastTemplate,
+    ) => {
+        setDocument((currentDocument) => ({
+            ...currentDocument,
+            lowerThirdVariants: {
+                ...currentDocument.lowerThirdVariants,
+                [kind]: {
+                    ...currentDocument.lowerThirdVariants[kind],
+                    [typeId]: (() => {
+                        const nextTemplate = clone(template)
+                        if (!currentDocument.lowerThirdVariants[kind][typeId]
+                            && typeId !== 'ordinary'
+                            && !nextTemplate.id.endsWith(`-${typeId}`)) {
+                            nextTemplate.id = `${nextTemplate.id}-${typeId}`
+                        }
+                        return nextTemplate
+                    })(),
+                },
+            },
+            ...(typeId === 'ordinary'
+                ? { templates: { ...currentDocument.templates, [kind]: clone(template) } }
+                : {}),
+        }))
+        setIsDirty(true)
+    }, [])
+
+    const setTemplateEntityEnabled = useCallback((
+        entityType: EditableTemplateEntityType,
+        enabled: boolean,
+    ) => {
+        setDocument((currentDocument) => {
+            const disabled = new Set(currentDocument.disabledEntityTypes ?? [])
+            if (enabled) disabled.delete(entityType)
+            else disabled.add(entityType)
+            const disabledEntityTypes = [...disabled]
+            return {
+                ...currentDocument,
+                disabledEntityTypes: disabledEntityTypes.length > 0
+                    ? disabledEntityTypes
+                    : undefined,
+            }
+        })
         setIsDirty(true)
     }, [])
 
@@ -167,6 +253,43 @@ export function TemplateDocumentProvider({
                 ...currentDocument.templates,
                 [entityType]: clone(defaultDocument.templates[entityType]),
             },
+            ...(entityType === 'titles' || entityType === 'persons'
+                ? {
+                    lowerThirdVariants: {
+                        ...currentDocument.lowerThirdVariants,
+                        [entityType]: {
+                            ...currentDocument.lowerThirdVariants[entityType],
+                            ordinary: clone(defaultDocument.lowerThirdVariants[entityType].ordinary),
+                        },
+                    },
+                }
+                : {}),
+        }))
+        setIsDirty(true)
+    }, [defaultDocument])
+
+    const resetLowerThirdVariantToDefault = useCallback((kind: LowerThirdEntityKind, typeId: string) => {
+        setDocument((currentDocument) => ({
+            ...currentDocument,
+            lowerThirdVariants: {
+                ...currentDocument.lowerThirdVariants,
+                [kind]: {
+                    ...currentDocument.lowerThirdVariants[kind],
+                    [typeId]: (() => {
+                        const defaultVariant = defaultDocument.lowerThirdVariants[kind][typeId]
+                            ?? defaultDocument.lowerThirdVariants[kind].ordinary
+                        const nextTemplate = clone(defaultVariant)
+                        if (!defaultDocument.lowerThirdVariants[kind][typeId]
+                            && !nextTemplate.id.endsWith(`-${typeId}`)) {
+                            nextTemplate.id = `${nextTemplate.id}-${typeId}`
+                        }
+                        return nextTemplate
+                    })(),
+                },
+            },
+            ...(typeId === 'ordinary'
+                ? { templates: { ...currentDocument.templates, [kind]: clone(defaultDocument.lowerThirdVariants[kind][typeId]) } }
+                : {}),
         }))
         setIsDirty(true)
     }, [defaultDocument])
@@ -212,7 +335,10 @@ export function TemplateDocumentProvider({
         isLoaded,
         isDirty,
         updateTemplate,
+        updateLowerThirdVariant,
+        setTemplateEntityEnabled,
         resetTemplateToDefault,
+        resetLowerThirdVariantToDefault,
         discardUnsavedChanges,
         saveTemplates,
         markClean,
@@ -222,7 +348,10 @@ export function TemplateDocumentProvider({
         isLoaded,
         isDirty,
         updateTemplate,
+        updateLowerThirdVariant,
+        setTemplateEntityEnabled,
         resetTemplateToDefault,
+        resetLowerThirdVariantToDefault,
         discardUnsavedChanges,
         saveTemplates,
         markClean,

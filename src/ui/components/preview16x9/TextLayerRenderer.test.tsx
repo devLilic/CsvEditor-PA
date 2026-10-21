@@ -87,6 +87,27 @@ describe('TextLayerRenderer', () => {
         })
     })
 
+    it('renders composite field text on one line with per-part casing', () => {
+        const layer: BroadcastTextLayer = {
+            ...baseLayer,
+            textParts: [
+                { fieldId: 'name', transform: 'uppercase' },
+                { fieldId: 'occupation', prefix: ', ' },
+            ],
+        }
+
+        render(
+            <TextLayerRenderer
+                layer={layer}
+                data={{ name: 'Ion Popescu', occupation: 'director general' }}
+            />
+        )
+
+        expect(screen.getByText('ION POPESCU, director general')).toHaveStyle({
+            whiteSpace: 'nowrap',
+        })
+    })
+
     it('renders an optional text layer border without changing layout dimensions', () => {
         const { container } = render(
             <TextLayerRenderer

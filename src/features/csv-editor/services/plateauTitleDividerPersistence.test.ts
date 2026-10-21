@@ -103,7 +103,7 @@ describe('plateau title divider persistence orchestration', () => {
         })
 
         const exports = mapFullCsvContentToExportCsvs(getWrittenCsv(writeSpy))
-        expect(exports.titlesCsv).toContain('Nr;Titlu')
+        expect(exports.titlesCsv).toContain('Nr;Titlu;Supratitlu')
         expect(exports.titlesCsv).not.toContain(TITLE_DIVIDER_MARKER)
     })
 
@@ -117,7 +117,7 @@ describe('plateau title divider persistence orchestration', () => {
         })
 
         const exports = mapFullCsvContentToExportCsvs(getWrittenCsv(writeSpy))
-        expect(exports.titlesWithHotCsv).toContain('Nr;Titlu;Ultima Ora')
+        expect(exports.titlesWithHotCsv).toContain('Nr;Titlu;Supratitlu;Ultima Ora')
         expect(exports.titlesWithHotCsv).toContain('HOT TITLE')
         expect(exports.titlesWithHotCsv).not.toContain(TITLE_DIVIDER_MARKER)
     })

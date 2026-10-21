@@ -25,6 +25,13 @@ type TextScaleInput = {
 
 type ResolveLayerTextInput = {
     fieldId?: string
+    textParts?: Array<{
+        fieldId: string
+        prefix?: string
+        fieldDefaultValue?: string
+        fallbackText?: string
+        transform?: 'uppercase'
+    }>
     data?: Record<string, unknown>
     sampleData?: Record<string, unknown>
     fieldDefaultValue?: unknown
@@ -77,6 +84,24 @@ export function calculateTextScale(input: TextScaleInput): number {
 }
 
 export function resolveLayerText(input: ResolveLayerTextInput): string {
+    if (input.textParts?.length) {
+        return input.textParts.map((part) => {
+            const hasLiveValue = Boolean(input.data && Object.prototype.hasOwnProperty.call(input.data, part.fieldId))
+            const value = hasLiveValue
+                ? valueToText(input.data?.[part.fieldId])
+                : resolveLayerText({
+                    fieldId: part.fieldId,
+                    data: input.data,
+                    sampleData: input.sampleData,
+                    fieldDefaultValue: part.fieldDefaultValue,
+                    fallbackText: part.fallbackText,
+                })
+            if (!value.trim()) return ''
+            const displayValue = part.transform === 'uppercase' ? value.toUpperCase() : value
+            return `${part.prefix ?? ''}${displayValue}`
+        }).join('')
+    }
+
     const fieldId = input.fieldId
 
     if (fieldId && hasTextValue(input.data?.[fieldId])) {

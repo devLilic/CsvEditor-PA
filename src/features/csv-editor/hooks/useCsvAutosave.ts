@@ -6,6 +6,7 @@ import { csvService } from '../services/csvService'
 import { phoneImageSettingsService } from '../services/phoneImageSettingsService'
 import { serializeCsv } from '../utils/csvSerializer'
 import type { EntitiesState } from '../domain/entities'
+import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 
 /**
  * Autosave sigur, debounced.
@@ -21,6 +22,7 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
     const isFirstRunRef = useRef(true)
     const debounceTimerRef = useRef<number | null>(null)
     const lastSerializedRef = useRef<string>('')
+    const lastEntitiesSnapshotRef = useRef('')
     const phoneImageWorkPathRef = useRef('')
     const [phoneImageWorkPath, setPhoneImageWorkPath] = useState('')
 
@@ -54,6 +56,7 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
         if (isFirstRunRef.current) {
             isFirstRunRef.current = false
             lastSerializedRef.current = serializeForDisk(state.entities)
+            lastEntitiesSnapshotRef.current = JSON.stringify(state.entities)
             return
         }
 
@@ -64,13 +67,18 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
 
         debounceTimerRef.current = window.setTimeout(async () => {
             const csv = serializeForDisk(state.entities)
+            const entitiesSnapshot = JSON.stringify(state.entities)
 
-            // evită write dacă nu s-a schimbat nimic real
-            if (csv === lastSerializedRef.current) return
+            // Lower-third assignments live outside the working CSV, so an entity
+            // edit can require PA export updates even when the CSV text is unchanged.
+            if (csv === lastSerializedRef.current
+                && entitiesSnapshot === lastEntitiesSnapshotRef.current) return
 
-            const res = await csvService.write(csv)
+            const lowerThirdTypes = await lowerThirdTypesService.get()
+            const res = await csvService.write(csv, state.entities, lowerThirdTypes)
             if (res.ok) {
                 lastSerializedRef.current = csv
+                lastEntitiesSnapshotRef.current = entitiesSnapshot
             } else {
                 console.error('Autosave failed:', res.error)
             }
@@ -112,12 +120,14 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
 
             // 3️⃣ scriere CSV gol
             const emptyCsv = serializeForDisk(nextEmptyEntities)
-            const writeRes = await csvService.write(emptyCsv)
+            const lowerThirdTypes = await lowerThirdTypesService.get()
+            const writeRes = await csvService.write(emptyCsv, nextEmptyEntities, lowerThirdTypes)
             if (!writeRes.ok) {
                 console.error('Failed to write empty CSV:', writeRes.error)
             }
 
             lastSerializedRef.current = emptyCsv
+            lastEntitiesSnapshotRef.current = JSON.stringify(nextEmptyEntities)
         },
         [dispatch, serializeForDisk, state.entities]
     )

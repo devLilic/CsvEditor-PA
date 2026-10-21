@@ -108,6 +108,56 @@ afterEach(() => {
 })
 
 describe('Preview16x9', () => {
+    it('hides data-bound layers without their value and shows them with live or sample data', () => {
+        const conditionalTemplate: BroadcastTemplate = {
+            ...template,
+            layers: [
+                {
+                    id: 'supratitle-shape',
+                    type: 'shape',
+                    shapeType: 'rect',
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 20,
+                    zIndex: 1,
+                    visibleWhenField: 'supratitle',
+                    fill: { type: 'solid', value: '#333333' },
+                },
+                {
+                    id: 'supratitle-text',
+                    type: 'text',
+                    fieldId: 'supratitle',
+                    x: 0,
+                    y: 0,
+                    width: 100,
+                    height: 20,
+                    zIndex: 2,
+                    visibleWhenField: 'supratitle',
+                    textStyle: {
+                        fontFamily: 'Arial',
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: '#ffffff',
+                        align: 'left',
+                    },
+                },
+            ],
+        }
+
+        const { rerender } = render(<Preview16x9 template={conditionalTemplate} data={{ title: 'Main title' }} />)
+
+        expect(screen.queryByTestId('supratitle-shape')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('supratitle-text')).not.toBeInTheDocument()
+
+        rerender(<Preview16x9 template={conditionalTemplate} data={{ supratitle: 'Live heading' }} />)
+        expect(screen.getByText('Live heading')).toBeInTheDocument()
+        expect(document.querySelector('[data-layer-id="supratitle-shape"]')).toBeInTheDocument()
+
+        rerender(<Preview16x9 template={conditionalTemplate} sampleData={{ supratitle: 'Sample heading' }} />)
+        expect(screen.getByText('Sample heading')).toBeInTheDocument()
+    })
+
     it('renders without crashing with a minimal template', () => {
         const minimalTemplate: BroadcastTemplate = {
             id: 'minimal',
@@ -175,6 +225,7 @@ describe('Preview16x9', () => {
             expect(frame).toHaveStyle({
                 width: '888.8888888888889px',
                 height: '500px',
+                marginInline: 'auto',
             })
             expect(canvas).toHaveStyle({
                 transform: 'scale(0.46296296296296297)',

@@ -8,6 +8,13 @@ const csvHooks = vi.hoisted(() => ({
     activeSection: { id: 'invited-1', kind: 'invited', rows: [] } as any,
     setActiveEntityType: vi.fn(),
     clearSelection: vi.fn(),
+    disabledEntityTypes: [] as string[],
+}))
+
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    useTemplateDocument: () => ({
+        document: { disabledEntityTypes: csvHooks.disabledEntityTypes },
+    }),
 }))
 
 vi.mock('@/features/csv-editor', async (importOriginal) => {
@@ -33,6 +40,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
 beforeEach(() => {
     csvHooks.activeEntityType = 'titles'
     csvHooks.activeSection = { id: 'invited-1', kind: 'invited', rows: [] }
+    csvHooks.disabledEntityTypes = []
     csvHooks.setActiveEntityType.mockClear()
     csvHooks.clearSelection.mockClear()
 })
@@ -69,10 +77,26 @@ describe('EntityTypeTabsLeft', () => {
     it('renders PA-only tabs for PLATOU', () => {
         render(<EntityTypeTabsLeft />)
 
-        expect(screen.getAllByRole('button')).toHaveLength(7)
-        expect(screen.getByRole('button', { name: 'Ultima oră' })).toBeInTheDocument()
+        expect(screen.getAllByRole('button')).toHaveLength(6)
+        expect(screen.queryByRole('button', { name: 'Ultima oră' })).not.toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Titluri așteptare' })).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Locații așteptare' })).toBeInTheDocument()
+    })
+
+    it('hides disabled template types from the main screen selector', () => {
+        csvHooks.disabledEntityTypes = ['waitTitles']
+        render(<EntityTypeTabsLeft />)
+
+        expect(screen.queryByRole('button', { name: 'Titluri așteptare' })).not.toBeInTheDocument()
+        expect(screen.getAllByRole('button')).toHaveLength(5)
+    })
+
+    it('shows an Edit Templates reactivation hint when all section types are disabled', () => {
+        csvHooks.disabledEntityTypes = ['titles', 'persons', 'locations', 'phoneCalls', 'hotTitles', 'waitTitles', 'waitLocations']
+        render(<EntityTypeTabsLeft />)
+
+        expect(screen.getByText(/Re-enable one in Edit Templates/)).toBeInTheDocument()
+        expect(screen.queryAllByRole('button')).toHaveLength(0)
     })
 
     it('renders only Titluri and Persoane tabs for BETA', () => {

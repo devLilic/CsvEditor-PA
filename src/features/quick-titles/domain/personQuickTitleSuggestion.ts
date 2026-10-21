@@ -1,5 +1,3 @@
-import { normalizeQuickTitle } from './quickTitle'
-
 function getNameSegments(personName: string): string[] {
     return personName.trim().split(/\s+/).filter(Boolean)
 }
@@ -17,20 +15,6 @@ export function buildPersonQuickTitleSuggestion(input: {
     personName: string
     existingQuickTitles: string[]
 }): string {
-    const lastName = getLastNameSegment(input.personName)
-    if (!lastName) {
-        return ''
-    }
-
-    const normalizedLastName = normalizeQuickTitle(lastName)
-    const lastNameExists = input.existingQuickTitles.some(
-        (quickTitle) => normalizeQuickTitle(quickTitle) === normalizedLastName
-    )
-
-    if (!lastNameExists) {
-        return lastName
-    }
-
-    const firstNameInitial = getFirstNameInitial(input.personName)
-    return firstNameInitial ? `${firstNameInitial}. ${lastName}` : lastName
+    void input.existingQuickTitles
+    return input.personName.trim().replace(/\s+/g, ' ')
 }

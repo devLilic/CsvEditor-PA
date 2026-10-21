@@ -11,6 +11,7 @@ import { isPhoneCallPerson } from '../domain/phoneCall'
 import { createDefaultProjectEntities } from '../domain/defaultProject'
 import { FALLBACK_DEFAULT_PROJECT_SETTINGS } from '../domain/defaultProjectSettings'
 import { csvService } from '../services/csvService'
+import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 import { defaultProjectSettingsService } from '../services/defaultProjectSettingsService'
 import { settingsService } from '../services/settingsService'
 import { reorderPlateauTitlesService } from '../services/reorderPlateauTitlesService'
@@ -214,7 +215,8 @@ export function useEntities() {
 
         dispatch(action)
 
-        const writeRes = await csvService.write(serializeCsv(nextState.entities))
+        const lowerThirdTypes = await lowerThirdTypesService.get()
+        const writeRes = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes)
         if (!writeRes.ok) {
             console.error('Failed to save person:', writeRes.error)
             return { ok: false, error: writeRes.error ?? 'WRITE_FAILED' }
@@ -248,7 +250,8 @@ export function useEntities() {
         nextState: typeof state,
         errorPrefix: string
     ): Promise<PlateauTitleDividerResult> => {
-        const writeRes = await csvService.write(serializeCsv(nextState.entities))
+        const lowerThirdTypes = await lowerThirdTypesService.get()
+        const writeRes = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes)
         if (!writeRes.ok) {
             console.error(errorPrefix, writeRes.error)
             return { ok: false, error: writeRes.error ?? 'WRITE_FAILED' }
@@ -366,7 +369,8 @@ export function useEntities() {
         dispatch({ type: 'ENTITY_CLEAR_ALL', payload: nextEntities })
 
         const defaultProjectCsv = serializeCsv(nextEntities)
-        const writeRes = await csvService.write(defaultProjectCsv)
+        const lowerThirdTypes = await lowerThirdTypesService.get()
+        const writeRes = await csvService.write(defaultProjectCsv, nextEntities, lowerThirdTypes)
         if (!writeRes.ok) {
             console.error('Failed to write empty CSV:', writeRes.error)
             return {

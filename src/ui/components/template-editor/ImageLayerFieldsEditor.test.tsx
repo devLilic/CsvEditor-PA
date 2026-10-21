@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { phoneCallTemplate } from '@/templates/broadcast'
 import { ImageLayerFieldsEditor } from './ImageLayerFieldsEditor'
@@ -31,7 +31,7 @@ describe('ImageLayerFieldsEditor', () => {
         ])
     })
 
-    it('updates source live without changing layer type or other properties', () => {
+    it('updates source live without changing layer type or other properties', async () => {
         const layer = {
             ...getImageLayer(),
             id: 'custom-image',
@@ -46,14 +46,14 @@ describe('ImageLayerFieldsEditor', () => {
             target: { files: [file] },
         })
 
-        expect(onChange).toHaveBeenCalledWith({
+        await waitFor(() => expect(onChange).toHaveBeenCalledWith({
             ...layer,
             type: 'image',
             src: 'C:\\Images\\new-photo.png',
-        })
+        }))
     })
 
-    it('allows an empty source so the preview can render its placeholder', () => {
+    it('allows an empty source so the preview can render its placeholder', async () => {
         const layer = {
             ...getImageLayer(),
             id: 'custom-image',
@@ -66,11 +66,11 @@ describe('ImageLayerFieldsEditor', () => {
             target: { files: [] },
         })
 
-        expect(onChange).toHaveBeenCalledWith({
+        await waitFor(() => expect(onChange).toHaveBeenCalledWith({
             ...layer,
             type: 'image',
             src: '',
-        })
+        }))
     })
 
     it('updates object fit live without changing layer type or other properties', () => {

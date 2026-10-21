@@ -57,8 +57,8 @@ export function QuickTitlesBar({
                         <button
                             aria-pressed={isActive}
                             onClick={() => {
-                                onApplyPrefix(qt.toUpperCase())
                                 focusEditor()
+                                onApplyPrefix(qt.toUpperCase())
                             }}
                             className={`app-button app-button-primary app-quick-title-button min-w-0 max-w-56 px-3 py-2 rounded text-sm text-white ${
                                 isActive ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-blue-600 hover:bg-blue-700'
@@ -86,6 +86,7 @@ export function QuickTitlesBar({
             {/* Add new quick title */}
             <input
                 ref={inputRef}
+                aria-label="Adaugă prefix nou"
                 placeholder="Adaugă prefix nou..."
                 className="app-input border border-gray-500 px-2 py-1 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onKeyDown={(e) => {

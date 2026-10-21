@@ -12,6 +12,7 @@ import { PlateauTitleDivider } from '@/ui/components/titles/PlateauTitleDivider'
 
 vi.mock('@/features/csv-editor/services/settingsService', () => ({
     settingsService: {
+        getConfig: vi.fn().mockResolvedValue({}),
         getPlateauTitleDragDropEnabled: vi.fn(),
     },
 }))
@@ -103,6 +104,8 @@ function renderEntityList({ editMode = false } = {}) {
 }
 
 beforeEach(() => {
+    vi.mocked(settingsService.getConfig).mockReset()
+    vi.mocked(settingsService.getConfig).mockResolvedValue({} as Awaited<ReturnType<typeof settingsService.getConfig>>)
     csvHooks.activeSectionId = 'invited-1'
     csvHooks.activeSection = { id: 'invited-1', kind: 'invited', rows: [] }
     csvHooks.activeEntityType = 'titles'

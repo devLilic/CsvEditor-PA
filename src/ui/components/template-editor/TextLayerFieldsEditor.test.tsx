@@ -21,6 +21,7 @@ describe('TextLayerFieldsEditor', () => {
         render(<TextLayerFieldsEditor layer={getTextLayer()} onChange={vi.fn()} />)
 
         expect(screen.getByLabelText('Field id')).toBeInTheDocument()
+        expect(screen.getByLabelText('Entity input label')).toBeInTheDocument()
         expect(screen.getByLabelText('Fallback')).toBeInTheDocument()
         expect(screen.getByLabelText('Default value')).toBeInTheDocument()
         expect(screen.getByLabelText('Min scale X')).toBeInTheDocument()
@@ -30,7 +31,7 @@ describe('TextLayerFieldsEditor', () => {
         expect(screen.getByLabelText('Color')).toBeInTheDocument()
         expect(screen.getByLabelText('Color picker')).toHaveAttribute('type', 'color')
         expect(screen.getByLabelText('Align')).toBeInTheDocument()
-        expect(screen.getByLabelText('Transform')).toBeInTheDocument()
+        expect(screen.queryByLabelText('Transform')).not.toBeInTheDocument()
         expect(screen.getByLabelText('Line height')).toBeInTheDocument()
         expect(screen.getByLabelText('Letter spacing')).toBeInTheDocument()
     })

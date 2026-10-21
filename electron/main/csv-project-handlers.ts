@@ -16,6 +16,10 @@ import type {
     CsvProjectSaveAsResponse,
 } from '../../src/shared/ipc-types'
 import { getCsvFileSettings } from '../store'
+import { getAppConfig } from '../store'
+import { normalizeLowerThirdTypes } from '../../src/features/lower-thirds/domain/lowerThirdTypesValidation'
+import { restoreLowerThirdAssignments, migrateHotTitlesToUrgent } from '../../src/features/lower-thirds/domain/lowerThirdAssignments'
+import { LOWER_THIRD_TYPES_CONFIG_KEY } from '../../src/features/lower-thirds/domain/lowerThirdTypesConfig'
 import { writeCsvBackup } from './csv-backup'
 import { notifyEntityExportFailure } from './entity-export-notification'
 import {
@@ -153,9 +157,22 @@ async function exportEntityCsvsAfterProjectLoad(input: {
             workingCsvPath: input.workingCsvPath,
             exportFolderPath: input.exportCsvFolderPath,
         })
+        const [titlesExport, personsExport] = await Promise.all([
+            fsp.readFile(exportPaths.titlesPath, 'utf-8').catch(() => undefined),
+            fsp.readFile(exportPaths.personsPath, 'utf-8').catch(() => undefined),
+        ])
+        const types = normalizeLowerThirdTypes(getAppConfig()[LOWER_THIRD_TYPES_CONFIG_KEY])
+        const restoredEntities = restoreLowerThirdAssignments({
+            entities: migrateHotTitlesToUrgent(entities),
+            titlesExport,
+            personsExport,
+            types,
+            onWarning: (message) => console.warn('[lower-thirds]', message),
+        })
         return await exportEntityCsvFilesFromEntities({
             paths: exportPaths,
-            entities,
+            entities: restoredEntities,
+            lowerThirdTypes: types,
             onError: (error) => notifyEntityExportFailure(input.mainWindow, error),
         })
     } catch (error) {

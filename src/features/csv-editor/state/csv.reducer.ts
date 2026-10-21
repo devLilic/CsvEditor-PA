@@ -89,6 +89,8 @@ function makeEntity(entityType: EntityType, data: Record<string, unknown>, allow
             id: uuidv4(),
             name: String((data as any).name ?? ''),
             occupation: String((data as any).occupation ?? ''),
+            lowerThirdTypeId: typeof (data as any).lowerThirdTypeId === 'string' ? (data as any).lowerThirdTypeId : undefined,
+            lowerThirdTemplateOverride: typeof (data as any).lowerThirdTemplateOverride === 'string' ? (data as any).lowerThirdTemplateOverride : undefined,
             image: allowPersonImage && typeof (data as any).image === 'string' && (data as any).image.trim() !== ''
                 ? String((data as any).image)
                 : undefined,
@@ -103,9 +105,16 @@ function makeEntity(entityType: EntityType, data: Record<string, unknown>, allow
     }
 
     // titles / hotTitles / waitTitles
+    const title = String((data as any).title ?? '')
+    const supratitle = storageEntityType === EntityTypes.TITLES
+        ? String((data as any).supratitle ?? '')
+        : ''
     return {
         id: uuidv4(),
-        title: String((data as any).title ?? ''),
+        title,
+        ...(supratitle ? { supratitle } : {}),
+        ...(typeof (data as any).lowerThirdTypeId === 'string' ? { lowerThirdTypeId: (data as any).lowerThirdTypeId } : {}),
+        ...(typeof (data as any).lowerThirdTemplateOverride === 'string' ? { lowerThirdTemplateOverride: (data as any).lowerThirdTemplateOverride } : {}),
     } satisfies SimpleTitle
 }
 function ensureInvitedLast(sections: CsvSection[]): CsvSection[] {
@@ -144,7 +153,12 @@ function addRowWithEntity(section: CsvSection, entityType: EntityType, data: Rec
     switch (entityType) {
         case EntityTypes.TITLES: {
             const title = String((data as any).title ?? '').trim()
-            row.title = { id: uuidv4(), title }
+            const supratitle = String((data as any).supratitle ?? '')
+            row.title = {
+                id: uuidv4(), title, ...(supratitle ? { supratitle } : {}),
+                ...(typeof (data as any).lowerThirdTypeId === 'string' ? { lowerThirdTypeId: (data as any).lowerThirdTypeId } : {}),
+                ...(typeof (data as any).lowerThirdTemplateOverride === 'string' ? { lowerThirdTemplateOverride: (data as any).lowerThirdTemplateOverride } : {}),
+            }
             break
         }
         case EntityTypes.PERSONS: {
@@ -156,6 +170,8 @@ function addRowWithEntity(section: CsvSection, entityType: EntityType, data: Rec
                 name,
                 occupation,
                 ...(image ? { image } : {}),
+                ...(typeof (data as any).lowerThirdTypeId === 'string' ? { lowerThirdTypeId: (data as any).lowerThirdTypeId } : {}),
+                ...(typeof (data as any).lowerThirdTemplateOverride === 'string' ? { lowerThirdTemplateOverride: (data as any).lowerThirdTemplateOverride } : {}),
             }
             break
         }
@@ -193,13 +209,37 @@ function updateEntityInSection(section: CsvSection, entityType: EntityType, id: 
     const storageEntityType = getStorageEntityType(entityType)
     const rows = section.rows.map((r) => {
         if (storageEntityType === EntityTypes.TITLES && r.title?.id === id) {
-            return { ...r, title: { ...r.title, title: String((data as any).title ?? r.title.title) } }
+            const nextSupratitle = typeof (data as any).supratitle === 'string'
+                ? String((data as any).supratitle)
+                : r.title.supratitle
+            return {
+                ...r,
+                title: {
+                    ...r.title,
+                    title: String((data as any).title ?? r.title.title),
+                    lowerThirdTypeId: typeof (data as any).lowerThirdTypeId === 'string'
+                        ? String((data as any).lowerThirdTypeId)
+                        : r.title.lowerThirdTypeId,
+                    lowerThirdTemplateOverride: typeof (data as any).lowerThirdTemplateOverride === 'string'
+                        ? String((data as any).lowerThirdTemplateOverride)
+                        : r.title.lowerThirdTemplateOverride,
+                    ...(nextSupratitle?.trim()
+                        ? { supratitle: nextSupratitle }
+                        : { supratitle: undefined }),
+                },
+            }
         }
         if (storageEntityType === EntityTypes.PERSONS && r.person?.id === id) {
             const next: Person = {
                 ...r.person,
                 name: String((data as any).name ?? r.person.name),
                 occupation: String((data as any).occupation ?? r.person.occupation),
+                lowerThirdTypeId: typeof (data as any).lowerThirdTypeId === 'string'
+                    ? String((data as any).lowerThirdTypeId)
+                    : r.person.lowerThirdTypeId,
+                lowerThirdTemplateOverride: typeof (data as any).lowerThirdTemplateOverride === 'string'
+                    ? String((data as any).lowerThirdTemplateOverride)
+                    : r.person.lowerThirdTemplateOverride,
                 image: typeof (data as any).image === 'string'
                     ? ((data as any).image.trim() ? String((data as any).image) : undefined)
                     : r.person.image,

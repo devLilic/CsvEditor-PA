@@ -9,6 +9,7 @@ import { createTitleDivider, isTitleDividerMarker } from '../domain/plateauTitle
 export const CSV_COLUMNS = {
     TITLE_NR: 'Nr',
     TITLE: 'Titlu',
+    SUPRATITLE: 'Supratitlu',
 
     PERSON_NAME: 'Nume',
     PERSON_OCCUPATION: 'Functie',
@@ -41,6 +42,7 @@ function isCompletelyEmptyRow(row: CsvRowRaw): boolean {
 function buildRowFromCsv(row: CsvRowRaw, sectionKind: CsvSection['kind']): Omit<SectionRow, 'id'> | null {
     const nr = cell(row, CSV_COLUMNS.TITLE_NR)
     const titleText = cell(row, CSV_COLUMNS.TITLE)
+    const supratitle = cell(row, CSV_COLUMNS.SUPRATITLE)
     const name = cell(row, CSV_COLUMNS.PERSON_NAME)
     const occupation = cell(row, CSV_COLUMNS.PERSON_OCCUPATION)
     const image = cell(row, CSV_COLUMNS.PERSON_IMAGE)
@@ -52,6 +54,7 @@ function buildRowFromCsv(row: CsvRowRaw, sectionKind: CsvSection['kind']): Omit<
     // empty row inside a section -> ignore (no delimiter concept anymore)
     if (
         titleText === '' &&
+        supratitle === '' &&
         name === '' &&
         occupation === '' &&
         image === '' &&
@@ -74,8 +77,13 @@ function buildRowFromCsv(row: CsvRowRaw, sectionKind: CsvSection['kind']): Omit<
         return null
     }
 
-    if (titleText !== '') {
-        const t: SimpleTitle = { id: uuidv4(), nr, title: titleText }
+    if (titleText !== '' || supratitle !== '') {
+        const t: SimpleTitle = {
+            id: uuidv4(),
+            nr,
+            title: titleText,
+            ...(supratitle ? { supratitle } : {}),
+        }
         out.title = t
     }
 

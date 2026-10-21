@@ -29,7 +29,7 @@ describe('serializeCsv PA common CSV', () => {
         })
 
         expect(serialized.split(/\r?\n/)[0]).toBe(
-            'Nr;Titlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare'
+            'Nr;Titlu;Supratitlu;Nume;Functie;Image;Locatie;Ultima Ora;Titlu Asteptare;Locatie Asteptare'
         )
     })
 
@@ -45,6 +45,7 @@ describe('serializeCsv PA common CSV', () => {
             {
                 [CSV_COLUMNS.TITLE_NR]: '',
                 [CSV_COLUMNS.TITLE]: '--- beta 1 - Titlu ---',
+                [CSV_COLUMNS.SUPRATITLE]: '',
                 [CSV_COLUMNS.PERSON_NAME]: '',
                 [CSV_COLUMNS.PERSON_OCCUPATION]: '',
                 [CSV_COLUMNS.PERSON_IMAGE]: '',
@@ -56,6 +57,7 @@ describe('serializeCsv PA common CSV', () => {
             {
                 [CSV_COLUMNS.TITLE_NR]: '',
                 [CSV_COLUMNS.TITLE]: '--- INVITATI ---',
+                [CSV_COLUMNS.SUPRATITLE]: '',
                 [CSV_COLUMNS.PERSON_NAME]: '',
                 [CSV_COLUMNS.PERSON_OCCUPATION]: '',
                 [CSV_COLUMNS.PERSON_IMAGE]: '',
@@ -89,6 +91,29 @@ describe('serializeCsv PA common CSV', () => {
         })
 
         expect(rows.map((row) => row[CSV_COLUMNS.TITLE_NR])).toEqual(['', '1', '2', '', '1'])
+    })
+
+    it('round-trips the Supratitlu title field', () => {
+        const state: EntitiesState = {
+            sections: [{
+                id: 'invited-1',
+                kind: 'invited',
+                rows: [{
+                    id: 'row-1',
+                    title: {
+                        id: 'title-1',
+                        title: 'Titlu principal',
+                        supratitle: 'Supratitlu',
+                    },
+                }],
+            }],
+        }
+
+        expect(serializeCsv(state).split(/\r?\n/)[0]).toContain('Supratitlu')
+        expect(parseCsv(serializeCsv(state)).sections[0].rows[0].title).toMatchObject({
+            title: 'Titlu principal',
+            supratitle: 'Supratitlu',
+        })
     })
 
     it('writes PA data columns and emits wait values only for INVITATI', () => {

@@ -1,12 +1,16 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EntityList } from './EntityList'
 import { EditModeProvider, useEditMode } from '@/ui/context/EditModeContext'
 import { TitleFilterProvider } from '@/ui/context/TitleFilterContext'
+import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import { DEFAULT_LOWER_THIRD_TYPE_ID, DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 
 const csvHooks = vi.hoisted(() => ({
     activeSectionId: 'invited-1',
+    activeSectionKind: 'invited' as 'invited' | 'beta',
     activeEntityType: 'titles' as
         | 'titles'
         | 'persons'
@@ -32,7 +36,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
         ...actual,
         useEntities: () => ({
             activeSectionId: csvHooks.activeSectionId,
-            activeSection: { id: csvHooks.activeSectionId, kind: 'invited', rows: [] },
+            activeSection: { id: csvHooks.activeSectionId, kind: csvHooks.activeSectionKind, rows: [] },
             getBlockItems: csvHooks.getBlockItems,
             deleteEntity: csvHooks.deleteEntity,
             deletePlateauTitleDivider: csvHooks.deletePlateauTitleDivider,
@@ -55,6 +59,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
 
 beforeEach(() => {
     csvHooks.activeSectionId = 'invited-1'
+    csvHooks.activeSectionKind = 'invited'
     csvHooks.activeEntityType = 'titles'
     csvHooks.getBlockItems.mockReset()
     csvHooks.deleteEntity.mockClear()
@@ -73,11 +78,11 @@ afterEach(() => {
     cleanup()
 })
 
-function renderEntityList() {
+function renderEntityList(props: ComponentProps<typeof EntityList> = {}) {
     return render(
         <EditModeProvider>
             <TitleFilterProvider>
-                <EntityList />
+                <EntityList {...props} />
             </TitleFilterProvider>
         </EditModeProvider>
     )
@@ -128,6 +133,88 @@ function phoneCallsItems() {
 }
 
 describe('EntityList', () => {
+    it('repeats a saved title supratitle without selecting or mutating its source row', async () => {
+        const onRepeatSupratitle = vi.fn()
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: {
+                title: 'QUOTE', supratitle: 'ANA POPESCU', lowerThirdTypeId: 'breaking-news',
+            } },
+        ])
+        renderEntityList({ onRepeatSupratitle })
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Repetă supratitlu: ANA POPESCU' }))
+
+        expect(onRepeatSupratitle).toHaveBeenCalledWith(expect.objectContaining({
+            supratitle: 'ANA POPESCU',
+            lowerThirdTypeId: 'breaking-news',
+            requestId: expect.any(Number),
+        }))
+        expect(csvHooks.select).not.toHaveBeenCalled()
+        expect(csvHooks.deleteEntity).not.toHaveBeenCalled()
+        expect(screen.getByText('QUOTE')).toBeInTheDocument()
+    })
+
+    it('uses the ordinary type when the source title has an unknown graphic type', async () => {
+        const onRepeatSupratitle = vi.fn()
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: {
+                title: 'QUOTE', supratitle: 'ANA POPESCU', lowerThirdTypeId: 'removed-type',
+            } },
+        ])
+        renderEntityList({ onRepeatSupratitle })
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Repetă supratitlu: ANA POPESCU' }))
+
+        expect(onRepeatSupratitle).toHaveBeenCalledWith(expect.objectContaining({
+            supratitle: 'ANA POPESCU',
+            lowerThirdTypeId: DEFAULT_LOWER_THIRD_TYPE_ID,
+        }))
+    })
+
+    it('offers the same repeat-supertitle action for titles in Beta', async () => {
+        const onRepeatSupratitle = vi.fn()
+        csvHooks.activeSectionId = 'beta-1'
+        csvHooks.activeSectionKind = 'beta'
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'title', entityType: 'titles', id: 'beta-title-1', rowId: 'beta-row-1', data: {
+                title: 'CITAT', supratitle: 'INVITAT BETA', lowerThirdTypeId: 'urgent',
+            } },
+        ])
+        renderEntityList({ onRepeatSupratitle })
+
+        await userEvent.click(await screen.findByRole('button', { name: 'Repetă supratitlu: INVITAT BETA' }))
+
+        expect(onRepeatSupratitle).toHaveBeenCalledWith(expect.objectContaining({
+            supratitle: 'INVITAT BETA',
+            lowerThirdTypeId: 'urgent',
+        }))
+        expect(csvHooks.select).not.toHaveBeenCalled()
+    })
+
+    it('shows the assigned type color between title number and text and before a person name', async () => {
+        const getTypesSpy = vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: { title: 'URGENT', lowerThirdTypeId: 'urgent' } },
+        ])
+
+        const titleView = renderEntityList()
+        const titleDot = await screen.findByLabelText('Ultima oră')
+        expect(titleDot).toHaveStyle({ backgroundColor: '#F44336' })
+        expect(titleDot.parentElement?.children[0]).toHaveTextContent('1.')
+        expect(titleDot.closest('.app-list-row')).toHaveTextContent('URGENT')
+        titleView.unmount()
+
+        csvHooks.activeEntityType = 'persons'
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'person', entityType: 'persons', id: 'person-1', data: { name: 'ANA POPESCU', occupation: 'Reporter', lowerThirdTypeId: 'breaking-news' } },
+        ])
+        renderEntityList()
+        const personDot = await screen.findByLabelText('Breaking News')
+        expect(personDot).toHaveStyle({ backgroundColor: '#000000' })
+        expect(personDot.parentElement).toHaveTextContent('ANA POPESCU')
+        getTypesSpy.mockRestore()
+    })
+
     it('renders titles', () => {
         csvHooks.getBlockItems.mockReturnValue([
             { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: { title: 'BREAKING NEWS' } },
@@ -138,6 +225,34 @@ describe('EntityList', () => {
         expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'titles')
         expect(screen.getByText('BREAKING NEWS')).toBeInTheDocument()
         expect(screen.getByText('1.')).toBeInTheDocument()
+    })
+
+    it('renders a title supratitle above its title, with the number and type marker for the combined item', async () => {
+        csvHooks.getBlockItems.mockReturnValue([
+            {
+                type: 'title',
+                entityType: 'titles',
+                id: 'title-1',
+                rowId: 'row-title-1',
+                data: { supratitle: 'ULTIMA ORĂ', title: 'TITLUL PRINCIPAL', lowerThirdTypeId: 'urgent' },
+            },
+        ])
+
+        renderEntityList()
+
+        const supratitle = await screen.findByText('ULTIMA ORĂ')
+        const title = screen.getByText('TITLUL PRINCIPAL')
+        const row = supratitle.closest('.app-list-row')
+        const marker = await screen.findByLabelText('Ultima oră')
+
+        expect(row).toContainElement(supratitle)
+        expect(row).toContainElement(title)
+        expect(row).toContainElement(marker)
+        expect(supratitle.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        expect(supratitle).toHaveClass('font-bold')
+        expect(supratitle.parentElement).toHaveClass('flex-col')
+        expect(marker.parentElement).toHaveClass('items-center')
+        expect(marker.parentElement?.querySelector('.app-title-number')).toHaveTextContent('1.')
     })
 
     it('scrolls to the end when a new title is appended', async () => {
