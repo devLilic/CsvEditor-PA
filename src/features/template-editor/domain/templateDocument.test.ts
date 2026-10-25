@@ -29,6 +29,17 @@ describe('TemplateDocument validation', () => {
         expect(validateTemplateDocument(document)).toBe(true)
     })
 
+    it('keeps a show valid after optional breaking and urgent types are removed', () => {
+        const document = createValidDocument()
+        for (const kind of ['titles', 'persons'] as const) {
+            delete document.lowerThirdVariants[kind]['breaking-news']
+            delete document.lowerThirdVariants[kind].urgent
+        }
+        expect(validateTemplateDocument(document)).toBe(true)
+        delete document.lowerThirdVariants.titles.ordinary
+        expect(validateTemplateDocument(document)).toBe(false)
+    })
+
     it('migrates v1 title and person designs into ordinary and seeds the remaining variants', () => {
         const legacyTemplates = JSON.parse(JSON.stringify(broadcastTemplates))
         const legacyDocument = {
@@ -110,11 +121,11 @@ describe('TemplateDocument validation', () => {
         expect(validateTemplateDocument(document)).toBe(false)
     })
 
-    it('rejects an OC document in the PA application', () => {
+    it('accepts a document scoped to another show project', () => {
         expect(validateTemplateDocument({
             ...createValidDocument(),
             show: 'obiectiv-comun',
-        })).toBe(false)
+        })).toBe(true)
     })
 
     it('rejects a document with the wrong version', () => {
@@ -126,10 +137,10 @@ describe('TemplateDocument validation', () => {
         expect(validateTemplateDocument(document)).toBe(false)
     })
 
-    it('rejects a document with the wrong show', () => {
+    it('rejects a document without a show id', () => {
         const document = {
             ...createValidDocument(),
-            show: 'alta-emisiune',
+            show: '  ',
         }
 
         expect(validateTemplateDocument(document)).toBe(false)

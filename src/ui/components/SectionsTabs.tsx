@@ -36,7 +36,7 @@ function DeleteIcon() {
     )
 }
 
-export function SectionsTabs() {
+export function SectionsTabs({ showAddBetaButton = true }: { showAddBetaButton?: boolean }) {
     const {
         sections,
         activeSectionId,
@@ -156,13 +156,13 @@ export function SectionsTabs() {
             {/*    ADAUGĂ BETA*/}
             {/*</button>*/}
 
-            <button
+            {showAddBetaButton && <button
                 onClick={() => setAddOpen(true)}
                 className="app-button app-button-secondary app-add-beta-button px-3 py-1 rounded text-sm border bg-white border-green-300 hover:bg-green-500 hover:text-white"
                 title="Add BETA"
             >
                 ADAUGĂ BETA
-            </button>
+            </button>}
 
             <TextPromptDialog
                 open={addOpen}

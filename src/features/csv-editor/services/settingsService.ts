@@ -9,6 +9,10 @@ import {
     getPlateauTitleDividerCreationSetting,
 } from '@/features/settings/plateauTitleDividerCreationSetting'
 import {
+    createConfigWithShowProjectSelectorEnabled,
+    getShowProjectSelectorEnabled,
+} from '@/features/settings/showProjectSelectorSetting'
+import {
     getUiThemeSetting,
     persistUiThemeSetting,
     restoreUiThemeSetting,
@@ -26,13 +30,13 @@ function getApi() {
 /**
  * Internal pub/sub pentru quickTitles
  */
-type QuickTitlesListener = (titles: string[]) => void
+type QuickTitlesListener = (titles: string[], showProjectId?: string) => void
 const quickTitlesListeners = new Set<QuickTitlesListener>()
 
-function emitQuickTitles(list: string[]) {
+function emitQuickTitles(list: string[], showProjectId?: string) {
     for (const l of quickTitlesListeners) {
         try {
-            l(list)
+            l(list, showProjectId)
         } catch (e) {
             console.error('[settingsService] quickTitles listener error', e)
         }
@@ -43,23 +47,23 @@ export const settingsService = {
 
     // ---- QUICK TITLES ----
 
-    async getQuickTitles(): Promise<string[]> {
+    async getQuickTitles(showProjectId?: string): Promise<string[]> {
         try {
-            const res = await getApi().getQuickTitles()
+            const res = await getApi().getQuickTitles(showProjectId)
             const safe = Array.isArray(res) ? res : []
-            emitQuickTitles(safe)
+            emitQuickTitles(safe, showProjectId)
             return safe
         } catch {
             return []
         }
     },
 
-    async setQuickTitles(list: string[]): Promise<void> {
+    async setQuickTitles(list: string[], showProjectId?: string): Promise<void> {
         if (!Array.isArray(list)) return
 
         try {
-            const res = await getApi().setQuickTitles(list)
-            emitQuickTitles(Array.isArray(res) ? res : list) // 🔥 notifică UI
+            const res = await getApi().setQuickTitles(list, showProjectId)
+            emitQuickTitles(Array.isArray(res) ? res : list, showProjectId) // notify scoped listeners
         } catch {
             // intentionally silent
         }
@@ -126,6 +130,16 @@ export const settingsService = {
         )
 
         return getPlateauTitleDividerCreationSetting(savedConfig)
+    },
+
+    async getShowProjectSelectorEnabled(): Promise<boolean> {
+        return getShowProjectSelectorEnabled(await this.getConfig())
+    },
+
+    async setShowProjectSelectorEnabled(enabled: boolean): Promise<boolean> {
+        const currentConfig = await this.getConfig()
+        const savedConfig = await this.setConfig(createConfigWithShowProjectSelectorEnabled(currentConfig, enabled))
+        return getShowProjectSelectorEnabled(savedConfig)
     },
 
     async getUiTheme(): Promise<UiTheme> {

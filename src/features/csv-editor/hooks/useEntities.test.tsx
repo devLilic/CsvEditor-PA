@@ -9,6 +9,19 @@ import { defaultProjectSettingsService } from '../services/defaultProjectSetting
 import { settingsService } from '../services/settingsService'
 import * as quickTitlesCsvStorageService from '../../quick-titles/services/quickTitlesCsvStorageService'
 
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    useTemplateDocument: () => ({
+        activeProjectId: 'show-a',
+        activeProject: { id: 'show-a', lowerThirdTypes: [], defaultProjectSettings: undefined },
+    }),
+    useOptionalTemplateDocument: () => ({
+        activeProjectId: 'show-a',
+        activeProject: { id: 'show-a', lowerThirdTypes: [], defaultProjectSettings: undefined },
+        workspaces: {},
+        isLoaded: true,
+        saveProject: vi.fn(),
+    }),
+}))
 function StartNewProjectHarness() {
     const { dispatch } = useCsvContext()
     const { startNewProject, forceStartNewProjectWithoutBackup, getBlockItems, activeSectionId, sections } = useEntities()
@@ -204,10 +217,11 @@ describe('useEntities startNewProject', () => {
         expect(backupSpy).toHaveBeenCalledTimes(1)
         expect(writeSpy).toHaveBeenCalledTimes(1)
         expect(clearQuickTitlesCsvSpy).toHaveBeenCalledTimes(1)
-        expect(setQuickTitlesSpy).toHaveBeenCalledWith([])
+        expect(clearQuickTitlesCsvSpy).toHaveBeenCalledWith('show-a')
+        expect(setQuickTitlesSpy).toHaveBeenCalledWith([], 'show-a')
         expect(backupSpy.mock.invocationCallOrder[0]).toBeLessThan(getSettingsSpy.mock.invocationCallOrder[0])
         expect(getSettingsSpy.mock.invocationCallOrder[0]).toBeLessThan(clearQuickTitlesCsvSpy.mock.invocationCallOrder[0])
-        expect(api.reserveTitleBackup).toHaveBeenCalledWith({ forceNewProject: true })
+        expect(api.reserveTitleBackup).toHaveBeenCalledWith({ forceNewProject: true }, 'show-a')
         expect(api.reserveTitleBackup.mock.invocationCallOrder[0]).toBeLessThan(clearQuickTitlesCsvSpy.mock.invocationCallOrder[0])
         expect(clearQuickTitlesCsvSpy.mock.invocationCallOrder[0]).toBeLessThan(setQuickTitlesSpy.mock.invocationCallOrder[0])
         expect(setQuickTitlesSpy.mock.invocationCallOrder[0]).toBeLessThan(writeSpy.mock.invocationCallOrder[0])
@@ -279,7 +293,8 @@ describe('useEntities startNewProject', () => {
         })
 
         expect(clearQuickTitlesCsvSpy).toHaveBeenCalledTimes(1)
-        expect(setQuickTitlesSpy).toHaveBeenCalledWith([])
+        expect(clearQuickTitlesCsvSpy).toHaveBeenCalledWith('show-a')
+        expect(setQuickTitlesSpy).toHaveBeenCalledWith([], 'show-a')
         expect(backupSpy).toHaveBeenCalledTimes(1)
         expect(writeSpy).toHaveBeenCalledTimes(1)
 
@@ -573,3 +588,5 @@ describe('useEntities savePersonEntity', () => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to save person:', 'WRITE_FAILED')
     })
 })
+
+

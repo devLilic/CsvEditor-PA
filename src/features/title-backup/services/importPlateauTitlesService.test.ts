@@ -66,10 +66,6 @@ describe('importPlateauTitlesService', () => {
                 calls.push('title-backup')
                 return { ok: true }
             }),
-            writePaTitlesWithHotCsv: vi.fn(async () => {
-                calls.push('pa-titles-with-hot')
-                return { ok: true }
-            }),
         }
     })
 
@@ -161,7 +157,7 @@ describe('importPlateauTitlesService', () => {
         expect(plateauTitleNumbers(nextState)).toEqual(['1', '2', '3', '4'])
     })
 
-    it('persists all files', async () => {
+    it('persists the working edition and active title backup', async () => {
         const dispatch = vi.fn()
 
         await importPlateauTitles({
@@ -172,12 +168,11 @@ describe('importPlateauTitlesService', () => {
         })
 
         expect(deps.writeFullCsv).toHaveBeenCalledOnce()
-        expect(deps.writePaTitlesCsv).toHaveBeenCalledOnce()
         expect(deps.writeTitleBackup).toHaveBeenCalledOnce()
-        expect(deps.writePaTitlesWithHotCsv).toHaveBeenCalledOnce()
+        expect(deps.getActiveTitleBackupFile).toHaveBeenCalledOnce()
     })
 
-    it('writes backup after PA_titles.csv', async () => {
+    it('writes the active title backup after the full working edition', async () => {
         await importPlateauTitles({
             state: makeState(),
             selectedItems,
@@ -187,16 +182,14 @@ describe('importPlateauTitlesService', () => {
 
         expect(calls).toEqual([
             'full-csv',
-            'pa-titles',
             'title-backup',
-            'pa-titles-with-hot',
         ])
     })
 
-    it('rolls back on critical failure', async () => {
-        deps.writePaTitlesCsv = vi.fn(async () => {
-            calls.push('pa-titles')
-            return { ok: false, error: 'PA_TITLES_FAILED' }
+    it('rolls back when persisting the full working edition fails', async () => {
+        deps.writeFullCsv = vi.fn(async () => {
+            calls.push('full-csv')
+            return { ok: false, error: 'FULL_CSV_WRITE_FAILED' }
         })
         const dispatch = vi.fn()
         const state = makeState()
@@ -210,7 +203,7 @@ describe('importPlateauTitlesService', () => {
 
         expect(result).toEqual({
             ok: false,
-            error: 'PA_TITLES_FAILED',
+            error: 'FULL_CSV_WRITE_FAILED',
             state,
         })
         expect(dispatch).toHaveBeenCalledTimes(2)
@@ -219,6 +212,5 @@ describe('importPlateauTitlesService', () => {
             payload: state.entities,
         })
         expect(deps.writeTitleBackup).not.toHaveBeenCalled()
-        expect(deps.writePaTitlesWithHotCsv).not.toHaveBeenCalled()
     })
 })

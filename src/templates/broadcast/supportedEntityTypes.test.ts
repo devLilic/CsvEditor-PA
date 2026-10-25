@@ -8,7 +8,7 @@ describe('supportedBroadcastEntityTypes', () => {
         expect(supportedBroadcastEntityTypes).toContain('locations')
 
         expect(supportedBroadcastEntityTypes).toContain('phoneCalls')
-        expect(supportedBroadcastEntityTypes).toContain('hotTitles')
+        expect(supportedBroadcastEntityTypes).not.toContain('hotTitles')
         expect(supportedBroadcastEntityTypes).toContain('waitTitles')
         expect(supportedBroadcastEntityTypes).toContain('waitLocations')
     })

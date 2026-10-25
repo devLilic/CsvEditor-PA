@@ -23,14 +23,20 @@ const csvHooks = vi.hoisted(() => ({
             titles: {
                 layers: [
                     { type: 'text', fieldId: 'supratitle', inputLabel: 'Supratitlu' },
+                    { type: 'text', fieldId: 'title', inputLabel: 'Titlu' },
                 ],
             },
-            persons: {},
-            locations: {},
-            phoneCalls: {},
-            hotTitles: {},
-            waitTitles: {},
-            waitLocations: {},
+            persons: {
+                layers: [
+                    { type: 'text', fieldId: 'name', inputLabel: 'Nume' },
+                    { type: 'text', fieldId: 'occupation', inputLabel: 'Ocupație' },
+                ],
+            },
+            locations: { layers: [] },
+            phoneCalls: { layers: [] },
+            hotTitles: { layers: [] },
+            waitTitles: { layers: [] },
+            waitLocations: { layers: [] },
         },
     },
     getBlockItems: vi.fn(() => []),
@@ -92,6 +98,16 @@ vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
     TemplateDocumentProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
     useTemplateDocument: () => ({
         document: csvHooks.templateDocument,
+        lowerThirdTypesEnabled: false,
+    }),
+    useOptionalTemplateDocument: () => ({
+        document: csvHooks.templateDocument,
+        lowerThirdTypesEnabled: false,
+        activeProject: null,
+        activeProjectId: '',
+        workspaces: {},
+        isLoaded: false,
+        saveProject: vi.fn(),
     }),
 }))
 

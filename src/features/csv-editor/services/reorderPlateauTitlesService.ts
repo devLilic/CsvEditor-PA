@@ -6,6 +6,7 @@ import { reorderPlateauTitleItems } from '../domain/reorderPlateauTitleItems'
 import { serializeCsv } from '../utils/csvSerializer'
 import { csvService } from './csvService'
 import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import type { LowerThirdTypeDefinition } from '@/features/lower-thirds/domain/lowerThirdTypes'
 
 export type ReorderPlateauTitlesResult =
     | { ok: true }
@@ -17,6 +18,8 @@ type ReorderPlateauTitlesInput = {
     activeId: string
     overId: string
     dispatch: (action: CsvAction) => void
+    projectId?: string
+    lowerThirdTypes?: LowerThirdTypeDefinition[]
 }
 
 const CONSECUTIVE_TITLE_DIVIDERS_DROP_ERROR = 'Nu pot exista două separatoare consecutive.'
@@ -59,8 +62,8 @@ export const reorderPlateauTitlesService = {
 
         input.dispatch(reorderAction)
 
-        const lowerThirdTypes = await lowerThirdTypesService.get()
-        const writeResult = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes)
+        const lowerThirdTypes = input.lowerThirdTypes ?? await lowerThirdTypesService.get()
+        const writeResult = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes, input.projectId)
         if (!writeResult.ok) {
             console.error('Failed to reorder title list:', writeResult.error)
             input.dispatch({

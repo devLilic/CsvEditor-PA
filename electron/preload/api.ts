@@ -4,118 +4,132 @@ import type { IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import type { EntityExportFailureNotification, RendererApi, UpdateStatus } from '../../src/shared/ipc-types'
 
+let currentShowProjectId: string | undefined
+function invokeScoped(channel: string, ...args: unknown[]) {
+    return ipcRenderer.invoke(channel, ...args, { showProjectId: currentShowProjectId })
+}
+function invokeScopedFor(channel: string, showProjectId: string | undefined, ...args: unknown[]) {
+    return ipcRenderer.invoke(channel, ...args, { showProjectId: showProjectId ?? currentShowProjectId })
+}
+
 export const electronApi: RendererApi = {
+    setShowProjectScope(showProjectId) {
+        currentShowProjectId = showProjectId || undefined
+    },
+    getShowProjectScope() {
+        return currentShowProjectId ?? null
+    },
     getLastCsv() {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_GET_LAST)
+        return invokeScoped(IPC_CHANNELS.CSV_GET_LAST)
     },
 
-    getWorkingCsv() {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_GET_WORKING)
+    getWorkingCsv(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_GET_WORKING, showProjectId)
     },
 
     // Legacy: CSV selection now happens from Settings.
     openCsvDialog() {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_OPEN_DIALOG)
+        return invokeScoped(IPC_CHANNELS.CSV_OPEN_DIALOG)
     },
 
-    writeCsv(content) {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_WRITE, content)
+    writeCsv(content, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_WRITE, showProjectId, content)
     },
 
-    bkpCsv(content) {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_BKP, content)
+    bkpCsv(content, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_BKP, showProjectId, content)
     },
 
-    createCsvBackup(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_CREATE_BACKUP, request)
+    createCsvBackup(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_CREATE_BACKUP, showProjectId, request)
     },
 
-    listSavedCsvProjects() {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_PROJECT_LIST)
+    listSavedCsvProjects(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_PROJECT_LIST, showProjectId)
     },
 
-    saveCsvProjectAs(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_PROJECT_SAVE_AS, request)
+    saveCsvProjectAs(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_PROJECT_SAVE_AS, showProjectId, request)
     },
 
-    loadCsvProjectIntoWorking(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING, request)
+    loadCsvProjectIntoWorking(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING, showProjectId, request)
     },
 
-    deleteCsvProject(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.CSV_PROJECT_DELETE, request)
+    deleteCsvProject(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.CSV_PROJECT_DELETE, showProjectId, request)
     },
 
-    reserveTitleBackup(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.TITLE_BACKUP_RESERVE, request)
+    reserveTitleBackup(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.TITLE_BACKUP_RESERVE, showProjectId, request)
     },
 
-    listTitleBackups() {
-        return ipcRenderer.invoke(IPC_CHANNELS.TITLE_BACKUP_LIST)
+    listTitleBackups(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.TITLE_BACKUP_LIST, showProjectId)
     },
 
-    readTitleBackup(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.TITLE_BACKUP_READ, request)
+    readTitleBackup(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.TITLE_BACKUP_READ, showProjectId, request)
     },
 
-    writeTitleBackup(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.TITLE_BACKUP_WRITE, request)
+    writeTitleBackup(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.TITLE_BACKUP_WRITE, showProjectId, request)
     },
 
-    getQuickTitles() {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES)
+    getQuickTitles(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES, showProjectId)
     },
 
-    setQuickTitles(list) {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, list)
+    setQuickTitles(list, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, showProjectId, list)
     },
 
-    readQuickTitlesCsv() {
-        return ipcRenderer.invoke(IPC_CHANNELS.QUICK_TITLES_READ_CSV)
+    readQuickTitlesCsv(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.QUICK_TITLES_READ_CSV, showProjectId)
     },
 
-    writeQuickTitlesCsv(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.QUICK_TITLES_WRITE_CSV, request)
+    writeQuickTitlesCsv(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.QUICK_TITLES_WRITE_CSV, showProjectId, request)
     },
 
-    clearQuickTitlesCsv() {
-        return ipcRenderer.invoke(IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV)
+    clearQuickTitlesCsv(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV, showProjectId)
     },
 
     getAppConfig() {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_CONFIG)
+        return invokeScoped(IPC_CHANNELS.SETTINGS_GET_CONFIG)
     },
 
     setAppConfig(cfg) {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_CONFIG, cfg)
+        return invokeScoped(IPC_CHANNELS.SETTINGS_SET_CONFIG, cfg)
     },
 
-    getDefaultProjectSettings() {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_DEFAULT_PROJECT)
+    getDefaultProjectSettings(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.SETTINGS_GET_DEFAULT_PROJECT, showProjectId)
     },
 
     setDefaultProjectSettings(settings) {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_DEFAULT_PROJECT, settings)
+        return invokeScoped(IPC_CHANNELS.SETTINGS_SET_DEFAULT_PROJECT, settings)
     },
 
-    getPhoneImageSettings() {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_PHONE_IMAGE)
+    getPhoneImageSettings(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.SETTINGS_GET_PHONE_IMAGE, showProjectId)
     },
 
     setPhoneImageSettings(settings) {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_PHONE_IMAGE, settings)
+        return invokeScoped(IPC_CHANNELS.SETTINGS_SET_PHONE_IMAGE, settings)
     },
 
     selectWorkPath() {
         return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SELECT_WORK_PATH)
     },
 
-    getCsvFileSettings() {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_GET_CSV_FILE)
+    getCsvFileSettings(showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.SETTINGS_GET_CSV_FILE, showProjectId)
     },
 
-    setCsvFileSettings(settings) {
-        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET_CSV_FILE, settings)
+    setCsvFileSettings(settings, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.SETTINGS_SET_CSV_FILE, showProjectId, settings)
     },
 
     selectWorkingCsv() {
@@ -138,19 +152,19 @@ export const electronApi: RendererApi = {
     },
 
     saveFinalPhoneImage(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.PHONE_IMAGE_SAVE_FINAL, request)
+        return invokeScoped(IPC_CHANNELS.PHONE_IMAGE_SAVE_FINAL, request)
     },
 
     loadPhoneImageDataUrl(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.PHONE_IMAGE_LOAD_DATA_URL, request)
+        return invokeScoped(IPC_CHANNELS.PHONE_IMAGE_LOAD_DATA_URL, request)
     },
 
     listWorkPathImages() {
-        return ipcRenderer.invoke(IPC_CHANNELS.PHONE_IMAGE_LIST_WORK_PATH_IMAGES)
+        return invokeScoped(IPC_CHANNELS.PHONE_IMAGE_LIST_WORK_PATH_IMAGES)
     },
 
     getPhoneImageDataUrl(request) {
-        return ipcRenderer.invoke(IPC_CHANNELS.PHONE_IMAGE_GET_IMAGE_DATA_URL, request)
+        return invokeScoped(IPC_CHANNELS.PHONE_IMAGE_GET_IMAGE_DATA_URL, request)
     },
 
     getUserTemplateDocument() {
@@ -163,6 +177,38 @@ export const electronApi: RendererApi = {
 
     saveDevDefaultTemplateDocument(request) {
         return ipcRenderer.invoke(IPC_CHANNELS.TEMPLATE_EDITOR_SAVE_DEV_DEFAULT_TEMPLATE_DOCUMENT, request)
+    },
+
+    getShowProjects() {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_GET)
+    },
+
+    saveShowProjects(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_SAVE, request)
+    },
+
+    importShowProject() {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_IMPORT)
+    },
+
+    exportShowProject(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_EXPORT, request)
+    },
+
+    saveShowProject(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_SAVE_PROJECT, request)
+    },
+
+    deleteShowProject(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_DELETE_PROJECT, request)
+    },
+
+    activateShowProject(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_ACTIVATE, request)
+    },
+
+    assignLegacyShowWorkspace(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE, request)
     },
 
     onEntityExportError(callback) {

@@ -36,6 +36,8 @@ import {
     DEFAULT_LOWER_THIRD_TYPES,
 } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import { useLowerThirdTypes } from '@/ui/hooks/useLowerThirdTypes'
+import { useOptionalTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
+import { applyEntityTemplateTextTransforms } from '@/features/entity-export/domain/entityTemplateFieldValues'
 import type { RepeatSupratitleRequest } from './repeatSupratitle'
 
 const CONSECUTIVE_TITLE_DIVIDERS_DROP_ERROR = 'Nu pot exista două separatoare consecutive.'
@@ -114,6 +116,8 @@ export function EntityList({ onRepeatSupratitle }: {
     const { editMode } = useEditMode()
     const { titleFilter } = useTitleFilter()
     const { types: lowerThirdTypes } = useLowerThirdTypes()
+    const templateDocumentState = useOptionalTemplateDocument()
+    const { lowerThirdTypesEnabled = true, activeProject } = templateDocumentState ?? {}
     const [deletingDividerId, setDeletingDividerId] = useState<string | null>(null)
     const [enablePlateauTitleDragDrop, setEnablePlateauTitleDragDrop] = useState<boolean | null>(null)
     const [recentlyChangedTitleId, setRecentlyChangedTitleId] = useState<string | null>(null)
@@ -339,6 +343,13 @@ export function EntityList({ onRepeatSupratitle }: {
 
             const isTitle = item.entityType === 'titles'
             const isPersons = item.entityType === 'persons'
+            const displayData = activeProject && supportedEntityType
+                ? applyEntityTemplateTextTransforms(
+                    supportedEntityType,
+                    item.data,
+                    { ...activeProject.document, lowerThirdTypesEnabled: activeProject.lowerThirdTypesEnabled },
+                )
+                : item.data
             const storedLowerThirdTypeId = item.data?.lowerThirdTypeId ?? DEFAULT_LOWER_THIRD_TYPE_ID
             const lowerThirdTypeId = lowerThirdTypes.some((type) => type.id === storedLowerThirdTypeId)
                 ? storedLowerThirdTypeId
@@ -350,10 +361,10 @@ export function EntityList({ onRepeatSupratitle }: {
             const isRecentlyChangedTitle = isTitle && recentlyChangedTitleId === item.id
             const displayNr = isTitle ? titleNumberById.get(item.id) ?? null : null
             const mainText = isPersons
-                ? item.data?.name ?? ''
-                : item.data?.title ?? item.data?.location ?? ''
-            const subText = isPersons ? item.data?.occupation ?? '' : ''
-            const supratitle = isTitle ? item.data?.supratitle?.trim() ?? '' : ''
+                ? displayData?.name ?? ''
+                : displayData?.title ?? displayData?.location ?? ''
+            const subText = isPersons ? displayData?.occupation ?? '' : ''
+            const supratitle = isTitle ? displayData?.supratitle?.trim() ?? '' : ''
 
             renderedItem = (
                 <div
@@ -385,12 +396,12 @@ export function EntityList({ onRepeatSupratitle }: {
                                         <span className="app-title-number font-semibold text-gray-500">
                                             {displayNr}.
                                         </span>
-                                        <span
+                                        {lowerThirdTypesEnabled && <span
                                             aria-label={lowerThirdType.name}
                                             title={lowerThirdType.name}
                                             className="h-3 w-3 shrink-0 rounded-full border border-black/20"
                                             style={{ backgroundColor: lowerThirdType.palette.indicatorColor }}
-                                        />
+                                        />}
                                     </span>
                                     <span className="flex min-w-0 flex-col">
                                         {supratitle && (
@@ -404,12 +415,12 @@ export function EntityList({ onRepeatSupratitle }: {
                             ) : isPersons ? (
                                 <div className="flex min-w-0 flex-col">
                                     <span className="flex min-w-0 items-center gap-2">
-                                        <span
+                                        {lowerThirdTypesEnabled && <span
                                             aria-label={lowerThirdType.name}
                                             title={lowerThirdType.name}
                                             className="h-3 w-3 shrink-0 rounded-full border border-black/20"
                                             style={{ backgroundColor: lowerThirdType.palette.indicatorColor }}
-                                        />
+                                        />}
                                         <span className="truncate font-bold">{mainText}</span>
                                     </span>
                                     <span className="truncate text-sm text-gray-600">
@@ -435,7 +446,7 @@ export function EntityList({ onRepeatSupratitle }: {
                                     onRepeatSupratitle({
                                         requestId: ++repeatRequestIdRef.current,
                                         supratitle,
-                                        lowerThirdTypeId: lowerThirdType.id,
+                                        lowerThirdTypeId: lowerThirdTypesEnabled ? lowerThirdType.id : DEFAULT_LOWER_THIRD_TYPE_ID,
                                     })
                                 }}
                                 className="app-button border border-blue-300 bg-white px-2 py-1 text-xs text-blue-800 rounded hover:bg-blue-50"

@@ -10,8 +10,8 @@ export type WorkingCsvInfo = {
 
 const UNSET_FILENAME = 'nesetat'
 
-function createWorkingCsvInfo(filePath: string): WorkingCsvInfo {
-    const path = filePath.trim()
+function createWorkingCsvInfo(filePath: string | null | undefined): WorkingCsvInfo {
+    const path = typeof filePath === 'string' ? filePath.trim() : ''
     const filename = getFilenameFromPath(path)
 
     return {
@@ -29,7 +29,7 @@ export function useWorkingCsvInfo(): WorkingCsvInfo {
 
         csvFileSettingsService.getCsvFileSettings().then((settings) => {
             if (!isMounted) return
-            setInfo(createWorkingCsvInfo(settings.projectFolderPath))
+            setInfo(createWorkingCsvInfo(settings.workingCsvPath || settings.projectFolderPath))
         })
 
         return () => {

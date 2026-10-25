@@ -1,26 +1,51 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CsvProvider, useCsvInitialization } from '@/features/csv-editor'
 import { useCsvContext } from '../context/CsvContext'
-import { FALLBACK_DEFAULT_PROJECT_SETTINGS } from '../domain/defaultProjectSettings'
 import { csvService } from '../services/csvService'
-import { defaultProjectSettingsService } from '../services/defaultProjectSettingsService'
-import { csvFileSettingsService } from '../services/csvFileSettingsService'
+
+const show = vi.hoisted(() => ({
+    activeProject: {
+        id: 'show-a',
+        lowerThirdTypes: [],
+        exportPrefix: '',
+        defaultProjectSettings: {
+            title: 'SHOW DEFAULT TITLE',
+            personName: 'SHOW DEFAULT NAME',
+            personOccupation: 'SHOW DEFAULT ROLE',
+            location: 'SHOW DEFAULT LOCATION',
+        },
+    },
+}))
+
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    useTemplateDocument: () => ({
+        activeProjectId: 'show-a',
+        activeProject: show.activeProject,
+        workspaces: { 'show-a': 'C:/work/show-a' },
+        isLoaded: true,
+    }),
+}))
 
 function InitializationHarness() {
     useCsvInitialization()
-    const { state } = useCsvContext()
+    const { state, workingCopyError } = useCsvContext()
     const invited = state.entities.sections.find((section) => section.kind === 'invited')
     const firstRow = invited?.rows[0]
-
     return (
         <div>
             <div data-testid="loaded">{String(state.isLoaded)}</div>
             <div data-testid="title">{firstRow?.title?.title ?? ''}</div>
             <div data-testid="person-name">{firstRow?.person?.name ?? ''}</div>
             <div data-testid="location">{firstRow?.location?.location ?? ''}</div>
+            <div data-testid="working-copy-error">{workingCopyError ?? ''}</div>
         </div>
     )
+}
+
+function renderHarness() {
+    return render(<StrictMode><CsvProvider><InitializationHarness /></CsvProvider></StrictMode>)
 }
 
 describe('useCsvInitialization', () => {
@@ -29,174 +54,58 @@ describe('useCsvInitialization', () => {
         vi.restoreAllMocks()
     })
 
-    it('loads configured working CSV from settings when it can be read', async () => {
-        const api = (window as any).electronAPI
-        vi.spyOn(csvFileSettingsService, 'getCsvFileSettings').mockResolvedValue({
-            workingCsvPath: 'C:/work/current.csv',
-            backupFolderPath: 'C:/work/backups',
-        })
+    it('loads a legacy CSV from the active show workspace', async () => {
         const getWorkingSpy = vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({
             ok: true,
-            path: 'C:/work/current.csv',
-            filename: 'current.csv',
+            path: 'C:/work/show-a/emisie.csv',
+            filename: 'emisie.csv',
             content: [
                 'Nr;Titlu;Nume;Functie;Image;Locatie',
                 ';LOADED TITLE;LOADED NAME;LOADED ROLE;;LOADED LOCATION',
             ].join('\n'),
         })
-        const openDialogSpy = vi.spyOn(csvService, 'openDialog').mockResolvedValue(null)
-
-        render(
-            <CsvProvider>
-                <InitializationHarness />
-            </CsvProvider>
-        )
-
-        await waitFor(() => {
-            expect(screen.getByTestId('loaded')).toHaveTextContent('true')
-        })
-
+        renderHarness()
+        await waitFor(() => expect(screen.getByTestId('loaded')).toHaveTextContent('true'))
         expect(screen.getByTestId('title')).toHaveTextContent('LOADED TITLE')
         expect(screen.getByTestId('person-name')).toHaveTextContent('LOADED NAME')
         expect(screen.getByTestId('location')).toHaveTextContent('LOADED LOCATION')
-        expect(getWorkingSpy).toHaveBeenCalledOnce()
-        expect(openDialogSpy).not.toHaveBeenCalled()
-        expect(api.reserveTitleBackup).toHaveBeenCalledWith({ forceNewProject: false })
+        expect(getWorkingSpy).toHaveBeenCalledWith('show-a')
     })
 
-    it('loads the saved project from the configured project folder when workingCsvPath is empty', async () => {
-        vi.spyOn(csvFileSettingsService, 'getCsvFileSettings').mockResolvedValue({
-            projectFolderPath: 'C:/work',
-            exportPrefix: '',
-            workingCsvPath: '',
-            backupFolderPath: 'C:/work/Backup',
-            savedProjectsFolderPath: 'C:/work/Saved',
-            exportCsvFolderPath: 'C:/work/Export',
-        })
-        const getWorkingSpy = vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({
+    it('keeps JSON entity metadata authoritative on reopen', async () => {
+        const entities = {
+            sections: [{
+                id: 'invited',
+                kind: 'invited' as const,
+                rows: [{ id: 'row-1', title: { id: 'stored-id', title: 'METADATA TITLE', lowerThirdTypeId: 'disabled-variant' } }],
+            }],
+        }
+        vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({
             ok: true,
-            path: 'C:/work/Saved/current-project.json',
+            path: 'C:/work/show-a/Saved/current-project.json',
             filename: 'current-project.json',
-            // The JSON project state is authoritative even if its CSV projection is empty.
-            content: '',
-            entities: {
-                sections: [{
-                    id: 'invited',
-                    kind: 'invited',
-                    rows: [{ id: 'saved-title', title: { id: 'saved-title', title: 'SAVED PROJECT TITLE' } }],
-                }],
-            },
+            content: ';ORDINARY TITLE;;;;;\n',
+            entities,
+            previousExports: { titles: ';ORDINARY TITLE;;;;;\n' },
         })
-        const defaultProjectSpy = vi.spyOn(defaultProjectSettingsService, 'getDefaultProjectSettings')
-
-        render(
-            <CsvProvider>
-                <InitializationHarness />
-            </CsvProvider>
-        )
-
-        await waitFor(() => {
-            expect(screen.getByTestId('loaded')).toHaveTextContent('true')
-        })
-
-        expect(screen.getByTestId('title')).toHaveTextContent('SAVED PROJECT TITLE')
-        expect(getWorkingSpy).toHaveBeenCalledOnce()
-        expect(defaultProjectSpy).not.toHaveBeenCalled()
+        renderHarness()
+        await waitFor(() => expect(screen.getByTestId('loaded')).toHaveTextContent('true'))
+        expect(screen.getByTestId('title')).toHaveTextContent('METADATA TITLE')
     })
 
-    it('loads the default project when no working CSV is configured', async () => {
-        const savedSettings = {
-            title: 'INIT DEFAULT TITLE',
-            personName: 'INIT DEFAULT NAME',
-            personOccupation: 'INIT DEFAULT ROLE',
-            location: 'INIT DEFAULT LOCATION',
-        }
-        vi.spyOn(csvFileSettingsService, 'getCsvFileSettings').mockResolvedValue({
-            workingCsvPath: '',
-            backupFolderPath: '',
-        })
-        const getWorkingSpy = vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({
-            ok: false,
-            error: 'No working CSV configured',
-        })
-        const openDialogSpy = vi.spyOn(csvService, 'openDialog').mockResolvedValue(null)
-        vi.spyOn(defaultProjectSettingsService, 'getDefaultProjectSettings').mockResolvedValue(savedSettings)
-
-        render(
-            <CsvProvider>
-                <InitializationHarness />
-            </CsvProvider>
-        )
-
-        await waitFor(() => {
-            expect(screen.getByTestId('loaded')).toHaveTextContent('true')
-        })
-
-        expect(screen.getByTestId('title')).toHaveTextContent(savedSettings.title)
-        expect(screen.getByTestId('person-name')).toHaveTextContent(savedSettings.personName)
-        expect(screen.getByTestId('location')).toHaveTextContent(savedSettings.location)
-        expect(getWorkingSpy).not.toHaveBeenCalled()
-        expect(openDialogSpy).not.toHaveBeenCalled()
+    it('uses the active show defaults only when its saved state is missing', async () => {
+        vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({ ok: false, error: 'NO_SAVED_PROJECT_STATE' })
+        renderHarness()
+        await waitFor(() => expect(screen.getByTestId('loaded')).toHaveTextContent('true'))
+        expect(screen.getByTestId('title')).toHaveTextContent('SHOW DEFAULT TITLE')
+        expect(screen.getByTestId('person-name')).toHaveTextContent('SHOW DEFAULT NAME')
     })
 
-    it('falls back to the default project when configured working CSV cannot be read', async () => {
-        const savedSettings = {
-            title: 'FALLBACK TITLE',
-            personName: 'FALLBACK NAME',
-            personOccupation: 'FALLBACK ROLE',
-            location: 'FALLBACK LOCATION',
-        }
-        vi.spyOn(csvFileSettingsService, 'getCsvFileSettings').mockResolvedValue({
-            workingCsvPath: 'C:/missing/current.csv',
-            backupFolderPath: '',
-        })
-        const getWorkingSpy = vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({
-            ok: false,
-            error: 'Working CSV file does not exist',
-        })
-        const openDialogSpy = vi.spyOn(csvService, 'openDialog').mockResolvedValue(null)
-        vi.spyOn(defaultProjectSettingsService, 'getDefaultProjectSettings').mockResolvedValue(savedSettings)
-
-        render(
-            <CsvProvider>
-                <InitializationHarness />
-            </CsvProvider>
-        )
-
-        await waitFor(() => {
-            expect(screen.getByTestId('loaded')).toHaveTextContent('true')
-        })
-
-        expect(screen.getByTestId('title')).toHaveTextContent(savedSettings.title)
-        expect(screen.getByTestId('person-name')).toHaveTextContent(savedSettings.personName)
-        expect(screen.getByTestId('location')).toHaveTextContent(savedSettings.location)
-        expect(getWorkingSpy).toHaveBeenCalledOnce()
-        expect(openDialogSpy).not.toHaveBeenCalled()
-    })
-
-    it('uses fallback default settings when settings IPC fails', async () => {
-        const api = (window as any).electronAPI
-        vi.spyOn(csvFileSettingsService, 'getCsvFileSettings').mockResolvedValue({
-            workingCsvPath: '',
-            backupFolderPath: '',
-        })
-        vi.spyOn(csvService, 'getLast').mockResolvedValue(null)
-        const openDialogSpy = vi.spyOn(csvService, 'openDialog').mockResolvedValue(null)
-        api.getDefaultProjectSettings.mockRejectedValueOnce(new Error('IPC_FAILED'))
-
-        render(
-            <CsvProvider>
-                <InitializationHarness />
-            </CsvProvider>
-        )
-
-        await waitFor(() => {
-            expect(screen.getByTestId('loaded')).toHaveTextContent('true')
-        })
-
-        expect(screen.getByTestId('title')).toHaveTextContent('')
-        expect(screen.getByTestId('person-name')).toHaveTextContent(FALLBACK_DEFAULT_PROJECT_SETTINGS.personName)
-        expect(screen.getByTestId('location')).toHaveTextContent(FALLBACK_DEFAULT_PROJECT_SETTINGS.location)
-        expect(openDialogSpy).not.toHaveBeenCalled()
+    it('does not replace an unreadable saved state with defaults and exposes a retryable error', async () => {
+        vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({ ok: false, error: 'INVALID_SHOW_EDITION' })
+        renderHarness()
+        await waitFor(() => expect(screen.getByTestId('working-copy-error')).toHaveTextContent('INVALID_SHOW_EDITION'))
+        expect(screen.getByTestId('loaded')).toHaveTextContent('false')
+        expect(screen.getByTestId('title')).toBeEmptyDOMElement()
     })
 })

@@ -12,6 +12,7 @@ export default defineConfig(({ command }) => {
   const isServe = command === 'serve'
   const isBuild = command === 'build'
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG
+  let electronRestartQueue = Promise.resolve()
 
   return {
     base: './',
@@ -36,7 +37,16 @@ export default defineConfig(({ command }) => {
             if (process.env.VSCODE_DEBUG) {
               console.log(/* For `.vscode/.debug.script.mjs` */'[startup] Electron App')
             } else {
-              args.startup()
+              // A rapid pair of main-process rebuilds must not terminate the same
+              // Windows process concurrently.
+              electronRestartQueue = electronRestartQueue.catch(() => undefined).then(async () => {
+                const electronProcess = (process as typeof process & { electronApp?: import('node:child_process').ChildProcess }).electronApp
+                if (electronProcess && (electronProcess.exitCode !== null || electronProcess.signalCode !== null)) {
+                  delete (process as typeof process & { electronApp?: import('node:child_process').ChildProcess }).electronApp
+                }
+                await args.startup()
+              })
+              return electronRestartQueue
             }
           },
           vite: {

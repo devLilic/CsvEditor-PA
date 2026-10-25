@@ -104,7 +104,21 @@ describe('quickTitlesCsvStorageService', () => {
                 '"PRESEDINTE: "',
                 '"DIRECTOR: "',
             ].join('\n'),
-        })
+        }, undefined)
+    })
+
+    it('passes the captured show ID to scoped Quick Titles operations', async () => {
+        ipcMock.readQuickTitlesCsv.mockResolvedValueOnce({ ok: true, content: '', path: 'C:/show-a/quick.csv', created: true })
+        ipcMock.writeQuickTitlesCsv.mockResolvedValueOnce({ ok: true, path: 'C:/show-a/quick.csv' })
+        ipcMock.clearQuickTitlesCsv.mockResolvedValueOnce({ ok: true, path: 'C:/show-a/quick.csv' })
+
+        await loadQuickTitlesFromCsv('show-a')
+        await saveQuickTitlesToCsv(['TITLE'], 'show-a')
+        await clearQuickTitlesCsv('show-a')
+
+        expect(ipcMock.readQuickTitlesCsv).toHaveBeenCalledWith('show-a')
+        expect(ipcMock.writeQuickTitlesCsv).toHaveBeenCalledWith(expect.objectContaining({ content: expect.any(String) }), 'show-a')
+        expect(ipcMock.clearQuickTitlesCsv).toHaveBeenCalledWith('show-a')
     })
 
     it('save does not mutate the received array', async () => {

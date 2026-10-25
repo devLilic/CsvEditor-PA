@@ -25,6 +25,10 @@ import {
 interface CsvContextValue {
     state: CsvState
     dispatch: React.Dispatch<CsvAction>
+    workingCopyError: string | null
+    setWorkingCopyError(error: string | null): void
+    retryInitialization(): void
+    initializationAttempt: number
 }
 
 const CsvContext = createContext<CsvContextValue | null>(null)
@@ -39,9 +43,16 @@ export function CsvProvider({ children }: { children: ReactNode }) {
         csvReducer,
         initialCsvState
     )
+    const [workingCopyError, setWorkingCopyError] = React.useState<string | null>(null)
+    const [initializationAttempt, setInitializationAttempt] = React.useState(0)
+
+    const retryInitialization = React.useCallback(() => {
+        setWorkingCopyError(null)
+        setInitializationAttempt((current) => current + 1)
+    }, [])
 
     return (
-        <CsvContext.Provider value={{ state, dispatch }}>
+        <CsvContext.Provider value={{ state, dispatch, workingCopyError, setWorkingCopyError, retryInitialization, initializationAttempt }}>
     {children}
     </CsvContext.Provider>
 )

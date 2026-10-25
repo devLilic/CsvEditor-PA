@@ -24,7 +24,7 @@ import {
     type EditableTemplateEntityType,
     useTemplateDocument,
 } from '@/features/template-editor/state/TemplateDocumentProvider'
-import { createPreviewData } from '@/templates/broadcast'
+import { createTemplatePreviewData } from '@/templates/broadcast/createPreviewData'
 import { Preview16x9 } from './Preview16x9'
 import { QuickTitlesBar } from './QuickTitlesBar'
 import { InputField } from './common/InputField'
@@ -187,21 +187,10 @@ export function EntityEditor({
     const { selected, clearSelection } = useSelectedEntity()
     const { activeEntityType, setActiveEntityType } = useActiveEntityType()
     const { quickTitles, setAllQuickTitles } = useQuickTitles()
-    const { document: templateDocument } = useTemplateDocument()
+    const { document: templateDocument, lowerThirdTypesEnabled = true, activeProjectId, activeProject } = useTemplateDocument()
     const { types: lowerThirdTypes } = useLowerThirdTypes()
     const editorEntityType = getCsvEntityTypeForEditorView(activeEntityType)
     const isAllowedInActiveSection = isEntityTypeAllowedInSection(activeEntityType, activeSection?.kind)
-    const titleInputFields = useMemo(() => (templateDocument.templates.titles.layers ?? []).flatMap((layer) => (
-        layer.type === 'text' && layer.fieldId && layer.inputLabel?.trim()
-            ? [{ fieldId: layer.fieldId, label: layer.inputLabel.trim() }]
-            : []
-    )).filter((field, index, fields) => (
-        field.fieldId !== 'title'
-        && fields.findIndex((candidate) => candidate.fieldId === field.fieldId) === index
-    )).sort((a, b) => (
-        a.fieldId === 'supratitle' ? -1 : b.fieldId === 'supratitle' ? 1 : 0
-    )), [templateDocument.templates.titles.layers])
-
     const [showInvalid, setShowInvalid] = useState(false)
     const [form, setForm] = useState<FormState>({})
     const [phoneImageSettings, setPhoneImageSettings] = useState<PhoneImageSettings>(FALLBACK_PHONE_IMAGE_SETTINGS)
@@ -281,12 +270,45 @@ export function EntityEditor({
         return selectedItems.find((x: any) => x.id === selected.id) ?? null
     }, [selectedItems, selected?.id])
 
-    const lowerThirdTypeId = form.lowerThirdTypeId
-        ?? (selectedItem as any)?.data?.lowerThirdTypeId
-        ?? DEFAULT_LOWER_THIRD_TYPE_ID
+    const lowerThirdTypeId = lowerThirdTypesEnabled
+        ? form.lowerThirdTypeId
+            ?? (selectedItem as any)?.data?.lowerThirdTypeId
+            ?? DEFAULT_LOWER_THIRD_TYPE_ID
+        : DEFAULT_LOWER_THIRD_TYPE_ID
     const lowerThirdType = lowerThirdTypes.find((type) => type.id === lowerThirdTypeId)
         ?? lowerThirdTypes.find((type) => type.id === DEFAULT_LOWER_THIRD_TYPE_ID)
         ?? DEFAULT_LOWER_THIRD_TYPES[0]
+
+    const activeTemplate = activeEntityType === 'titles' || activeEntityType === 'persons'
+        ? lowerThirdTypesEnabled
+            ? templateDocument.lowerThirdVariants[activeEntityType]?.[lowerThirdType.id]
+                ?? templateDocument.templates[activeEntityType]
+            : templateDocument.templates[activeEntityType]
+        : templateDocument.templates[getTemplateKeyForViewType(activeEntityType)]
+    const entityInputFields = useMemo(() => {
+        const standardLabels: Record<string, string> = {
+            title: 'Titlu',
+            name: 'Nume',
+            occupation: 'Funcție',
+            location: 'Locație',
+        }
+        const fields: Array<{ fieldId: string; label: string }> = []
+        for (const layer of activeTemplate.layers) {
+            if (layer.type !== 'text' || layer.visible === false) continue
+            const fieldIds = [layer.fieldId, ...(layer.textParts ?? []).map((part) => part.fieldId)]
+            for (const fieldId of fieldIds) {
+                const label = fieldId === layer.fieldId
+                    ? layer.inputLabel !== undefined ? layer.inputLabel.trim() : standardLabels[fieldId]
+                    : standardLabels[fieldId]
+                if (!fieldId.trim() || !label || fields.some((field) => field.fieldId === fieldId)) continue
+                fields.push({ fieldId, label })
+            }
+        }
+        return fields.sort((a, b) => (
+            a.fieldId === 'supratitle' ? -1 : b.fieldId === 'supratitle' ? 1 : 0
+        ))
+    }, [activeTemplate])
+    const hasTitleInput = entityInputFields.some(({ fieldId }) => fieldId === 'title')
 
     useEffect(() => {
         if (preserveQuickTitleAfterUpdateRef.current && !selected) return
@@ -296,16 +318,21 @@ export function EntityEditor({
     useEffect(() => {
         let isMounted = true
 
-        phoneImageSettingsService.getPhoneImageSettings().then((settings) => {
+        phoneImageSettingsService.getPhoneImageSettings(activeProjectId).then((settings) => {
             if (isMounted) {
-                setPhoneImageSettings(settings)
+                const phoneImage = (activeProject as any)?.phoneImage
+                setPhoneImageSettings({
+                    ...settings,
+                    width: phoneImage?.width ?? settings.width,
+                    height: phoneImage?.height ?? settings.height,
+                })
             }
         })
 
         return () => {
             isMounted = false
         }
-    }, [])
+    }, [activeProject, activeProjectId])
 
     useEffect(() => {
         let isMounted = true
@@ -324,13 +351,12 @@ export function EntityEditor({
     // ---- helpers ----
     const focusPrimaryInput = useCallback(() => {
         let el: HTMLInputElement | null = null
-
-        if (editorEntityType === 'persons') el = nameRef.current
-        else if (editorEntityType === 'locations' || editorEntityType === 'waitLocations') el = locationRef.current
-        else if (editorEntityType === 'titles' && titleInputFields.some(({ fieldId }) => fieldId === 'supratitle')) {
-            el = supratitleRef.current
-        }
-        else el = titleRef.current
+        const firstField = entityInputFields[0]?.fieldId
+        if (firstField === 'title') el = titleRef.current
+        else if (firstField === 'supratitle') el = supratitleRef.current
+        else if (firstField === 'name') el = nameRef.current
+        else if (firstField === 'occupation') el = occupationRef.current
+        else if (firstField === 'location') el = locationRef.current
 
         if (!el) return
         el.focus()
@@ -340,10 +366,10 @@ export function EntityEditor({
         } catch {
             // ignore (some inputs might not support selection range)
         }
-    }, [editorEntityType, titleInputFields])
+    }, [entityInputFields])
 
     const focusTitleInput = useCallback(() => {
-        const el = titleRef.current
+        const el = titleRef.current ?? (entityInputFields[0]?.fieldId === 'supratitle' ? supratitleRef.current : null)
         if (!el) return
         el.focus()
         const len = el.value.length
@@ -352,7 +378,7 @@ export function EntityEditor({
         } catch {
             // ignore
         }
-    }, [])
+    }, [entityInputFields])
 
     const focusSupratitleInput = useCallback(() => {
         const el = supratitleRef.current
@@ -404,6 +430,7 @@ export function EntityEditor({
                 setForm({
                     name: data?.name ?? '',
                     occupation: data?.occupation ?? '',
+                    ...(data?.customFields ?? {}),
                     image: data?.image ?? '',
                     lowerThirdTypeId: data?.lowerThirdTypeId ?? DEFAULT_LOWER_THIRD_TYPE_ID,
                     lowerThirdTemplateOverride: data?.lowerThirdTemplateOverride ?? '',
@@ -414,36 +441,38 @@ export function EntityEditor({
             case 'locations':
                 setForm({
                     location: data?.location ?? '',
+                    ...(data?.customFields ?? {}),
                 })
                 break
 
             default:
                 setForm({
                     title: data?.title ?? '',
+                    ...(data?.customFields ?? {}),
                     lowerThirdTypeId: data?.lowerThirdTypeId ?? DEFAULT_LOWER_THIRD_TYPE_ID,
                     lowerThirdTemplateOverride: data?.lowerThirdTemplateOverride ?? '',
                 })
         }
     }, [selected?.id, selected?.entityType, selected?.sectionId, selectedItem])
 
-    // Hydrate configured title inputs separately. When template layers arrive
-    // after the entity selection, fill only missing form values so a live edit
-    // is never replaced by the stored value.
+    // Hydrate configured fields separately. When template layers arrive after
+    // the entity selection, fill only missing values so active edits are kept.
     useEffect(() => {
-        if (!selected || selected.entityType !== 'titles' || !selectedItem) return
+        if (!selected || !selectedItem) return
         const data = (selectedItem as any).data
 
         setForm((current) => {
             const next = { ...current }
-            for (const { fieldId } of titleInputFields) {
+            for (const { fieldId } of entityInputFields) {
                 if (next[fieldId] !== undefined) continue
-                next[fieldId] = fieldId === 'supratitle'
-                    ? String(data?.[fieldId] ?? '').toUpperCase()
-                    : data?.[fieldId] ?? ''
+                const value = String(data?.[fieldId] ?? data?.customFields?.[fieldId] ?? '')
+                next[fieldId] = ['supratitle', 'name', 'location'].includes(fieldId)
+                    ? value.toUpperCase()
+                    : value
             }
             return next
         })
-    }, [selected?.id, selected?.entityType, selected?.sectionId, selectedItem, titleInputFields])
+    }, [selected?.id, selected?.entityType, selected?.sectionId, selectedItem, entityInputFields])
 
     useEffect(() => {
         if (!preserveQuickTitleAfterUpdateRef.current || selected) return
@@ -459,7 +488,7 @@ export function EntityEditor({
         if (selected && selectedItem) {
             const data = (selectedItem as any).data ?? {}
             const fieldIds = editorEntityType === 'titles'
-                ? ['title', ...titleInputFields.map(({ fieldId }) => fieldId)]
+                ? entityInputFields.map(({ fieldId }) => fieldId)
                 : editorEntityType === 'persons'
                     ? ['name', 'occupation', 'image']
                     : ['location']
@@ -468,7 +497,7 @@ export function EntityEditor({
         }
 
         const fieldIds = editorEntityType === 'titles'
-            ? ['title', ...titleInputFields.map(({ fieldId }) => fieldId)]
+            ? entityInputFields.map(({ fieldId }) => fieldId)
             : editorEntityType === 'persons'
                 ? ['name', 'occupation', 'image']
                 : ['location']
@@ -502,7 +531,9 @@ export function EntityEditor({
     // ✅ autofocus whenever context changes (tab, selection, section)
     useEffect(() => {
         focusPrimaryInput()
-    }, [focusPrimaryInput, activeEntityType, selected?.id, selected?.sectionId])
+        // Do not steal focus when only the active lower-third variant changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeEntityType, selected?.id, selected?.sectionId])
 
     useEffect(() => {
         if (isAllowedInActiveSection) return
@@ -564,10 +595,11 @@ export function EntityEditor({
     const normalizeForm = (f: FormState): FormState => {
         const next = { ...f }
         if (next.title && activeEntityType !== 'titles') next.title = next.title.toUpperCase()
-        if (next.supratitle) next.supratitle = next.supratitle.toUpperCase()
-        if (next.name) next.name = next.name.toUpperCase()
-        if (next.location) next.location = next.location.toUpperCase()
-        // occupation stays mixed-case
+        for (const { fieldId } of entityInputFields) {
+            if (['supratitle', 'name', 'location'].includes(fieldId) && next[fieldId]) {
+                next[fieldId] = next[fieldId]!.toUpperCase()
+            }
+        }
         return next
     }
 
@@ -576,41 +608,44 @@ export function EntityEditor({
 
         switch (activeEntityType) {
             case 'persons':
-                return Boolean(form.name?.trim())
+                return entityInputFields.some(({ fieldId }) => Boolean(form[fieldId]?.trim()))
 
             case 'phoneCalls':
-                return Boolean(form.name?.trim() && form.image?.trim())
+                return Boolean(form.image?.trim() && entityInputFields.some(({ fieldId }) => Boolean(form[fieldId]?.trim())))
 
             case 'locations':
             case 'waitLocations':
-                return Boolean(form.location?.trim())
+                return entityInputFields.some(({ fieldId }) => Boolean(form[fieldId]?.trim()))
 
             case 'titles':
             case 'waitTitles':
             default:
-                if (!form.title?.trim()) return false
-                if (!activeQuickTitle) return true
+                if (!entityInputFields.some(({ fieldId }) => Boolean(form[fieldId]?.trim()))) return false
+                if (!hasTitleInput || !activeQuickTitle) return true
+                const titleValue = form.title ?? ''
+                if (!titleValue.trim()) return false
 
                 const activePersonName = getPersonNameForQuickTitle(activeQuickTitle)
                 if (activePersonName) {
-                    const quotedBody = form.title.match(/^"([\s\S]*)"$/)?.[1] ?? ''
+                    const quotedBody = titleValue.match(/^"([\s\S]*)"$/)?.[1] ?? ''
                     return Boolean(quotedBody.trim())
                 }
 
                 const normalizedActiveQuickTitle = normalizeQuickTitle(activeQuickTitle)
-                const hasActivePrefix = form.title
+                const hasActivePrefix = titleValue
                     .toUpperCase()
                     .startsWith(normalizedActiveQuickTitle)
 
                 return !hasActivePrefix ||
-                    Boolean(form.title.slice(normalizedActiveQuickTitle.length).trim())
+                    Boolean(titleValue.slice(normalizedActiveQuickTitle.length).trim())
         }
     }
 
     const canUsePlateauTitleTools =
         activeSection?.kind === 'invited' &&
         activeEntityType === 'titles' &&
-        editorEntityType === 'titles'
+        editorEntityType === 'titles' &&
+        hasTitleInput
     const canAddTitleDivider = enableDividerCreation && canUsePlateauTitleTools
     const canImportTitlesFromBackup = canUsePlateauTitleTools
 
@@ -645,7 +680,18 @@ export function EntityEditor({
             return
         }
 
-        const payload = normalizeForm(form)
+        const payload = normalizeForm(form) as Record<string, any>
+        const customFieldIds = entityInputFields
+            .map(({ fieldId }) => fieldId)
+            .filter((fieldId) => !['title', 'supratitle', 'name', 'occupation', 'location'].includes(fieldId))
+        const savedCustomFields = {
+            ...((selectedItem as any)?.data?.customFields ?? {}),
+        } as Record<string, string>
+        for (const fieldId of customFieldIds) {
+            if (payload[fieldId] !== undefined) savedCustomFields[fieldId] = String(payload[fieldId])
+            delete payload[fieldId]
+        }
+        if (Object.keys(savedCustomFields).length > 0) payload.customFields = savedCustomFields
         const storedLowerThirdTypeId = (selectedItem as any)?.data?.lowerThirdTypeId ?? DEFAULT_LOWER_THIRD_TYPE_ID
         const storedTemplateOverride = (selectedItem as any)?.data?.lowerThirdTemplateOverride ?? ''
         const isChangingLowerThirdType = payload.lowerThirdTypeId !== undefined
@@ -661,7 +707,7 @@ export function EntityEditor({
             delete payload.lowerThirdTemplateOverride
         }
         if (!selected) {
-            for (const { fieldId } of titleInputFields) {
+            for (const { fieldId } of entityInputFields) {
                 if (!payload[fieldId]?.trim()) delete payload[fieldId]
             }
         }
@@ -778,32 +824,28 @@ export function EntityEditor({
         else focusSupratitleInput()
     }
 
-    const lowerThirdCategory = editorEntityType === 'persons' ? 'persons' : 'titles'
-    const configuredLowerThirdPreview = activeEntityType === 'titles' || activeEntityType === 'persons'
-        ? templateDocument.lowerThirdVariants?.[lowerThirdCategory]?.[lowerThirdType.id]
-            ?? templateDocument.lowerThirdVariants?.[lowerThirdCategory]?.[DEFAULT_LOWER_THIRD_TYPE_ID]
-            ?? templateDocument.templates[lowerThirdCategory]
-        : undefined
-    const previewTemplate = configuredLowerThirdPreview
-        ?? templateDocument.templates[getTemplateKeyForViewType(activeEntityType)]
-    const titleFormPreviewData: Record<string, string> = Object.fromEntries(
-        Object.entries(form).filter(
-            (entry): entry is [string, string] => typeof entry[1] === 'string',
-        ),
+    const previewTemplate = activeTemplate
+    const previewCustomFields = Object.fromEntries(
+        entityInputFields
+            .filter(({ fieldId }) => !['title', 'supratitle', 'name', 'occupation', 'location', 'image'].includes(fieldId))
+            .map(({ fieldId }) => [fieldId, String(form[fieldId] ?? (selectedItem as any)?.data?.customFields?.[fieldId] ?? '')]),
     )
-    const previewData = {
-        ...createPreviewData(activeEntityType, form),
-        ...(editorEntityType === 'titles' ? titleFormPreviewData : {}),
-    }
+    const previewData = createTemplatePreviewData(activeEntityType, {
+        ...form,
+        customFields: {
+            ...((selectedItem as any)?.data?.customFields ?? {}),
+            ...previewCustomFields,
+        },
+    }, previewTemplate)
     const hasMatchingStoredType = form.lowerThirdTypeId === (selectedItem as any)?.data?.lowerThirdTypeId
         || (form.lowerThirdTypeId === DEFAULT_LOWER_THIRD_TYPE_ID
             && !(selectedItem as any)?.data?.lowerThirdTypeId)
     const storedTemplateOverride = hasMatchingStoredType
         ? (selectedItem as any)?.data?.lowerThirdTemplateOverride
         : undefined
+    const lowerThirdCategory = activeEntityType === 'persons' ? 'persons' : 'titles'
     const templateVariant = activeEntityType === 'titles' || activeEntityType === 'persons'
-        ? form.lowerThirdTemplateOverride?.trim()
-            || storedTemplateOverride
+        ? (lowerThirdTypesEnabled && (form.lowerThirdTemplateOverride?.trim() || storedTemplateOverride))
             || lowerThirdType.templates[lowerThirdCategory].name
         : undefined
     const phoneImageFilename = form.image
@@ -825,7 +867,7 @@ export function EntityEditor({
                     maxHeight={700}
                     className="h-full"
                     templateVariant={templateVariant}
-                    lowerThirdPalette={templateVariant ? lowerThirdType.palette : undefined}
+                    lowerThirdPalette={templateVariant && lowerThirdType.id !== DEFAULT_LOWER_THIRD_TYPE_ID ? lowerThirdType.palette : undefined}
                 />
             </div>
 
@@ -843,7 +885,7 @@ export function EntityEditor({
             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto">
             {/* inputs */}
             <div className="flex flex-col gap-3 w-full font-bold shrink-0">
-                {(activeEntityType === 'titles' || activeEntityType === 'persons') && (
+                {lowerThirdTypesEnabled && (activeEntityType === 'titles' || activeEntityType === 'persons') && (
                     <div
                         role="radiogroup"
                         aria-label="Tip lower third"
@@ -880,119 +922,78 @@ export function EntityEditor({
                     </div>
                 )}
                 {(activeEntityType === 'titles' || activeEntityType === 'persons')
-                    && form.lowerThirdTemplateOverride?.trim() && (
+                    && lowerThirdTypesEnabled && form.lowerThirdTemplateOverride?.trim() && (
                         <p role="status" className="app-notification app-notification-warning rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
                             Șablonul „{form.lowerThirdTemplateOverride}” nu există în setări. Se folosește designul Obișnuit, iar valoarea va fi păstrată la export.
                         </p>
                     )}
-                {editorEntityType === 'persons' && (
-                    <>
-                        <InputField
-                            label="Nume"
-                            placeholder="Nume"
-                            hideLabel
-                            value={form.name ?? ''}
-                            uppercase
-                            inputRef={nameRef}
-                            onChange={(v) => updateField('name', v)}
-                            onEnter={() => occupationRef.current?.focus()}
-                            invalid={showInvalid}
-                        />
-
-                        <InputField
-                            label="Funcție"
-                            placeholder="Funcție"
-                            hideLabel
-                            value={form.occupation ?? ''}
-                            inputRef={occupationRef}
-                            onChange={(v) => updateField('occupation', v)}
-                            onEnter={saveEntity}
-                        />
-
-                        {activeEntityType === 'phoneCalls' && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() => setPhoneImageModalOpen(true)}
-                                    className="app-button app-button-secondary rounded border border-blue-500 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
-                                >
-                                    {form.image ? 'Change Photo' : 'Add Photo'}
-                                </button>
-
-                                {form.image && (
-                                    <div className="app-notification app-notification-success rounded border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
-                                        Poză adăugată: {phoneImageFilename}
-                                    </div>
-                                )}
-
-                                {phoneImageError && (
-                                    <div className="app-notification app-notification-danger rounded border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-                                        {phoneImageError}
-                                    </div>
-                                )}
-
-                                {form.name?.trim() && !form.image?.trim() && !phoneImageError && (
-                                    <div className="app-notification app-notification-warning rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
-                                        Adaugă o poză înainte de salvare.
-                                    </div>
-                                )}
-
-                                <PhoneImageModal
-                                    open={phoneImageModalOpen}
-                                    settings={phoneImageSettings}
-                                    initialFilename={form.image?.replace(/^WORK_PATH\//, '')}
-                                    suggestedFilename={buildSuggestedPhoneImageFilename(form.name ?? '')}
-                                    onClose={() => setPhoneImageModalOpen(false)}
-                                    onSaved={(imageCsvValue) => {
-                                        setPhoneImageError(null)
-                                        updateField('image', imageCsvValue)
-                                    }}
-                                />
-                            </>
-                        )}
-                    </>
-                )}
-
-                {(editorEntityType === 'locations' || editorEntityType === 'waitLocations') && (
+                {activeEntityType !== 'hotTitles' && entityInputFields.map(({ fieldId, label }, index) => (
                     <InputField
-                        label="Locație"
-                        placeholder="Locație"
+                        key={fieldId}
+                        label={label}
+                        placeholder={label}
                         hideLabel
-                        value={form.location ?? ''}
-                        uppercase
-                        inputRef={locationRef}
-                        onChange={(v) => updateField('location', v)}
-                        onEnter={saveEntity}
+                        value={form[fieldId] ?? ''}
+                        inputRef={fieldId === 'title' ? titleRef
+                            : fieldId === 'supratitle' ? supratitleRef
+                                : fieldId === 'name' ? nameRef
+                                    : fieldId === 'occupation' ? occupationRef
+                                        : fieldId === 'location' ? locationRef
+                                            : undefined}
+                        uppercase={['supratitle', 'name', 'location'].includes(fieldId)}
+                        onChange={(value) => updateField(fieldId, value)}
+                        onEnter={() => {
+                            const nextField = entityInputFields[index + 1]?.fieldId
+                            const nextRef = nextField === 'title' ? titleRef
+                                : nextField === 'supratitle' ? supratitleRef
+                                    : nextField === 'name' ? nameRef
+                                        : nextField === 'occupation' ? occupationRef
+                                            : nextField === 'location' ? locationRef
+                                                : undefined
+                            if (nextRef) nextRef.current?.focus()
+                            else void saveEntity()
+                        }}
                         invalid={showInvalid}
                     />
-                )}
-
-                {(editorEntityType === 'titles' || editorEntityType === 'waitTitles') && (
+                ))}
+                {activeEntityType === 'phoneCalls' && (
                     <>
-                        {editorEntityType === 'titles' && titleInputFields.map(({ fieldId, label }) => (
-                            <InputField
-                                key={fieldId}
-                                label={label}
-                                placeholder={fieldId === 'supratitle' ? 'Supratitlu' : label}
-                                hideLabel
-                                value={form[fieldId] ?? ''}
-                                inputRef={fieldId === 'supratitle' ? supratitleRef : undefined}
-                                uppercase={fieldId === 'supratitle'}
-                                onChange={(value) => updateField(fieldId, value)}
-                                onEnter={fieldId === 'supratitle'
-                                    ? () => titleRef.current?.focus()
-                                    : saveEntity}
-                            />
-                        ))}
-                        <InputField
-                            label="Titlu"
-                            placeholder="Titlu"
-                            hideLabel
-                            value={form.title ?? ''}
-                            inputRef={titleRef}
-                            onChange={(v) => updateField('title', v)}
-                            onEnter={saveEntity}
-                            invalid={showInvalid}
+                        <button
+                            type="button"
+                            onClick={() => setPhoneImageModalOpen(true)}
+                            className="app-button app-button-secondary rounded border border-blue-500 bg-white px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50"
+                        >
+                            {form.image ? 'Change Photo' : 'Add Photo'}
+                        </button>
+
+                        {form.image && (
+                            <div className="app-notification app-notification-success rounded border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
+                                Poză adăugată: {phoneImageFilename}
+                            </div>
+                        )}
+
+                        {phoneImageError && (
+                            <div className="app-notification app-notification-danger rounded border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                                {phoneImageError}
+                            </div>
+                        )}
+
+                        {form.name?.trim() && !form.image?.trim() && !phoneImageError && (
+                            <div className="app-notification app-notification-warning rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                                Adaugă o poză înainte de salvare.
+                            </div>
+                        )}
+
+                        <PhoneImageModal
+                            open={phoneImageModalOpen}
+                            settings={phoneImageSettings}
+                            initialFilename={form.image?.replace(/^WORK_PATH\//, '')}
+                            suggestedFilename={buildSuggestedPhoneImageFilename(form.name ?? '')}
+                            onClose={() => setPhoneImageModalOpen(false)}
+                            onSaved={(imageCsvValue) => {
+                                setPhoneImageError(null)
+                                updateField('image', imageCsvValue)
+                            }}
                         />
                     </>
                 )}
@@ -1039,7 +1040,7 @@ export function EntityEditor({
             </div>
 
             {/* QuickTitles doar la TITLES */}
-            {editorEntityType === 'titles' && (
+            {editorEntityType === 'titles' && hasTitleInput && (
                 <div className="app-panel-divider border-t pt-3 mt-2 shrink-0">
                     <QuickTitlesBar
                         onApplyPrefix={applyQuickTitle}

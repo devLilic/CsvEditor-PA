@@ -1,3 +1,5 @@
+import { scopedIpcHandle } from './show-project-scope'
+import { getScopedShowProject } from './show-project-scope'
 // electron/main/settings-handlers.ts
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
@@ -40,7 +42,7 @@ function notifyQuickTitlesFailure(mainWindow: BrowserWindow, error: QuickTitlesC
 }
 
 export function registerSettingsHandlers(mainWindow: BrowserWindow) {
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES, async () => {
         try {
             const filePath = await resolveQuickTitlesCsvPath()
             const result = await readQuickTitlesCsv({
@@ -61,7 +63,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, async (_event, list: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES, async (_event, list: unknown) => {
         try {
             if (!isStringArray(list)) {
                 console.warn('[settings:set-quickTitles] invalid payload, expected string[]')
@@ -88,7 +90,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_CONFIG, () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_GET_CONFIG, () => {
         try {
             return getAppConfig()
         } catch (error) {
@@ -97,7 +99,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_CONFIG, (_event, cfg: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SET_CONFIG, (_event, cfg: unknown) => {
         try {
             if (!isPlainObject(cfg)) {
                 console.warn('[settings:set-config] invalid payload, expected object')
@@ -110,7 +112,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_DEFAULT_PROJECT, () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_GET_DEFAULT_PROJECT, () => {
         try {
             return getDefaultProjectSettings()
         } catch (error) {
@@ -119,7 +121,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_DEFAULT_PROJECT, (_event, settings: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SET_DEFAULT_PROJECT, (_event, settings: unknown) => {
         try {
             if (!isDefaultProjectSettings(settings)) {
                 console.warn('[settings:set-default-project] invalid payload, expected DefaultProjectSettings')
@@ -133,7 +135,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_PHONE_IMAGE, () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_GET_PHONE_IMAGE, () => {
         try {
             return getPhoneImageSettings()
         } catch (error) {
@@ -142,7 +144,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_PHONE_IMAGE, (_event, settings: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SET_PHONE_IMAGE, (_event, settings: unknown) => {
         try {
             return setPhoneImageSettings(normalizePhoneImageSettings(settings))
         } catch (error) {
@@ -151,7 +153,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_WORK_PATH, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SELECT_WORK_PATH, async () => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openDirectory'],
@@ -168,12 +170,13 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_CSV_FILE, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_GET_CSV_FILE, async () => {
         try {
             const settings = getCsvFileSettings()
             const root = settings.projectFolderPath.trim()
             if (!root) return settings
             const folders = await ensureProjectWorkspaceFolders(root)
+            if (getScopedShowProject()) return { ...settings, ...folders }
             // Keep a legacy CSV path until the startup loader has migrated its
             // contents into Saved/current-project.json. Clearing it here loses
             // the only copy of projects created before the folder-based format.
@@ -186,7 +189,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_CSV_FILE, async (_event, settings: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SET_CSV_FILE, async (_event, settings: unknown) => {
         try {
             const normalized = normalizeCsvFileSettings(settings)
             const projectFolderPath = normalized.projectFolderPath.trim()
@@ -208,7 +211,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER, async () => {
         try {
             const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
             return result.canceled ? null : result.filePaths[0] ?? null
@@ -218,7 +221,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_WORKING_CSV, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SELECT_WORKING_CSV, async () => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openFile'],
@@ -236,7 +239,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_BACKUP_FOLDER, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SELECT_BACKUP_FOLDER, async () => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openDirectory'],
@@ -253,7 +256,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_SAVED_PROJECTS_FOLDER, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SELECT_SAVED_PROJECTS_FOLDER, async () => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openDirectory'],
@@ -270,7 +273,7 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_EXPORT_CSV_FOLDER, async () => {
+    scopedIpcHandle(IPC_CHANNELS.SETTINGS_SELECT_EXPORT_CSV_FOLDER, async () => {
         try {
             const result = await dialog.showOpenDialog({
                 properties: ['openDirectory'],

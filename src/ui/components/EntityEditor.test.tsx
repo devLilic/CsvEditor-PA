@@ -8,6 +8,10 @@ import { TemplateDocumentProvider } from '@/features/template-editor/state/Templ
 import { settingsService } from '@/features/csv-editor/services/settingsService'
 import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
+import { broadcastTemplates } from '@/templates/broadcast'
+import { createTemplateDocumentFromTemplates } from '@/features/template-editor/domain/templateDocument'
+import { resolveTemplateDocument } from '@/features/template-editor/domain/templateResolver'
+import { serializeCsv } from '@/features/csv-editor/utils/csvSerializer'
 
 const csvHooks = vi.hoisted(() => ({
     activeEntityType: 'titles' as
@@ -37,6 +41,24 @@ const csvHooks = vi.hoisted(() => ({
 const phoneImageServiceMock = vi.hoisted(() => ({
     loadPhoneImageDataUrl: vi.fn(),
     saveFinalPhoneImage: vi.fn(),
+}))
+
+const showConfig = vi.hoisted(() => ({
+    document: {} as any,
+    defaultDocument: {} as any,
+    lowerThirdTypesEnabled: true,
+    activeProjectId: 'test-show',
+    activeProject: {} as any,
+    workspaces: {} as Record<string, string>,
+    isLoaded: true,
+    isDirty: false,
+    saveProject: vi.fn().mockResolvedValue({ ok: true }),
+}))
+
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    TemplateDocumentProvider: ({ children }: { children: ReactNode }) => children,
+    useTemplateDocument: () => showConfig,
+    useOptionalTemplateDocument: () => showConfig,
 }))
 
 vi.mock('@/features/csv-editor', async (importOriginal) => {
@@ -111,6 +133,17 @@ vi.mock('./phone-image/PhoneImageModal', () => ({
 }))
 
 beforeEach(() => {
+    showConfig.document = resolveTemplateDocument({
+        hardcodedDocument: createTemplateDocumentFromTemplates(broadcastTemplates),
+    })
+    showConfig.defaultDocument = showConfig.document
+    showConfig.lowerThirdTypesEnabled = true
+    showConfig.activeProjectId = 'test-show'
+    showConfig.activeProject = {
+        id: 'test-show',
+        lowerThirdTypes: DEFAULT_LOWER_THIRD_TYPES,
+        phoneImage: { width: 420, height: 540 },
+    }
     csvHooks.activeEntityType = 'titles'
     csvHooks.activeSectionId = 'invited-1'
     csvHooks.activeSection = { id: 'invited-1', kind: 'invited', rows: [] }
@@ -337,6 +370,101 @@ describe('EntityEditor', () => {
         }))
         expect(screen.getByRole('radio', { name: 'Breaking News' })).toHaveAttribute('aria-checked', 'true')
         getTypesSpy.mockRestore()
+    })
+
+    it('hides lower-third type choices when the active show disables variants', () => {
+        showConfig.lowerThirdTypesEnabled = false
+        renderEntityEditor()
+
+        expect(screen.queryByRole('radio', { name: 'Breaking News' })).not.toBeInTheDocument()
+        expect(screen.getByLabelText('Titlu')).toBeInTheDocument()
+    })
+
+    it('renders title inputs from configured text layers and exports a title-only edition', async () => {
+        const removeSupratitle = (layers: any[]) => layers.filter((layer) => layer.id !== 'supratitle-text' && layer.id !== 'supratitle-config-shape')
+        showConfig.document.templates.titles.layers = removeSupratitle(showConfig.document.templates.titles.layers)
+        showConfig.document.lowerThirdVariants.titles.ordinary.layers = removeSupratitle(showConfig.document.lowerThirdVariants.titles.ordinary.layers)
+        const user = userEvent.setup()
+        const { container } = renderEntityEditor()
+
+        expect(screen.getByLabelText('Titlu')).toBeInTheDocument()
+        expect(screen.queryByLabelText('Supratitlu')).not.toBeInTheDocument()
+        expect(container.querySelector('[data-layer-id="supratitle-text"]')).not.toBeInTheDocument()
+
+        await user.type(screen.getByLabelText('Titlu'), 'Obiectiv Comun')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        const savedData = csvHooks.addEntity.mock.calls[0][2]
+        expect(savedData).toEqual({ title: 'Obiectiv Comun' })
+        const csv = serializeCsv({
+            sections: [{ id: 'invited-1', kind: 'invited', rows: [{ id: 'row-1', title: { id: 'title-1', ...savedData } }] }],
+        })
+        expect(csv).toContain('Obiectiv Comun')
+        expect(csv).not.toContain('OBIECTIV COMUN')
+    })
+
+    it('shows an input when a supported text layer is added and preserves hidden saved values', async () => {
+        const titleLayers = showConfig.document.templates.titles.layers
+        const previousSupratitle = titleLayers.find((layer: any) => layer.id === 'supratitle-text')
+        if (!previousSupratitle) throw new Error('Expected bundled supratitle text layer')
+        const customSupratitle = { ...previousSupratitle, id: 'custom-supratitle', inputLabel: 'Supratitlu nouă' }
+        const customObjective = { ...previousSupratitle, id: 'custom-objective', fieldId: 'objective', inputLabel: 'Obiectiv Comun' }
+        showConfig.document.templates.titles.layers = titleLayers.filter((layer: any) => layer.id !== 'supratitle-text')
+        showConfig.document.templates.titles.layers.push(customSupratitle, customObjective)
+        showConfig.document.lowerThirdVariants.titles.ordinary.layers = [
+            ...showConfig.document.lowerThirdVariants.titles.ordinary.layers.filter((layer: any) => layer.id !== 'supratitle-text'),
+            customSupratitle,
+            customObjective,
+        ]
+        csvHooks.selected = { sectionId: 'invited-1', entityType: 'titles', id: 'title-1' }
+        csvHooks.getBlockItems.mockReturnValue([{
+            type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-1',
+            data: { id: 'title-1', title: 'TITLU SALVAT', supratitle: 'VALOARE ASCUNSĂ', customFields: { objective: 'OBIECTIV SALVAT' } },
+        }] as any)
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        expect(await screen.findByLabelText('Supratitlu nouă')).toHaveValue('VALOARE ASCUNSĂ')
+        expect(screen.getByLabelText('Obiectiv Comun')).toHaveValue('OBIECTIV SALVAT')
+        await user.type(screen.getByLabelText('Titlu'), ' actualizat')
+        await user.click(screen.getByRole('button', { name: /Update/i }))
+
+        expect(csvHooks.updateEntity).toHaveBeenCalledWith('invited-1', 'titles', 'title-1', expect.objectContaining({ title: 'TITLU SALVAT actualizat' }))
+        expect(csvHooks.updateEntity.mock.calls[0][3]).toHaveProperty('supratitle', 'VALOARE ASCUNSĂ')
+        expect(csvHooks.updateEntity.mock.calls[0][3]).toHaveProperty('customFields.objective', 'OBIECTIV SALVAT')
+    })
+
+    it('renders and saves custom inputs configured on a person template', async () => {
+        csvHooks.activeEntityType = 'persons'
+        showConfig.document.lowerThirdVariants.persons.ordinary.layers.push({
+            id: 'custom-person-field',
+            type: 'text',
+            x: 20,
+            y: 20,
+            width: 300,
+            height: 40,
+            zIndex: 20,
+            fieldId: 'roleOnProgram',
+            inputLabel: 'Rol editorial',
+            fallbackText: 'Rol editorial',
+            textStyle: { fontFamily: 'Arial', fontSize: 24, fontWeight: 400, color: '#fff', align: 'left' },
+        })
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        expect(screen.getByLabelText('Nume')).toBeInTheDocument()
+        expect(screen.getByLabelText('Funcție')).toBeInTheDocument()
+        expect(screen.getByLabelText('Rol editorial')).toBeInTheDocument()
+        await user.type(screen.getByLabelText('Nume'), 'Ana Popescu')
+        await user.type(screen.getByLabelText('Rol editorial'), 'moderatoare')
+        await user.click(screen.getByRole('button', { name: /Adaug/i }))
+
+        expect(csvHooks.savePersonEntity).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                name: 'ANA POPESCU',
+                customFields: { roleOnProgram: 'moderatoare' },
+            }),
+        }))
     })
 
     it('uses titleTemplate for titles', () => {
@@ -1155,11 +1283,11 @@ describe('EntityEditor', () => {
         })
     })
 
-    it('renders title and location inputs for PA hot and wait entity types', () => {
+    it('keeps legacy hot titles preview only and renders wait-location input', () => {
         csvHooks.activeEntityType = 'hotTitles'
         const { rerender } = renderEntityEditor()
 
-        expect(screen.getByLabelText('Titlu')).toBeInTheDocument()
+        expect(screen.queryByLabelText('Titlu')).not.toBeInTheDocument()
 
         csvHooks.activeEntityType = 'waitLocations'
         rerender(
@@ -1197,7 +1325,6 @@ describe('EntityEditor', () => {
     })
 
     it.each([
-        ['hotTitles', 'Titlu', 'hotTitles', { title: 'URGENT' }],
         ['waitTitles', 'Titlu', 'waitTitles', { title: 'ASTEPTARE' }],
         ['waitLocations', /Loca/, 'waitLocations', { location: 'CHISINAU' }],
     ] as const)('creates %s in the active section', async (entityType, label, expectedType, payload) => {

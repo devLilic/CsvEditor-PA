@@ -327,6 +327,45 @@ describe('csvReducer - entities', () => {
         expect(rows[1].title).toEqual({ id: 'title-2', title: 'Other title' })
     })
 
+    it('preserves arbitrary custom fields when entities are created and partially updated', () => {
+        const state = stateWithSections([invitedSection()], 'invited-1')
+        const added = csvReducer(state, {
+            type: 'ENTITY_ADD',
+            payload: {
+                sectionId: 'invited-1',
+                entityType: EntityTypes.TITLES,
+                data: { title: 'Headline', customFields: { subtitle: 'First value', credit: 'Desk' } },
+            },
+        })
+        const createdTitle = added.entities.sections[0].rows[0].title!
+        expect(createdTitle.customFields).toEqual({ subtitle: 'First value', credit: 'Desk' })
+
+        const updated = csvReducer(added, {
+            type: 'ENTITY_UPDATE',
+            payload: {
+                sectionId: 'invited-1',
+                entityType: EntityTypes.TITLES,
+                id: createdTitle.id,
+                data: { title: 'Updated headline' },
+            },
+        })
+        expect(updated.entities.sections[0].rows[0].title).toMatchObject({
+            title: 'Updated headline',
+            customFields: { subtitle: 'First value', credit: 'Desk' },
+        })
+
+        const cleared = csvReducer(updated, {
+            type: 'ENTITY_UPDATE',
+            payload: {
+                sectionId: 'invited-1',
+                entityType: EntityTypes.TITLES,
+                id: createdTitle.id,
+                data: { customFields: {} },
+            },
+        })
+        expect(cleared.entities.sections[0].rows[0].title?.customFields).toBeUndefined()
+    })
+
     it('ENTITY_UPDATE updates a phone call as the existing persons entity with image', () => {
         const invited = invitedSection({
             rows: [

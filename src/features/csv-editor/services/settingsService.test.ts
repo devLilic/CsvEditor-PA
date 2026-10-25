@@ -1,5 +1,5 @@
 // src/features/csv-editor/services/settingsService.test.ts
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { settingsService } from './settingsService'
 
 describe('settingsService', () => {
@@ -31,6 +31,19 @@ describe('settingsService', () => {
         ).resolves.not.toThrow()
 
         expect(api.setQuickTitles).toHaveBeenCalledOnce()
+    })
+
+    it('passes an explicit show ID through Quick Titles settings calls and scoped notifications', async () => {
+        const api = (window as any).electronAPI
+        api.setQuickTitles.mockResolvedValueOnce(['Scoped title'])
+        const listener = vi.fn()
+        const unsubscribe = settingsService.subscribeQuickTitles(listener)
+
+        await settingsService.setQuickTitles(['Scoped title'], 'show-a')
+
+        expect(api.setQuickTitles).toHaveBeenCalledWith(['Scoped title'], 'show-a')
+        expect(listener).toHaveBeenCalledWith(['Scoped title'], 'show-a')
+        unsubscribe()
     })
 
     it('getAppConfig returns empty object on IPC failure', async () => {

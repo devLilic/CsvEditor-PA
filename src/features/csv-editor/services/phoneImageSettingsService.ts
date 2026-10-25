@@ -13,20 +13,23 @@ function getApi() {
 }
 
 export const phoneImageSettingsService = {
-    async getPhoneImageSettings(): Promise<PhoneImageSettings> {
+    async getPhoneImageSettings(projectId?: string): Promise<PhoneImageSettings> {
         try {
-            const settings = await getApi().getPhoneImageSettings()
+            const api = getApi()
+            const settings = projectId ? await api.getPhoneImageSettings(projectId) : await api.getPhoneImageSettings()
             return normalizePhoneImageSettings(settings)
         } catch {
             return FALLBACK_PHONE_IMAGE_SETTINGS
         }
     },
 
-    async setPhoneImageSettings(settings: PhoneImageSettings): Promise<PhoneImageSettings> {
+    async setPhoneImageSettings(settings: PhoneImageSettings, projectId?: string): Promise<PhoneImageSettings> {
         try {
-            const savedSettings = await getApi().setPhoneImageSettings(
-                normalizePhoneImageSettings(settings)
-            )
+            const api = getApi()
+            const normalized = normalizePhoneImageSettings(settings)
+            const savedSettings = projectId
+                ? await api.setPhoneImageSettings(normalized, projectId)
+                : await api.setPhoneImageSettings(normalized)
             return normalizePhoneImageSettings(savedSettings)
         } catch {
             return FALLBACK_PHONE_IMAGE_SETTINGS

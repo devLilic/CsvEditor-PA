@@ -1,7 +1,11 @@
+import { scopedIpcHandle } from './show-project-scope'
+import { getScopedShowProject, getScopedShowProjectId } from './show-project-scope'
+import { parseShowEdition, serializeShowEdition } from '../../src/features/show-projects/domain/showEdition'
 // electron/main/csv-handlers.ts
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
+import { writeFile as writeFileAtomically } from 'atomically'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import type { CsvFileDescriptor, CsvWriteRequest } from '../../src/shared/ipc-types'
 import { getAppConfig, getCsvFilePath, getCsvFileSettings, setAppConfig, setCsvFilePath, setCsvFileSettings } from '../store'
@@ -14,6 +18,7 @@ import { notifyEntityExportFailure } from './entity-export-notification'
 import { parseCsv } from '../../src/features/csv-editor/utils/csvParser'
 import { serializeCsv } from '../../src/features/csv-editor/utils/csvSerializer'
 import type { EntitiesState } from '../../src/features/csv-editor/domain/entities'
+import { applyTemplateTextTransformsToEntities } from '../../src/features/entity-export/domain/entityTemplateFieldValues'
 import {
     mapPlateauItemsToTitleBackupItems,
 } from '../../src/features/title-backup/services/writeActiveTitleBackup'
@@ -46,12 +51,13 @@ async function readConfiguredWorkingCsv() {
     let loadedFromLegacyCsv = false
 
     if (statePath) {
-        const json = await fsp.readFile(statePath, 'utf-8').catch(() => '')
-        if (json) {
-            const saved = JSON.parse(json) as { entities?: unknown }
-            if (saved.entities && typeof saved.entities === 'object' && Array.isArray((saved.entities as EntitiesState).sections)) {
-                entities = saved.entities as EntitiesState
-            }
+        const json = await fsp.readFile(statePath, 'utf-8').catch((error: NodeJS.ErrnoException) => {
+            if (error.code === 'ENOENT') return null
+            throw error
+        })
+        if (json !== null) {
+            if (!json.trim()) throw new Error('INVALID_EDITION_FILE')
+            entities = parseShowEdition(json, getScopedShowProjectId())
         }
     }
 
@@ -64,11 +70,11 @@ async function readConfiguredWorkingCsv() {
         }
     }
 
-    if (!entities) return { ok: false, error: 'No saved project state found' }
+    if (!entities) return { ok: false, error: 'NO_SAVED_PROJECT_STATE' }
     if (!content) content = serializeCsv(entities)
     if (loadedFromLegacyCsv && statePath) {
         await fsp.mkdir(path.dirname(statePath), { recursive: true })
-        await fsp.writeFile(statePath, JSON.stringify({ version: 1, entities }, null, 2), 'utf-8')
+        await writeFileAtomically(statePath, serializeShowEdition(entities, getScopedShowProjectId()), 'utf-8')
         // Retire the legacy file pointer only after the new project snapshot is
         // safely written, so a failed migration can be retried next launch.
         setCsvFileSettings({ ...settings, workingCsvPath: '' })
@@ -121,7 +127,8 @@ async function exportEntityCsvsAfterWorkingCsvWrite(
         })
         const typeConfig = getAppConfig()[LOWER_THIRD_TYPES_CONFIG_KEY]
         const entityTemplateNames = normalizeEntityTemplateNames(getAppConfig()[ENTITY_TEMPLATE_NAMES_CONFIG_KEY])
-        const lowerThirdTypes = metadata?.lowerThirdTypes ?? normalizeLowerThirdTypes(typeConfig)
+        const showProject = getScopedShowProject()
+        const lowerThirdTypes = showProject?.lowerThirdTypes ?? metadata?.lowerThirdTypes ?? normalizeLowerThirdTypes(typeConfig)
         const exportEntities = metadata?.entities
             ? migrateHotTitlesToUrgent(metadata.entities)
             : restoreLowerThirdAssignments({
@@ -138,6 +145,7 @@ async function exportEntityCsvsAfterWorkingCsvWrite(
             lowerThirdTypes,
             exportPrefix: settings.exportPrefix,
             entityTemplateNames,
+            showProject,
             onError: (error) => notifyEntityExportFailure(mainWindow, error),
             afterTitlesExport: async () => {
                 let activeTitleBackupFile = getActiveTitleBackupFile(getAppConfig())
@@ -192,7 +200,7 @@ async function exportEntityCsvsAfterWorkingCsvWrite(
 
 export function registerCsvHandlers(mainWindow: BrowserWindow) {
     // 🧩 1️⃣ Load last used CSV automatically
-    ipcMain.handle(IPC_CHANNELS.CSV_GET_LAST, async () => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_GET_LAST, async () => {
         try {
             const storedPath = getConfiguredCsvPath()
             if (!storedPath || !fs.existsSync(storedPath)) {
@@ -206,7 +214,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
     })
 
     // 🧩 2️⃣ Open new CSV via dialog
-    ipcMain.handle(IPC_CHANNELS.CSV_GET_WORKING, async () => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_GET_WORKING, async () => {
         try {
             return await readConfiguredWorkingCsv()
         } catch (error) {
@@ -215,7 +223,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.CSV_OPEN_DIALOG, async () => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_OPEN_DIALOG, async () => {
         try {
             const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
                 properties: ['openFile'],
@@ -239,7 +247,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
     })
 
     // 📝 Write CSV back to disk
-    ipcMain.handle(IPC_CHANNELS.CSV_WRITE, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_WRITE, async (_event, request: unknown) => {
         try {
             const payload: CsvWriteRequest = isString(request)
                 ? { content: request }
@@ -254,11 +262,18 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
                 return { ok: false, error: 'No project folder configured' }
             }
 
-            const entities = payload.entities ?? parseCsv(payload.content)
+            const showProject = getScopedShowProject()
+            const rawEntities = payload.entities ?? parseCsv(payload.content)
+            const entities = showProject
+                ? applyTemplateTextTransformsToEntities(rawEntities, {
+                    ...showProject.document,
+                    lowerThirdTypesEnabled: showProject.lowerThirdTypesEnabled,
+                })
+                : rawEntities
             const savedStatePath = path.join(projectFolderPath, 'Saved', 'current-project.json')
             await fsp.mkdir(path.dirname(savedStatePath), { recursive: true })
-            await fsp.writeFile(savedStatePath, JSON.stringify({ version: 1, entities }, null, 2), 'utf-8')
-            const exportResult = await exportEntityCsvsAfterWorkingCsvWrite(mainWindow, entities, payload)
+            await writeFileAtomically(savedStatePath, serializeShowEdition(entities, getScopedShowProjectId()), 'utf-8')
+            const exportResult = await exportEntityCsvsAfterWorkingCsvWrite(mainWindow, entities, { ...payload, entities })
             if (!exportResult.ok) {
                 return {
                     ok: false,
@@ -273,7 +288,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
     })
 
     // 💾 Backup CSV to a new file with timestamp
-    ipcMain.handle(IPC_CHANNELS.CSV_BKP, async (_event, content: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_BKP, async (_event, content: unknown) => {
         try {
             if (!isString(content)) {
                 return { ok: false, error: 'Invalid content type, expected string' }
@@ -283,7 +298,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
             const backupPath = path.join(backupDir, `project-${timestamp}.json`)
 
-            await fsp.writeFile(backupPath, content, 'utf-8')
+            await fsp.writeFile(backupPath, serializeShowEdition(parseShowEdition(content, getScopedShowProjectId()), getScopedShowProjectId()), 'utf-8')
 
             return { ok: true, backupPath }
         } catch (error) {
@@ -292,7 +307,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.CSV_CREATE_BACKUP, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_CREATE_BACKUP, async (_event, request: unknown) => {
         try {
             const content = (request as { content?: unknown } | null)?.content
             if (!isString(content)) return { ok: false, error: 'Invalid content type, expected string' }
@@ -300,7 +315,7 @@ export function registerCsvHandlers(mainWindow: BrowserWindow) {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
             const filename = `project-${timestamp}.json`
             const backupPath = path.join(backupDir, filename)
-            await fsp.writeFile(backupPath, content, 'utf-8')
+            await fsp.writeFile(backupPath, serializeShowEdition(parseShowEdition(content, getScopedShowProjectId()), getScopedShowProjectId()), 'utf-8')
             return { ok: true, backupPath, filename }
         } catch (error) {
             console.error('[csv:create-backup] failed:', error)

@@ -20,6 +20,28 @@ export type EntityType = typeof EntityTypes[keyof typeof EntityTypes]
 
 export interface BaseEntity {
     id: string
+    /** Values for show-specific template fields not represented in the fixed CSV schema. */
+    customFields?: Record<string, string>
+}
+
+export function normalizeCustomFields(value: unknown): Record<string, string> | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+    const output: Record<string, string> = {}
+    for (const [fieldId, fieldValue] of Object.entries(value)) {
+        if (!fieldId.trim() || fieldId.length > 128 || fieldId === '__proto__' || fieldId === 'constructor' || fieldId === 'prototype') continue
+        if (typeof fieldValue === 'string') output[fieldId] = fieldValue
+    }
+    return Object.keys(output).length > 0 ? output : undefined
+}
+
+/** Preserve custom values on partial updates; replace them when the editor sends the field. */
+export function getUpdatedCustomFields(
+    existing: Record<string, string> | undefined,
+    data: Record<string, unknown>,
+): Record<string, string> | undefined {
+    return Object.prototype.hasOwnProperty.call(data, 'customFields')
+        ? normalizeCustomFields(data.customFields)
+        : existing
 }
 
 export interface Person extends BaseEntity {

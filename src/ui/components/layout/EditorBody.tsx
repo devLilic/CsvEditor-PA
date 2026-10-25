@@ -3,17 +3,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { EntityList } from '../EntityList'
 import { EntityEditor } from '../EntityEditor'
 import { EntityTypeTabsLeft } from '../EntityTypeTabsLeft'
-import { TemplateEditorPanel } from '../template-editor/TemplateEditorPanel'
-import { TedPreviewOnlyPanel } from '../template-editor/TedPreviewOnlyPanel'
-import { mergeTedSampleData } from '@/features/template-editor/domain/tedSampleData'
 import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 import { settingsService } from '@/features/csv-editor/services/settingsService'
 import type { AppConfig } from '@/shared/ipc-types'
 import { useResizablePanel } from '@/ui/hooks/useResizablePanel'
-import { useTedMode } from '@/ui/context/TedModeContext'
 import { useActiveEntityType, useEntities, useSelectedEntity } from '@/features/csv-editor'
-import { DEFAULT_LOWER_THIRD_TYPE_ID } from '@/features/lower-thirds/domain/lowerThirdTypes'
-import { useLowerThirdTypes } from '@/ui/hooks/useLowerThirdTypes'
 import type { RepeatSupratitleRequest } from '../repeatSupratitle'
 
 const DEFAULT_LEFT_PANEL_WIDTH = 700
@@ -52,32 +46,10 @@ function createConfigWithLeftPanelWidth(config: AppConfig, leftPanelWidth: numbe
 
 export function EditorBody() {
     const [repeatSupratitleRequest, setRepeatSupratitleRequest] = useState<RepeatSupratitleRequest | null>(null)
-    const {
-        isTedMode,
-        activeTedEntityType,
-        activeLowerThirdTypeId,
-        tedSampleOverrides,
-    } = useTedMode()
     const { document: templateDocument } = useTemplateDocument()
-    const { types: lowerThirdTypes } = useLowerThirdTypes()
     const { activeSection } = useEntities()
     const { activeEntityType, setActiveEntityType } = useActiveEntityType()
     const { clearSelection } = useSelectedEntity()
-    const tedSampleData = mergeTedSampleData(activeTedEntityType, tedSampleOverrides)
-    const lowerThirdKind = activeTedEntityType === 'titles' || activeTedEntityType === 'persons'
-        ? activeTedEntityType
-        : null
-    const activeLowerThirdType = lowerThirdTypes.find((type) => type.id === activeLowerThirdTypeId)
-        ?? lowerThirdTypes.find((type) => type.id === DEFAULT_LOWER_THIRD_TYPE_ID)
-    const tedTemplate = lowerThirdKind
-        ? templateDocument.lowerThirdVariants[lowerThirdKind][activeLowerThirdType?.id ?? DEFAULT_LOWER_THIRD_TYPE_ID]
-            ?? templateDocument.lowerThirdVariants[lowerThirdKind][DEFAULT_LOWER_THIRD_TYPE_ID]
-            ?? templateDocument.templates[activeTedEntityType]
-        : templateDocument.templates[activeTedEntityType]
-    const tedTemplateVariant = lowerThirdKind && activeLowerThirdType
-        ? activeLowerThirdType.templates[lowerThirdKind].name
-        : undefined
-    const tedLowerThirdPalette = lowerThirdKind ? activeLowerThirdType?.palette : undefined
     const mainEntityTypes = activeSection?.kind === 'beta'
         ? ['titles', 'persons'] as const
         : ['titles', 'persons', 'locations', 'phoneCalls', 'waitTitles', 'waitLocations'] as const
@@ -127,11 +99,11 @@ export function EditorBody() {
     }, [setLeftPanelWidth])
 
     useEffect(() => {
-        if (!isTedMode && availableMainEntityTypes.length > 0 && !availableMainEntityTypes.includes(activeEntityType as typeof availableMainEntityTypes[number])) {
+        if (availableMainEntityTypes.length > 0 && !availableMainEntityTypes.includes(activeEntityType as typeof availableMainEntityTypes[number])) {
             clearSelection()
             setActiveEntityType(availableMainEntityTypes[0])
         }
-    }, [activeEntityType, availableMainEntityTypes, clearSelection, isTedMode, setActiveEntityType])
+    }, [activeEntityType, availableMainEntityTypes, clearSelection, setActiveEntityType])
 
     return (
         <div
@@ -144,21 +116,15 @@ export function EditorBody() {
         >
             {/* LEFT */}
             <div className="app-panel bg-white rounded border p-3 flex flex-col min-h-0 min-w-0">
-                {!isTedMode && (
-                    <div className="app-panel-divider pb-3 border-b">
-                        <EntityTypeTabsLeft />
-                    </div>
-                )}
+                <div className="app-panel-divider pb-3 border-b">
+                    <EntityTypeTabsLeft />
+                </div>
 
                 {/* IMPORTANT: min-h-0 + flex-1 ca să permită scroll intern */}
                 <div className="pt-3 flex-1 min-h-0 min-w-0">
-                    {isTedMode
-                        ? <TemplateEditorPanel isTedMode />
-                        : availableMainEntityTypes.length > 0
-                            ? <EntityList onRepeatSupratitle={setRepeatSupratitleRequest} />
-                            : <div className="p-3 text-sm text-gray-600">
-                                No enabled types for this section. Re-enable one in Edit Templates.
-                            </div>}
+                    {availableMainEntityTypes.length > 0
+                        ? <EntityList onRepeatSupratitle={setRepeatSupratitleRequest} />
+                        : <div className="p-3 text-sm text-gray-600">Nu există elemente disponibile pentru această secțiune.</div>}
                 </div>
             </div>
 
@@ -174,23 +140,16 @@ export function EditorBody() {
 
             {/* RIGHT */}
             <div className="min-h-0 min-w-0 overflow-hidden">
-                {isTedMode
-                    ? <TedPreviewOnlyPanel
-                        template={tedTemplate}
-                        sampleData={tedSampleData}
-                        templateVariant={tedTemplateVariant}
-                        lowerThirdPalette={tedLowerThirdPalette}
+                {availableMainEntityTypes.length > 0
+                    ? <EntityEditor
+                        repeatSupratitleRequest={repeatSupratitleRequest}
+                        onRepeatSupratitleRequestHandled={(requestId) => {
+                            setRepeatSupratitleRequest((current) => current?.requestId === requestId ? null : current)
+                        }}
                     />
-                    : availableMainEntityTypes.length > 0
-                        ? <EntityEditor
-                            repeatSupratitleRequest={repeatSupratitleRequest}
-                            onRepeatSupratitleRequestHandled={(requestId) => {
-                                setRepeatSupratitleRequest((current) => current?.requestId === requestId ? null : current)
-                            }}
-                        />
-                        : <div className="flex h-full items-center justify-center rounded border bg-white p-4 text-center text-sm text-gray-600">
-                            Enable a template type in Edit Templates to continue.
-                        </div>}
+                    : <div className="flex h-full items-center justify-center rounded border bg-white p-4 text-center text-sm text-gray-600">
+                        Nu există tipuri active pentru această secțiune. Activează un element din Emisiuni.
+                    </div>}
             </div>
         </div>
     )

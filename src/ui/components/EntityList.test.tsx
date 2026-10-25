@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EntityList } from './EntityList'
 import { EditModeProvider, useEditMode } from '@/ui/context/EditModeContext'
 import { TitleFilterProvider } from '@/ui/context/TitleFilterContext'
-import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 import { DEFAULT_LOWER_THIRD_TYPE_ID, DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import { SUPPORTED_ENTITY_TYPES } from '@/features/csv-editor/domain/supportedEntityTypes'
 
@@ -28,6 +27,20 @@ const csvHooks = vi.hoisted(() => ({
     isOnAir: vi.fn(() => false),
     setOnAir: vi.fn(),
     clearOnAir: vi.fn(),
+}))
+
+const showConfig = vi.hoisted(() => ({
+    lowerThirdTypesEnabled: true,
+    activeProjectId: 'test-show',
+    activeProject: { lowerThirdTypes: [] as any[] },
+    workspaces: {} as Record<string, string>,
+    isLoaded: true,
+    saveProject: vi.fn(),
+}))
+
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    useTemplateDocument: () => showConfig,
+    useOptionalTemplateDocument: () => showConfig,
 }))
 
 vi.mock('@/features/csv-editor', async (importOriginal) => {
@@ -59,6 +72,8 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
 })
 
 beforeEach(() => {
+    showConfig.lowerThirdTypesEnabled = true
+    showConfig.activeProject = { lowerThirdTypes: DEFAULT_LOWER_THIRD_TYPES }
     csvHooks.activeSectionId = 'invited-1'
     csvHooks.activeSectionKind = 'invited'
     csvHooks.activeEntityType = 'titles'
@@ -193,7 +208,7 @@ describe('EntityList', () => {
     })
 
     it('shows the assigned type color between title number and text and before a person name', async () => {
-        const getTypesSpy = vi.spyOn(lowerThirdTypesService, 'get').mockResolvedValue(DEFAULT_LOWER_THIRD_TYPES)
+        showConfig.activeProject = { lowerThirdTypes: DEFAULT_LOWER_THIRD_TYPES }
         csvHooks.getBlockItems.mockReturnValue([
             { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: { title: 'URGENT', lowerThirdTypeId: 'urgent' } },
         ])
@@ -213,7 +228,18 @@ describe('EntityList', () => {
         const personDot = await screen.findByLabelText('Breaking News')
         expect(personDot).toHaveStyle({ backgroundColor: '#000000' })
         expect(personDot.parentElement).toHaveTextContent('ANA POPESCU')
-        getTypesSpy.mockRestore()
+    })
+
+    it('hides lower-third type markers when this show disables variants', () => {
+        showConfig.lowerThirdTypesEnabled = false
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: { title: 'PLAIN', lowerThirdTypeId: 'breaking-news' } },
+        ])
+
+        renderEntityList()
+
+        expect(screen.getByText('PLAIN')).toBeInTheDocument()
+        expect(screen.queryByLabelText('Breaking News')).not.toBeInTheDocument()
     })
 
     it('renders titles', () => {
@@ -226,6 +252,34 @@ describe('EntityList', () => {
         expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'titles')
         expect(screen.getByText('BREAKING NEWS')).toBeInTheDocument()
         expect(screen.getByText('1.')).toBeInTheDocument()
+    })
+
+    it('renders text fields in the casing configured by the active template', () => {
+        const titleTemplate = {
+            id: 'uppercase-title',
+            name: 'Uppercase title',
+            canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
+            layers: [{
+                id: 'headline', type: 'text', fieldId: 'title',
+                textStyle: { transform: 'uppercase' },
+                x: 0, y: 0, width: 400, height: 80, zIndex: 1,
+            }],
+        }
+        showConfig.activeProject = {
+            lowerThirdTypes: DEFAULT_LOWER_THIRD_TYPES,
+            lowerThirdTypesEnabled: true,
+            document: {
+                templates: { titles: titleTemplate },
+                lowerThirdVariants: { titles: { ordinary: titleTemplate } },
+            },
+        } as any
+        csvHooks.getBlockItems.mockReturnValue([
+            { type: 'title', entityType: 'titles', id: 'title-1', rowId: 'row-title-1', data: { title: 'Preturile la energie cresc' } },
+        ])
+
+        renderEntityList()
+
+        expect(screen.getByText('PRETURILE LA ENERGIE CRESC')).toBeInTheDocument()
     })
 
     it('renders a title supratitle above its title, with the number and type marker for the combined item', async () => {

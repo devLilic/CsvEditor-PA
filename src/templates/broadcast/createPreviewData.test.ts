@@ -1,11 +1,37 @@
 import { describe, expect, it } from 'vitest'
-import { createPreviewData } from './createPreviewData'
+import { createPreviewData, createTemplatePreviewData } from './createPreviewData'
 
 describe('createPreviewData', () => {
     it('maps title data for titles', () => {
         expect(createPreviewData('titles', { title: 'Breaking News' })).toEqual({
             title: 'Breaking News',
             supratitle: '',
+        })
+    })
+
+    it('includes only active-template custom fields and visibility values in preview data', () => {
+        const activeTemplate = {
+            id: 'title-template',
+            name: 'Title',
+            canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
+            layers: [
+                { id: 'headline', type: 'text', fieldId: 'customHeadline', visibleWhenField: 'showHeadline', x: 0, y: 0, width: 400, height: 80, zIndex: 1 },
+                { id: 'hidden', type: 'text', fieldId: 'hiddenCustom', visible: false, x: 0, y: 80, width: 400, height: 80, zIndex: 2 },
+            ],
+        } as any
+        expect(createTemplatePreviewData('titles', {
+            title: 'Built in',
+            customFields: {
+                customHeadline: 'Custom value',
+                showHeadline: 'yes',
+                hiddenCustom: 'hidden',
+                otherShowField: 'not exposed',
+            },
+        }, activeTemplate)).toEqual({
+            title: 'Built in',
+            supratitle: '',
+            customHeadline: 'Custom value',
+            showHeadline: 'yes',
         })
     })
 

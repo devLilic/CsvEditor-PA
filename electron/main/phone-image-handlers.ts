@@ -1,3 +1,4 @@
+import { scopedIpcHandle } from './show-project-scope'
 import { ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -126,7 +127,7 @@ async function readImageDataUrl(workPath: string, imageRef: string): Promise<Pho
 }
 
 export function registerPhoneImageHandlers() {
-    ipcMain.handle(IPC_CHANNELS.PHONE_IMAGE_SAVE_FINAL, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.PHONE_IMAGE_SAVE_FINAL, async (_event, request: unknown) => {
         try {
             if (!isSaveFinalRequest(request)) {
                 return errorResponse('Invalid payload')
@@ -172,7 +173,7 @@ export function registerPhoneImageHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.PHONE_IMAGE_LOAD_DATA_URL, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.PHONE_IMAGE_LOAD_DATA_URL, async (_event, request: unknown) => {
         try {
             if (!isLoadDataUrlRequest(request)) {
                 return loadErrorResponse('Invalid payload')
@@ -186,7 +187,7 @@ export function registerPhoneImageHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.PHONE_IMAGE_GET_IMAGE_DATA_URL, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.PHONE_IMAGE_GET_IMAGE_DATA_URL, async (_event, request: unknown) => {
         try {
             if (!isGetImageDataUrlRequest(request)) {
                 return getImageDataUrlErrorResponse('Invalid payload')
@@ -201,7 +202,7 @@ export function registerPhoneImageHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.PHONE_IMAGE_LIST_WORK_PATH_IMAGES, async () => {
+    scopedIpcHandle(IPC_CHANNELS.PHONE_IMAGE_LIST_WORK_PATH_IMAGES, async () => {
         try {
             const { workPath } = getPhoneImageSettings()
             if (!workPath.trim()) {

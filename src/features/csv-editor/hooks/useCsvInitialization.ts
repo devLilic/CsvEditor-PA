@@ -6,11 +6,12 @@ import { csvService } from '../services/csvService'
 import { parseCsv } from '../utils/csvParser'
 import { useCsvContext } from '../context/CsvContext'
 import { createDefaultProjectEntities } from '../domain/defaultProject'
-import { defaultProjectSettingsService } from '../services/defaultProjectSettingsService'
-import { csvFileSettingsService } from '../services/csvFileSettingsService'
+import { FALLBACK_DEFAULT_PROJECT_SETTINGS } from '../domain/defaultProjectSettings'
 import { titleBackupReservationService } from '@/features/title-backup/services/titleBackupReservationService'
-import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 import { restoreLowerThirdAssignments, migrateHotTitlesToUrgent } from '@/features/lower-thirds/domain/lowerThirdAssignments'
+import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
+import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
+import { applyTemplateTextTransformsToEntities } from '@/features/entity-export/domain/entityTemplateFieldValues'
 
 /**
  * Hook responsabil exclusiv de initializarea CSV:
@@ -24,51 +25,70 @@ import { restoreLowerThirdAssignments, migrateHotTitlesToUrgent } from '@/featur
  * NU Electron direct
  */
 export function useCsvInitialization() {
-    const { dispatch, state } = useCsvContext()
+    const { dispatch, state, workingCopyError, setWorkingCopyError, initializationAttempt } = useCsvContext()
+    const { activeProjectId, activeProject, workspaces, isLoaded: areShowsLoaded } = useTemplateDocument()
     const hasInitializedRef = useRef(false)
 
     useEffect(() => {
-        if (state.isLoaded) return
+        if (state.isLoaded || !areShowsLoaded || !activeProjectId) return
         if (hasInitializedRef.current) return
+        const workspacePath = workspaces[activeProjectId]
+        if (!workspacePath) return
 
         hasInitializedRef.current = true
+        let isCurrent = true
 
         ;(async () => {
-            const csvFileSettings = await csvFileSettingsService.getCsvFileSettings()
-            const titleBackupReservation = await titleBackupReservationService.reserveActiveTitleBackup(false)
+            const workingCsv = await csvService.getWorkingCsv(activeProjectId)
+            if (!isCurrent) return
+
+            let entities: ReturnType<typeof parseCsv> | null = null
+            if (workingCsv.ok && workingCsv.entities) {
+                // JSON edition metadata is authoritative. Reconstructing assignments from
+                // exports here would overwrite IDs when a show disables a variant.
+                entities = workingCsv.entities
+            } else if (workingCsv.ok && typeof workingCsv.content === 'string') {
+                // Legacy CSV has no assignment metadata, so recover it from prior exports.
+                const lowerThirdTypes = (activeProject as any)?.lowerThirdTypes ?? DEFAULT_LOWER_THIRD_TYPES
+                entities = restoreLowerThirdAssignments({
+                    entities: migrateHotTitlesToUrgent(parseCsv(workingCsv.content)),
+                    titlesExport: workingCsv.previousExports?.titles,
+                    personsExport: workingCsv.previousExports?.persons,
+                    types: lowerThirdTypes,
+                    exportPrefix: (activeProject as any)?.exportPrefix ?? '',
+                    onWarning: (message) => console.warn('[lower-thirds]', message),
+                })
+            } else if (!workingCsv.ok && workingCsv.error !== 'NO_SAVED_PROJECT_STATE'
+                && workingCsv.error !== 'No saved project state found') {
+                hasInitializedRef.current = false
+                setWorkingCopyError(workingCsv.error ?? 'WORKING_COPY_READ_FAILED')
+                return
+            }
+
+            if (!entities) {
+                const defaultProjectSettings = (activeProject as any)?.defaultProjectSettings
+                    ?? FALLBACK_DEFAULT_PROJECT_SETTINGS
+                entities = createDefaultProjectEntities(defaultProjectSettings)
+            }
+
+            if (activeProject?.document) {
+                entities = applyTemplateTextTransformsToEntities(entities, {
+                    ...activeProject.document,
+                    lowerThirdTypesEnabled: activeProject.lowerThirdTypesEnabled,
+                })
+            }
+
+            const titleBackupReservation = await titleBackupReservationService.reserveActiveTitleBackup(false, activeProjectId)
             if (!titleBackupReservation.ok) {
                 console.error('Failed to reserve title backup:', titleBackupReservation.error)
             }
-
-            // The current project is stored as Saved/current-project.json under
-            // projectFolderPath. workingCsvPath is empty in the new folder-based
-            // settings model and remains only for legacy CSV projects.
-            if (csvFileSettings.projectFolderPath || csvFileSettings.workingCsvPath) {
-                const workingCsv = await csvService.getWorkingCsv()
-                if (workingCsv.ok && (workingCsv.entities || typeof workingCsv.content === 'string')) {
-                    const lowerThirdTypes = await lowerThirdTypesService.get()
-                    const entities = restoreLowerThirdAssignments({
-                        entities: migrateHotTitlesToUrgent(workingCsv.entities ?? parseCsv(workingCsv.content ?? '')),
-                        titlesExport: workingCsv.previousExports?.titles,
-                        personsExport: workingCsv.previousExports?.persons,
-                        types: lowerThirdTypes,
-                        exportPrefix: csvFileSettings.exportPrefix,
-                        onWarning: (message) => console.warn('[lower-thirds]', message),
-                    })
-                    dispatch({
-                        type: 'CSV_LOADED',
-                        payload: entities,
-                    })
-                    return
-                }
-            }
-
-            const defaultProjectSettings = await defaultProjectSettingsService.getDefaultProjectSettings()
-
-            dispatch({
-                type: 'CSV_LOADED',
-                payload: createDefaultProjectEntities(defaultProjectSettings),
-            })
+            if (!isCurrent) return
+            setWorkingCopyError(null)
+            dispatch({ type: 'CSV_LOADED', payload: entities })
         })()
-    }, [dispatch, state.isLoaded])
+        return () => {
+            isCurrent = false
+            hasInitializedRef.current = false
+        }
+    }, [activeProject, activeProjectId, areShowsLoaded, dispatch, initializationAttempt, setWorkingCopyError, state.isLoaded, workspaces])
 }

@@ -142,7 +142,7 @@ describe('quick-titles-csv-service', () => {
             onError,
         })).resolves.toEqual({
             ok: false,
-            error: 'Failed to write PA_quickTitles.csv at D:\\TV\\OC\\Export\\PA_quickTitles.csv: LOCKED',
+            error: 'Failed to write quick-titles CSV at D:\\TV\\OC\\Export\\PA_quickTitles.csv: LOCKED',
         })
 
         expect(fsMock.writeFile).toHaveBeenCalledTimes(3)

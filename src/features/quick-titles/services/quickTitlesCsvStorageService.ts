@@ -27,7 +27,7 @@ function missingApiError() {
     return 'electronAPI not available'
 }
 
-export async function loadQuickTitlesFromCsv(): Promise<LoadQuickTitlesFromCsvResult> {
+export async function loadQuickTitlesFromCsv(showProjectId?: string): Promise<LoadQuickTitlesFromCsvResult> {
     const api = getApi()
     if (!api) {
         return {
@@ -38,7 +38,7 @@ export async function loadQuickTitlesFromCsv(): Promise<LoadQuickTitlesFromCsvRe
     }
 
     try {
-        const result = await api.readQuickTitlesCsv()
+        const result = await api.readQuickTitlesCsv(showProjectId)
         if (!result.ok) {
             return {
                 ok: false,
@@ -62,7 +62,8 @@ export async function loadQuickTitlesFromCsv(): Promise<LoadQuickTitlesFromCsvRe
 }
 
 export async function saveQuickTitlesToCsv(
-    quickTitles: string[]
+    quickTitles: string[],
+    showProjectId?: string,
 ): Promise<SaveQuickTitlesToCsvResult> {
     const api = getApi()
     if (!api) {
@@ -76,7 +77,7 @@ export async function saveQuickTitlesToCsv(
         const normalized = normalizeAndDeduplicateQuickTitles([...quickTitles])
         const result = await api.writeQuickTitlesCsv({
             content: serializeQuickTitlesCsv(normalized),
-        })
+        }, showProjectId)
 
         if (!result.ok) {
             return {
@@ -94,7 +95,7 @@ export async function saveQuickTitlesToCsv(
     }
 }
 
-export async function clearQuickTitlesCsv(): Promise<ClearQuickTitlesCsvResult> {
+export async function clearQuickTitlesCsv(showProjectId?: string): Promise<ClearQuickTitlesCsvResult> {
     const api = getApi()
     if (!api) {
         return {
@@ -104,7 +105,7 @@ export async function clearQuickTitlesCsv(): Promise<ClearQuickTitlesCsvResult> 
     }
 
     try {
-        const result = await api.clearQuickTitlesCsv()
+        const result = await api.clearQuickTitlesCsv(showProjectId)
         if (!result.ok) {
             return {
                 ok: false,

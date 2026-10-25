@@ -28,18 +28,25 @@ function getApi() {
 }
 
 export const csvFileSettingsService = {
-    async getCsvFileSettings(): Promise<CsvFileSettings> {
+    async getCsvFileSettings(showProjectId?: string): Promise<CsvFileSettings> {
         try {
-            const settings = await getApi().getCsvFileSettings()
+            const api = getApi()
+            const settings = showProjectId
+                ? await api.getCsvFileSettings(showProjectId)
+                : await api.getCsvFileSettings()
             return normalizeCsvFileSettings(settings)
         } catch {
             return FALLBACK_CSV_FILE_SETTINGS
         }
     },
 
-    async setCsvFileSettings(settings: CsvFileSettings): Promise<CsvFileSettings> {
+    async setCsvFileSettings(settings: CsvFileSettings, showProjectId?: string): Promise<CsvFileSettings> {
         try {
-            const savedSettings = await getApi().setCsvFileSettings(normalizeCsvFileSettings(settings))
+            const api = getApi()
+            const normalized = normalizeCsvFileSettings(settings)
+            const savedSettings = showProjectId
+                ? await api.setCsvFileSettings(normalized, showProjectId)
+                : await api.setCsvFileSettings(normalized)
             const normalizedSettings = normalizeCsvFileSettings(savedSettings)
             emitCsvFileSettings(normalizedSettings)
             return normalizedSettings

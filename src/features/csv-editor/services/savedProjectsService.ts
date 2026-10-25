@@ -16,9 +16,9 @@ function getApi() {
 }
 
 export const savedProjectsService = {
-    async listSavedProjects(): Promise<CsvProjectListResponse> {
+    async listSavedProjects(projectId?: string): Promise<CsvProjectListResponse> {
         try {
-            const res = await getApi().listSavedCsvProjects()
+            const res = projectId ? await getApi().listSavedCsvProjects(projectId) : await getApi().listSavedCsvProjects()
             return res ?? { ok: false, files: [], error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, files: [], error: 'IPC_FAILED' }
@@ -28,13 +28,13 @@ export const savedProjectsService = {
     async saveCurrentAsProject(input: {
         filename: string
         content: string
-    }): Promise<CsvProjectSaveAsResponse> {
+    }, projectId?: string): Promise<CsvProjectSaveAsResponse> {
         if (typeof input.filename !== 'string' || typeof input.content !== 'string') {
             return { ok: false, error: 'INVALID_INPUT' }
         }
 
         try {
-            const res = await getApi().saveCsvProjectAs(input)
+            const res = projectId ? await getApi().saveCsvProjectAs(input, projectId) : await getApi().saveCsvProjectAs(input)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }
@@ -43,13 +43,13 @@ export const savedProjectsService = {
 
     async loadProjectIntoWorkingCsv(input: {
         filename: string
-    }): Promise<CsvProjectLoadIntoWorkingResponse> {
+    }, projectId?: string): Promise<CsvProjectLoadIntoWorkingResponse> {
         if (typeof input.filename !== 'string') {
             return { ok: false, error: 'INVALID_INPUT' }
         }
 
         try {
-            const res = await getApi().loadCsvProjectIntoWorking(input)
+            const res = projectId ? await getApi().loadCsvProjectIntoWorking(input, projectId) : await getApi().loadCsvProjectIntoWorking(input)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }
@@ -58,13 +58,13 @@ export const savedProjectsService = {
 
     async deleteSavedProject(input: {
         filename: string
-    }): Promise<CsvProjectDeleteResponse> {
+    }, projectId?: string): Promise<CsvProjectDeleteResponse> {
         if (typeof input.filename !== 'string') {
             return { ok: false, error: 'INVALID_INPUT' }
         }
 
         try {
-            const res = await getApi().deleteCsvProject(input)
+            const res = projectId ? await getApi().deleteCsvProject(input, projectId) : await getApi().deleteCsvProject(input)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }

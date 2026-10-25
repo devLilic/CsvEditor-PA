@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { CsvState, CsvAction } from './csv.types'
 import { EntityTypes } from '../domain/entities'
 import type { CsvSection, SectionRow, Person, SimpleTitle, Location, EntityType } from '../domain/entities'
-import { createBetaSection, createInvitedSection } from '../domain/entities'
+import { createBetaSection, createInvitedSection, getUpdatedCustomFields, normalizeCustomFields } from '../domain/entities'
 import { isEditorViewType } from '../domain/editorViewTypes'
 import { canInsertDividerAt, createTitleDivider, renumberPlateauTitles, type PlateauTitleListItem } from '../domain/plateauTitleList'
 
@@ -91,6 +91,7 @@ function makeEntity(entityType: EntityType, data: Record<string, unknown>, allow
             occupation: String((data as any).occupation ?? ''),
             lowerThirdTypeId: typeof (data as any).lowerThirdTypeId === 'string' ? (data as any).lowerThirdTypeId : undefined,
             lowerThirdTemplateOverride: typeof (data as any).lowerThirdTemplateOverride === 'string' ? (data as any).lowerThirdTemplateOverride : undefined,
+            customFields: normalizeCustomFields(data.customFields),
             image: allowPersonImage && typeof (data as any).image === 'string' && (data as any).image.trim() !== ''
                 ? String((data as any).image)
                 : undefined,
@@ -101,6 +102,7 @@ function makeEntity(entityType: EntityType, data: Record<string, unknown>, allow
         return {
             id: uuidv4(),
             location: String((data as any).location ?? ''),
+            customFields: normalizeCustomFields(data.customFields),
         } satisfies Location
     }
 
@@ -115,6 +117,7 @@ function makeEntity(entityType: EntityType, data: Record<string, unknown>, allow
         ...(supratitle ? { supratitle } : {}),
         ...(typeof (data as any).lowerThirdTypeId === 'string' ? { lowerThirdTypeId: (data as any).lowerThirdTypeId } : {}),
         ...(typeof (data as any).lowerThirdTemplateOverride === 'string' ? { lowerThirdTemplateOverride: (data as any).lowerThirdTemplateOverride } : {}),
+        customFields: normalizeCustomFields(data.customFields),
     } satisfies SimpleTitle
 }
 function ensureInvitedLast(sections: CsvSection[]): CsvSection[] {
@@ -158,6 +161,7 @@ function addRowWithEntity(section: CsvSection, entityType: EntityType, data: Rec
                 id: uuidv4(), title, ...(supratitle ? { supratitle } : {}),
                 ...(typeof (data as any).lowerThirdTypeId === 'string' ? { lowerThirdTypeId: (data as any).lowerThirdTypeId } : {}),
                 ...(typeof (data as any).lowerThirdTemplateOverride === 'string' ? { lowerThirdTemplateOverride: (data as any).lowerThirdTemplateOverride } : {}),
+                customFields: normalizeCustomFields(data.customFields),
             }
             break
         }
@@ -172,27 +176,28 @@ function addRowWithEntity(section: CsvSection, entityType: EntityType, data: Rec
                 ...(image ? { image } : {}),
                 ...(typeof (data as any).lowerThirdTypeId === 'string' ? { lowerThirdTypeId: (data as any).lowerThirdTypeId } : {}),
                 ...(typeof (data as any).lowerThirdTemplateOverride === 'string' ? { lowerThirdTemplateOverride: (data as any).lowerThirdTemplateOverride } : {}),
+                customFields: normalizeCustomFields(data.customFields),
             }
             break
         }
         case EntityTypes.LOCATIONS: {
             const location = String((data as any).location ?? '')
-            row.location = { id: uuidv4(), location }
+            row.location = { id: uuidv4(), location, customFields: normalizeCustomFields(data.customFields) }
             break
         }
         case EntityTypes.HOT_TITLES: {
             const title = String((data as any).title ?? '')
-            row.hotTitle = { id: uuidv4(), title }
+            row.hotTitle = { id: uuidv4(), title, customFields: normalizeCustomFields(data.customFields) }
             break
         }
         case EntityTypes.WAIT_TITLES: {
             const title = String((data as any).title ?? '')
-            row.waitTitle = { id: uuidv4(), title }
+            row.waitTitle = { id: uuidv4(), title, customFields: normalizeCustomFields(data.customFields) }
             break
         }
         case EntityTypes.WAIT_LOCATIONS: {
             const location = String((data as any).location ?? '')
-            row.waitLocation = { id: uuidv4(), location }
+            row.waitLocation = { id: uuidv4(), location, customFields: normalizeCustomFields(data.customFields) }
             break
         }
         default:
@@ -216,6 +221,7 @@ function updateEntityInSection(section: CsvSection, entityType: EntityType, id: 
                 ...r,
                 title: {
                     ...r.title,
+                    customFields: getUpdatedCustomFields(r.title.customFields, data),
                     title: String((data as any).title ?? r.title.title),
                     lowerThirdTypeId: typeof (data as any).lowerThirdTypeId === 'string'
                         ? String((data as any).lowerThirdTypeId)
@@ -232,6 +238,7 @@ function updateEntityInSection(section: CsvSection, entityType: EntityType, id: 
         if (storageEntityType === EntityTypes.PERSONS && r.person?.id === id) {
             const next: Person = {
                 ...r.person,
+                customFields: getUpdatedCustomFields(r.person.customFields, data),
                 name: String((data as any).name ?? r.person.name),
                 occupation: String((data as any).occupation ?? r.person.occupation),
                 lowerThirdTypeId: typeof (data as any).lowerThirdTypeId === 'string'
@@ -247,19 +254,19 @@ function updateEntityInSection(section: CsvSection, entityType: EntityType, id: 
             return { ...r, person: next }
         }
         if (storageEntityType === EntityTypes.LOCATIONS && r.location?.id === id) {
-            const next: Location = { ...r.location, location: String((data as any).location ?? r.location.location) }
+            const next: Location = { ...r.location, customFields: getUpdatedCustomFields(r.location.customFields, data), location: String((data as any).location ?? r.location.location) }
             return { ...r, location: next }
         }
         if (storageEntityType === EntityTypes.HOT_TITLES && r.hotTitle?.id === id) {
-            const next: SimpleTitle = { ...r.hotTitle, title: String((data as any).title ?? r.hotTitle.title) }
+            const next: SimpleTitle = { ...r.hotTitle, customFields: getUpdatedCustomFields(r.hotTitle.customFields, data), title: String((data as any).title ?? r.hotTitle.title) }
             return { ...r, hotTitle: next }
         }
         if (storageEntityType === EntityTypes.WAIT_TITLES && r.waitTitle?.id === id) {
-            const next: SimpleTitle = { ...r.waitTitle, title: String((data as any).title ?? r.waitTitle.title) }
+            const next: SimpleTitle = { ...r.waitTitle, customFields: getUpdatedCustomFields(r.waitTitle.customFields, data), title: String((data as any).title ?? r.waitTitle.title) }
             return { ...r, waitTitle: next }
         }
         if (storageEntityType === EntityTypes.WAIT_LOCATIONS && r.waitLocation?.id === id) {
-            const next: Location = { ...r.waitLocation, location: String((data as any).location ?? r.waitLocation.location) }
+            const next: Location = { ...r.waitLocation, customFields: getUpdatedCustomFields(r.waitLocation.customFields, data), location: String((data as any).location ?? r.waitLocation.location) }
             return { ...r, waitLocation: next }
         }
         return r

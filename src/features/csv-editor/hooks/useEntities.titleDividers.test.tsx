@@ -6,6 +6,16 @@ import { useCsvContext } from '../context/CsvContext'
 import { TITLE_DIVIDER_MARKER } from '../domain/plateauTitleList'
 import { csvService } from '../services/csvService'
 
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    useTemplateDocument: () => ({ activeProjectId: 'show-a', activeProject: { id: 'show-a', lowerThirdTypes: [] } }),
+    useOptionalTemplateDocument: () => ({
+        activeProjectId: 'show-a',
+        activeProject: { id: 'show-a', lowerThirdTypes: [] },
+        workspaces: {},
+        isLoaded: true,
+        saveProject: vi.fn(),
+    }),
+}))
 function TitleDividerHarness() {
     const { dispatch, state } = useCsvContext()
     const {
@@ -210,3 +220,4 @@ describe('useEntities plateau title divider operations', () => {
         expect(writeSpy).not.toHaveBeenCalled()
     })
 })
+

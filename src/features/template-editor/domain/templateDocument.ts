@@ -21,7 +21,7 @@ export type LowerThirdTemplateVariants = Record<LowerThirdEntityKind, Record<str
 
 export type TemplateDocument = {
     version: 2
-    show: 'punctul-pe-azi'
+    show: string
     templates: TemplateDocumentTemplates
     /** Editable layout variants keyed by lower-third category and shared type id. */
     lowerThirdVariants: LowerThirdTemplateVariants
@@ -30,7 +30,7 @@ export type TemplateDocument = {
 
 type LegacyTemplateDocument = {
     version: 1
-    show: 'punctul-pe-azi'
+    show: string
     templates: TemplateDocumentTemplates
     disabledEntityTypes?: (keyof TemplateDocumentTemplates)[]
 }
@@ -100,7 +100,7 @@ function createLowerThirdVariants(templates: TemplateDocumentTemplates): LowerTh
 export function isTemplateDocument(value: unknown): value is TemplateDocument {
     if (!isRecord(value)) return false
     if (value.version !== TEMPLATE_DOCUMENT_VERSION) return false
-    if (value.show !== TEMPLATE_DOCUMENT_SHOW) return false
+    if (typeof value.show !== 'string' || value.show.trim().length === 0) return false
     if (!isTemplateMap(value.templates)) return false
     if (!validDisabledEntityTypes(value)) return false
     if (!isRecord(value.lowerThirdVariants)) return false
@@ -109,7 +109,7 @@ export function isTemplateDocument(value: unknown): value is TemplateDocument {
     for (const kind of ['titles', 'persons'] as const) {
         if (!isRecord(variants[kind])) return false
         const categoryVariants = variants[kind]
-        const requiredIds = DEFAULT_LOWER_THIRD_TYPES.map((type) => type.id)
+        const requiredIds = ['ordinary']
         if (!requiredIds.every((id) => isBroadcastTemplate(categoryVariants[id]))) return false
         if (!Object.entries(categoryVariants).every(([id, template]) => (
             id.trim().length > 0 && isBroadcastTemplate(template)
@@ -122,7 +122,8 @@ export function isTemplateDocument(value: unknown): value is TemplateDocument {
 export function isLegacyTemplateDocument(value: unknown): value is LegacyTemplateDocument {
     return isRecord(value)
         && value.version === 1
-        && value.show === TEMPLATE_DOCUMENT_SHOW
+        && typeof value.show === 'string'
+        && value.show.trim().length > 0
         && isTemplateMap(value.templates)
         && validDisabledEntityTypes(value)
 }
@@ -131,12 +132,14 @@ export function isLegacyTemplateDocument(value: unknown): value is LegacyTemplat
 export function migrateLegacyTemplateDocument(value: unknown): TemplateDocument | null {
     if (!isLegacyTemplateDocument(value)) return null
     const migrated = createTemplateDocumentFromTemplates(value.templates)
+    migrated.show = value.show
     migrated.disabledEntityTypes = value.disabledEntityTypes ? [...value.disabledEntityTypes] : undefined
     return migrated
 }
 
 export function createTemplateDocumentFromTemplates(
-    input: TemplateDocumentTemplates
+    input: TemplateDocumentTemplates,
+    show = TEMPLATE_DOCUMENT_SHOW,
 ): TemplateDocument {
     const templates = {
         titles: cloneTemplate(input.titles),
@@ -150,7 +153,7 @@ export function createTemplateDocumentFromTemplates(
 
     return {
         version: TEMPLATE_DOCUMENT_VERSION,
-        show: TEMPLATE_DOCUMENT_SHOW,
+        show,
         templates,
         lowerThirdVariants: createLowerThirdVariants(templates),
     }

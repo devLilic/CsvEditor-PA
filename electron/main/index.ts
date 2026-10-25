@@ -10,6 +10,7 @@ import { registerSettingsHandlers } from './settings-handlers'
 import { registerQuickTitlesHandlers } from './quick-titles-handlers'
 import { registerPhoneImageHandlers } from './phone-image-handlers'
 import { registerTemplateEditorHandlers } from './template-editor-handlers'
+import { registerShowProjectHandlers } from './show-project-handlers'
 import { registerTitleBackupHandlers } from './title-backup-handlers'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 
@@ -27,6 +28,11 @@ const APP_USER_MODEL_ID = 'com.devlilic.punctulpeazi.graphics'
 // │ └── index.html    > Electron-Renderer
 //
 process.env.APP_ROOT = path.join(__dirname, '../..')
+
+// Keep the development instance separate from the installed app's profile and lock file.
+if (process.env.VITE_DEV_SERVER_URL) {
+  app.setPath('userData', path.join(process.env.APP_ROOT, '.tales-dev-data'))
+}
 
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
@@ -71,11 +77,24 @@ function sendMenuNavigate(window: BrowserWindow, route: string) {
 function createAppMenu(window: BrowserWindow) {
   const menu = Menu.buildFromTemplate([
     {
-      label: 'Setări',
+      label: 'Tales',
       submenu: [
         {
-          label: 'Setări proiect nou',
-          click: () => sendMenuNavigate(window, '/settings/default-project'),
+          label: 'Ediții salvate',
+          click: () => sendMenuNavigate(window, 'open-saved-editions'),
+        },
+        {
+          label: 'Salvează ediție',
+          click: () => sendMenuNavigate(window, 'save-edition'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Setări',
+          submenu: [
+            { label: 'Editor', click: () => sendMenuNavigate(window, '/csv-editor') },
+            { label: 'Emisiuni', click: () => sendMenuNavigate(window, '/shows') },
+            { label: 'Setări aplicație', click: () => sendMenuNavigate(window, '/settings/application') },
+          ],
         },
       ],
     },
@@ -136,8 +155,7 @@ async function createWindow() {
 
   if (VITE_DEV_SERVER_URL) { // #298
     win.loadURL(VITE_DEV_SERVER_URL)
-    // Open devTool if the app is not packaged
-    // win.webContents.openDevTools()
+    if (!app.isPackaged) win.webContents.openDevTools({ mode: 'detach' })
   } else {
     win.loadFile(indexHtml)
   }
@@ -151,6 +169,7 @@ async function createWindow() {
   registerTitleBackupHandlers()
   registerPhoneImageHandlers()
   registerTemplateEditorHandlers()
+  registerShowProjectHandlers()
   // =========================
 
   // Test actively push message to the Electron-Renderer

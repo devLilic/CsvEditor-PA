@@ -31,7 +31,7 @@ describe('BackupFailedDialog', () => {
 
         expect(screen.getByRole('dialog')).toBeInTheDocument()
         expect(screen.getByText('Backup CSV nu a putut fi creat.')).toBeInTheDocument()
-        expect(screen.getByText(/Proiectul curent nu a fost resetat/)).toBeInTheDocument()
+        expect(screen.getByText(/Ediția curentă nu a fost resetată încă/)).toBeInTheDocument()
     })
 
     it('renders the error when provided', () => {

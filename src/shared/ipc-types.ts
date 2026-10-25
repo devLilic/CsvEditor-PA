@@ -6,6 +6,7 @@ import type { CsvFileSettings } from '../features/csv-editor/domain/csvFileSetti
 import type { TemplateDocument } from '../features/template-editor/domain/templateDocument'
 import type { EntitiesState } from '../features/csv-editor/domain/entities'
 import type { LowerThirdTypeDefinition } from '../features/lower-thirds/domain/lowerThirdTypes'
+import type { ShowProject, ShowProjectsState } from '../features/show-projects/domain/showProject'
 
 export interface CsvFileDescriptor {
     path: string
@@ -246,6 +247,53 @@ export type TemplateEditorSaveTemplateDocumentResponse =
     | { ok: true; skipped?: boolean }
     | { ok: false; error: string }
 
+export type ShowProjectsGetResponse =
+    | { ok: true; state: ShowProjectsState | null }
+    | { ok: false; error: string }
+
+export interface ShowProjectsSaveRequest {
+    state: ShowProjectsState
+}
+
+export type ShowProjectsSaveResponse =
+    | { ok: true; state?: ShowProjectsState }
+    | { ok: false; error: string }
+
+export type ShowProjectsImportResponse =
+    | { ok: true; project: ShowProject | null }
+    | { ok: false; error: string }
+
+export interface ShowProjectsExportRequest {
+    project: ShowProject
+}
+
+export interface ShowProjectWorkspaceRequest {
+    projectId: string
+}
+
+export interface ShowProjectSaveRequest {
+    project: ShowProject
+    workspacePath?: string
+}
+
+export interface ShowProjectDeleteRequest {
+    projectId: string
+}
+
+export interface ShowProjectWorkspaceResponse {
+    ok: boolean
+    state?: ShowProjectsState | null
+    error?: string
+}
+
+export interface ShowProjectScope {
+    showProjectId?: string
+}
+
+export type ShowProjectsExportResponse =
+    | { ok: true; canceled?: boolean; path?: string }
+    | { ok: false; error: string }
+
 export interface IpcInvokeMap {
     [IPC_CHANNELS.CSV_GET_LAST]: {
         request: void
@@ -452,6 +500,46 @@ export interface IpcInvokeMap {
         response: TemplateEditorSaveTemplateDocumentResponse
     }
 
+    [IPC_CHANNELS.SHOW_PROJECTS_GET]: {
+        request: void
+        response: ShowProjectsGetResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_SAVE]: {
+        request: ShowProjectsSaveRequest
+        response: ShowProjectsSaveResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_IMPORT]: {
+        request: void
+        response: ShowProjectsImportResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_EXPORT]: {
+        request: ShowProjectsExportRequest
+        response: ShowProjectsExportResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_ACTIVATE]: {
+        request: ShowProjectWorkspaceRequest
+        response: ShowProjectWorkspaceResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE]: {
+        request: ShowProjectWorkspaceRequest
+        response: ShowProjectWorkspaceResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_SAVE_PROJECT]: {
+        request: ShowProjectSaveRequest
+        response: ShowProjectWorkspaceResponse
+    }
+
+    [IPC_CHANNELS.SHOW_PROJECTS_DELETE_PROJECT]: {
+        request: ShowProjectDeleteRequest
+        response: ShowProjectWorkspaceResponse
+    }
+
     [IPC_CHANNELS.UPDATE_GET_CURRENT_VERSION]: {
         request: void
         response: string
@@ -480,39 +568,41 @@ export type IpcResponse<C extends IpcChannel> = IpcInvokeMap[C]['response']
 
 // Renderer-facing API shape
 export interface RendererApi {
+    setShowProjectScope(showProjectId: string | null): void
+    getShowProjectScope(): string | null
     getLastCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_GET_LAST>>
-    getWorkingCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_GET_WORKING>>
+    getWorkingCsv(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_GET_WORKING>>
     /** @deprecated CSV selection now happens from Settings. */
     openCsvDialog(): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_OPEN_DIALOG>>
-    writeCsv(content: IpcRequest<typeof IPC_CHANNELS.CSV_WRITE>): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_WRITE>>
-    bkpCsv(content: IpcRequest<typeof IPC_CHANNELS.CSV_BKP>): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_BKP>>
-    createCsvBackup(request: IpcRequest<typeof IPC_CHANNELS.CSV_CREATE_BACKUP>): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_CREATE_BACKUP>>
-    listSavedCsvProjects(): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_LIST>>
-    saveCsvProjectAs(request: IpcRequest<typeof IPC_CHANNELS.CSV_PROJECT_SAVE_AS>): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_SAVE_AS>>
-    loadCsvProjectIntoWorking(request: IpcRequest<typeof IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING>): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING>>
-    deleteCsvProject(request: IpcRequest<typeof IPC_CHANNELS.CSV_PROJECT_DELETE>): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_DELETE>>
-    reserveTitleBackup(request: IpcRequest<typeof IPC_CHANNELS.TITLE_BACKUP_RESERVE>): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_RESERVE>>
-    listTitleBackups(): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_LIST>>
-    readTitleBackup(request: IpcRequest<typeof IPC_CHANNELS.TITLE_BACKUP_READ>): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_READ>>
-    writeTitleBackup(request: IpcRequest<typeof IPC_CHANNELS.TITLE_BACKUP_WRITE>): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_WRITE>>
+    writeCsv(content: IpcRequest<typeof IPC_CHANNELS.CSV_WRITE>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_WRITE>>
+    bkpCsv(content: IpcRequest<typeof IPC_CHANNELS.CSV_BKP>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_BKP>>
+    createCsvBackup(request: IpcRequest<typeof IPC_CHANNELS.CSV_CREATE_BACKUP>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_CREATE_BACKUP>>
+    listSavedCsvProjects(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_LIST>>
+    saveCsvProjectAs(request: IpcRequest<typeof IPC_CHANNELS.CSV_PROJECT_SAVE_AS>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_SAVE_AS>>
+    loadCsvProjectIntoWorking(request: IpcRequest<typeof IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING>>
+    deleteCsvProject(request: IpcRequest<typeof IPC_CHANNELS.CSV_PROJECT_DELETE>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.CSV_PROJECT_DELETE>>
+    reserveTitleBackup(request: IpcRequest<typeof IPC_CHANNELS.TITLE_BACKUP_RESERVE>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_RESERVE>>
+    listTitleBackups(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_LIST>>
+    readTitleBackup(request: IpcRequest<typeof IPC_CHANNELS.TITLE_BACKUP_READ>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_READ>>
+    writeTitleBackup(request: IpcRequest<typeof IPC_CHANNELS.TITLE_BACKUP_WRITE>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.TITLE_BACKUP_WRITE>>
 
-    getQuickTitles(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES>>
-    setQuickTitles(list: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES>>
-    readQuickTitlesCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_READ_CSV>>
-    writeQuickTitlesCsv(request: IpcRequest<typeof IPC_CHANNELS.QUICK_TITLES_WRITE_CSV>): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_WRITE_CSV>>
-    clearQuickTitlesCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV>>
+    getQuickTitles(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_QUICK_TITLES>>
+    setQuickTitles(list: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_QUICK_TITLES>>
+    readQuickTitlesCsv(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_READ_CSV>>
+    writeQuickTitlesCsv(request: IpcRequest<typeof IPC_CHANNELS.QUICK_TITLES_WRITE_CSV>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_WRITE_CSV>>
+    clearQuickTitlesCsv(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV>>
 
     getAppConfig(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_CONFIG>>
     setAppConfig(cfg: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_CONFIG>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_CONFIG>>
 
-    getDefaultProjectSettings(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_DEFAULT_PROJECT>>
+    getDefaultProjectSettings(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_DEFAULT_PROJECT>>
     setDefaultProjectSettings(settings: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_DEFAULT_PROJECT>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_DEFAULT_PROJECT>>
 
-    getPhoneImageSettings(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_PHONE_IMAGE>>
+    getPhoneImageSettings(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_PHONE_IMAGE>>
     setPhoneImageSettings(settings: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_PHONE_IMAGE>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_PHONE_IMAGE>>
     selectWorkPath(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_WORK_PATH>>
-    getCsvFileSettings(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_CSV_FILE>>
-    setCsvFileSettings(settings: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_CSV_FILE>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_CSV_FILE>>
+    getCsvFileSettings(showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_CSV_FILE>>
+    setCsvFileSettings(settings: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_CSV_FILE>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_CSV_FILE>>
     selectWorkingCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_WORKING_CSV>>
     selectProjectFolder(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER>>
     selectBackupFolder(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_BACKUP_FOLDER>>
@@ -527,6 +617,15 @@ export interface RendererApi {
     getUserTemplateDocument(): Promise<IpcResponse<typeof IPC_CHANNELS.TEMPLATE_EDITOR_GET_USER_TEMPLATE_DOCUMENT>>
     saveUserTemplateDocument(request: IpcRequest<typeof IPC_CHANNELS.TEMPLATE_EDITOR_SAVE_USER_TEMPLATE_DOCUMENT>): Promise<IpcResponse<typeof IPC_CHANNELS.TEMPLATE_EDITOR_SAVE_USER_TEMPLATE_DOCUMENT>>
     saveDevDefaultTemplateDocument(request: IpcRequest<typeof IPC_CHANNELS.TEMPLATE_EDITOR_SAVE_DEV_DEFAULT_TEMPLATE_DOCUMENT>): Promise<IpcResponse<typeof IPC_CHANNELS.TEMPLATE_EDITOR_SAVE_DEV_DEFAULT_TEMPLATE_DOCUMENT>>
+
+    getShowProjects(): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_GET>>
+    saveShowProjects(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_SAVE>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_SAVE>>
+    importShowProject(): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_IMPORT>>
+    exportShowProject(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_EXPORT>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_EXPORT>>
+    saveShowProject(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_SAVE_PROJECT>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_SAVE_PROJECT>>
+    deleteShowProject(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_DELETE_PROJECT>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_DELETE_PROJECT>>
+    activateShowProject(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_ACTIVATE>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_ACTIVATE>>
+    assignLegacyShowWorkspace(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE>>
 
     onEntityExportError(callback: (notification: EntityExportFailureNotification) => void): () => void
 

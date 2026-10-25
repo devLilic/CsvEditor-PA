@@ -1,12 +1,13 @@
 // features/csv-editor/hooks/useCsvAutosave.ts
 
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useCsvContext } from '../context/CsvContext'
 import { csvService } from '../services/csvService'
 import { phoneImageSettingsService } from '../services/phoneImageSettingsService'
 import { serializeCsv } from '../utils/csvSerializer'
 import type { EntitiesState } from '../domain/entities'
-import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
+import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 
 /**
  * Autosave JSON sigur, debounced.
@@ -18,35 +19,63 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
     const debounceMs = options?.debounceMs ?? 600
 
     const { state, dispatch } = useCsvContext()
+    const { activeProjectId, activeProject, registerWorkingCopyFlusher } = useTemplateDocument()
 
     const isFirstRunRef = useRef(true)
     const debounceTimerRef = useRef<number | null>(null)
     const lastSerializedRef = useRef<string>('')
     const lastEntitiesSnapshotRef = useRef('')
     const phoneImageWorkPathRef = useRef('')
-    const [phoneImageWorkPath, setPhoneImageWorkPath] = useState('')
+    const activeProjectIdRef = useRef(activeProjectId)
+    activeProjectIdRef.current = activeProjectId
 
     const serializeForDisk = useCallback(
         (entities: EntitiesState) => serializeCsv(entities, {
             phoneImageWorkPath: phoneImageWorkPathRef.current,
         }),
-        [phoneImageWorkPath]
+        []
     )
 
     useEffect(() => {
         let isMounted = true
 
-        phoneImageSettingsService.getPhoneImageSettings().then((settings) => {
+        phoneImageSettingsService.getPhoneImageSettings(activeProjectId).then((settings) => {
             if (isMounted) {
                 phoneImageWorkPathRef.current = settings.workPath
-                setPhoneImageWorkPath(settings.workPath)
             }
         })
 
         return () => {
             isMounted = false
         }
-    }, [])
+    }, [activeProjectId])
+
+    const flush = useCallback(async (projectId = activeProjectIdRef.current): Promise<{
+        ok: boolean
+        error?: string
+        snapshot?: { content: string; entities: EntitiesState }
+    }> => {
+        if (!projectId || !state.isLoaded) return { ok: true }
+        const entities = state.entities
+        const content = serializeForDisk(entities)
+        const snapshot = { content, entities }
+        const entitiesSnapshot = JSON.stringify(entities)
+        if (content === lastSerializedRef.current && entitiesSnapshot === lastEntitiesSnapshotRef.current) {
+            return { ok: true, snapshot }
+        }
+
+        const projectTypes = (activeProject as any)?.id === projectId
+            ? (activeProject as any)?.lowerThirdTypes
+            : undefined
+        const lowerThirdTypes = Array.isArray(projectTypes) ? projectTypes : DEFAULT_LOWER_THIRD_TYPES
+        const res = await csvService.write(content, entities, lowerThirdTypes, projectId)
+        if (!res.ok) return { ok: false, error: res.error ?? 'CSV_WRITE_FAILED' }
+        lastSerializedRef.current = content
+        lastEntitiesSnapshotRef.current = entitiesSnapshot
+        return { ok: true, snapshot }
+    }, [activeProject, serializeForDisk, state.entities, state.isLoaded])
+
+    useEffect(() => registerWorkingCopyFlusher((projectId) => flush(projectId)), [flush, registerWorkingCopyFlusher])
 
     // ---- AUTOSAVE ----
     useEffect(() => {
@@ -65,23 +94,10 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
             window.clearTimeout(debounceTimerRef.current)
         }
 
+        const capturedProjectId = activeProjectId
         debounceTimerRef.current = window.setTimeout(async () => {
-            const csv = serializeForDisk(state.entities)
-            const entitiesSnapshot = JSON.stringify(state.entities)
-
-            // Lower-third assignments live outside the working CSV, so an entity
-            // edit can require PA export updates even when the CSV text is unchanged.
-            if (csv === lastSerializedRef.current
-                && entitiesSnapshot === lastEntitiesSnapshotRef.current) return
-
-            const lowerThirdTypes = await lowerThirdTypesService.get()
-            const res = await csvService.write(csv, state.entities, lowerThirdTypes)
-            if (res.ok) {
-                lastSerializedRef.current = csv
-                lastEntitiesSnapshotRef.current = entitiesSnapshot
-            } else {
-                console.error('Autosave failed:', res.error)
-            }
+            const result = await flush(capturedProjectId)
+            if (!result.ok) console.error('Autosave failed:', result.error)
         }, debounceMs)
 
         return () => {
@@ -90,7 +106,7 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
                 debounceTimerRef.current = null
             }
         }
-    }, [state.entities, state.isLoaded, debounceMs, serializeForDisk])
+    }, [activeProjectId, state.entities, state.isLoaded, debounceMs, flush])
 
     // ---- OPERAȚII DESTRUCTIVE SIGURE ----
 
@@ -105,7 +121,8 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
             const currentSnapshot = JSON.stringify({ version: 1, entities: state.entities }, null, 2)
 
             // 1️⃣ backup JSON
-            const backupRes = await csvService.backup(currentSnapshot)
+            const projectId = activeProjectIdRef.current
+            const backupRes = await csvService.backup(currentSnapshot, projectId)
             if (!backupRes.ok) {
                 console.error('Backup failed:', backupRes.error)
                 // decizie: continuăm sau nu
@@ -120,8 +137,8 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
 
             // 3️⃣ persistă proiectul gol
             const emptyCsv = serializeForDisk(nextEmptyEntities)
-            const lowerThirdTypes = await lowerThirdTypesService.get()
-            const writeRes = await csvService.write(emptyCsv, nextEmptyEntities, lowerThirdTypes)
+            const lowerThirdTypes = (activeProject as any)?.lowerThirdTypes ?? DEFAULT_LOWER_THIRD_TYPES
+            const writeRes = await csvService.write(emptyCsv, nextEmptyEntities, lowerThirdTypes, projectId)
             if (!writeRes.ok) {
                 console.error('Failed to write empty CSV:', writeRes.error)
             }
@@ -129,10 +146,11 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
             lastSerializedRef.current = emptyCsv
             lastEntitiesSnapshotRef.current = JSON.stringify(nextEmptyEntities)
         },
-        [dispatch, serializeForDisk, state.entities]
+        [activeProject, dispatch, serializeForDisk, state.entities]
     )
 
     return {
         clearAllSafely,
+        flush,
     }
 }

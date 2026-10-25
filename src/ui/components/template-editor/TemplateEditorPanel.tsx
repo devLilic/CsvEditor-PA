@@ -18,6 +18,7 @@ type TemplateEditorPanelProps = {
 export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
     const {
         document,
+        lowerThirdTypesEnabled = true,
         isLoaded,
         isDirty,
         updateTemplate,
@@ -31,7 +32,7 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
     const {
         activeTedEntityType: activeEntityType,
         setActiveTedEntityType: setActiveEntityType,
-        activeLowerThirdTypeId: selectedLowerThirdTypeId,
+        activeLowerThirdTypeId,
         setActiveLowerThirdTypeId: setSelectedLowerThirdTypeId,
         tedSampleOverrides: sampleOverrides,
         setTedSampleOverrides: setSampleOverrides,
@@ -42,6 +43,9 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
     const lowerThirdKind = activeEntityType === 'titles' || activeEntityType === 'persons'
         ? activeEntityType
         : null
+    const selectedLowerThirdTypeId = lowerThirdTypesEnabled
+        ? activeLowerThirdTypeId
+        : DEFAULT_LOWER_THIRD_TYPE_ID
     const selectedLowerThirdType = lowerThirdTypes.find((type) => type.id === selectedLowerThirdTypeId)
         ?? lowerThirdTypes.find((type) => type.id === DEFAULT_LOWER_THIRD_TYPE_ID)
         ?? lowerThirdTypes[0]
@@ -120,7 +124,7 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
                     onOverridesChange={setSampleOverrides}
                 />
 
-                {lowerThirdKind && (
+                {lowerThirdKind && lowerThirdTypesEnabled && (
                     <fieldset className="rounded border bg-white p-3">
                         <legend className="px-1 text-xs font-semibold text-gray-700">
                             Lower-third variant

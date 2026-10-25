@@ -9,6 +9,11 @@ import { csvFileSettingsService } from '../services/csvFileSettingsService'
 import { settingsService } from '../services/settingsService'
 import { useQuickTitles } from './useQuickTitles'
 
+const showProject = vi.hoisted(() => ({ id: 'show-a' }))
+
+vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
+    useTemplateDocument: () => ({ activeProjectId: showProject.id }),
+}))
 vi.mock('../../quick-titles/services/quickTitlesCsvStorageService', () => ({
     clearQuickTitlesCsv: vi.fn(),
     loadQuickTitlesFromCsv: vi.fn(),
@@ -68,12 +73,13 @@ async function renderLoaded(initialQuickTitles: string[] = [], created = false) 
     render(<HookHarness />)
 
     await waitFor(() => {
-        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(initialQuickTitles)
+            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(initialQuickTitles, 'show-a')
     })
 }
 
 describe('useQuickTitles', () => {
     beforeEach(() => {
+        showProject.id = 'show-a'
         mockedLoad.mockReset()
         mockedSave.mockReset()
         mockedSettings.getQuickTitles.mockReset()
@@ -111,21 +117,21 @@ describe('useQuickTitles', () => {
 
         expect(screen.getByTestId('quick-titles')).toHaveTextContent('CSV TITLE:')
         expect(mockedSettings.getQuickTitles).not.toHaveBeenCalled()
-        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['CSV TITLE: '])
+        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['CSV TITLE: '], 'show-a')
     })
 
     it('uses an empty list for a legacy header-only CSV', async () => {
         await renderLoaded([])
 
         expect(screen.getByTestId('quick-titles')).toHaveTextContent('')
-        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith([])
+        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith([], 'show-a')
     })
 
     it('uses an empty list when the missing file was created', async () => {
         await renderLoaded([], true)
 
         expect(screen.getByTestId('quick-titles')).toHaveTextContent('')
-        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith([])
+        expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith([], 'show-a')
     })
 
     it('add saves the normalized list to CSV and legacy settings', async () => {
@@ -137,8 +143,8 @@ describe('useQuickTitles', () => {
 
         expect(screen.getByTestId('quick-titles')).toHaveTextContent('PRESEDINTE:')
         await waitFor(() => {
-            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '])
-            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['PRESEDINTE: '])
+            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
+            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
         })
     })
 
@@ -155,12 +161,12 @@ describe('useQuickTitles', () => {
                 'PRESEDINTE: ',
                 'SECRETAR: ',
                 'PRIM-MINISTRU: ',
-            ])
+            ], 'show-a')
             expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith([
                 'PRESEDINTE: ',
                 'SECRETAR: ',
                 'PRIM-MINISTRU: ',
-            ])
+            ], 'show-a')
         })
     })
 
@@ -173,8 +179,8 @@ describe('useQuickTitles', () => {
 
         expect(screen.getByTestId('quick-titles')).toHaveTextContent('PRESEDINTE:')
         await waitFor(() => {
-            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '])
-            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['PRESEDINTE: '])
+            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
+            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
         })
     })
 
@@ -187,8 +193,8 @@ describe('useQuickTitles', () => {
 
         expect(screen.getByTestId('quick-titles').textContent).toBe('PRESEDINTE: ')
         await waitFor(() => {
-            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '])
-            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['PRESEDINTE: '])
+            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
+            expect(mockedSettings.setQuickTitles).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
         })
     })
 
@@ -203,7 +209,7 @@ describe('useQuickTitles', () => {
             expect(mockedSave).toHaveBeenCalledWith([
                 'PRESEDINTE: ',
                 'PRIM-MINISTRU: ',
-            ])
+            ], 'show-a')
         })
     })
 
@@ -218,7 +224,7 @@ describe('useQuickTitles', () => {
 
         expect(screen.getByTestId('quick-titles')).toHaveTextContent('BREAKING:')
         await waitFor(() => {
-            expect(mockedSave).toHaveBeenCalledWith(['BREAKING: '])
+            expect(mockedSave).toHaveBeenCalledWith(['BREAKING: '], 'show-a')
             expect(consoleErrorSpy).toHaveBeenCalledWith(
                 'Failed to persist quickTitles (add):',
                 expect.objectContaining({ message: 'CSV_FAILED' })
@@ -235,8 +241,27 @@ describe('useQuickTitles', () => {
 
         expect(screen.getByTestId('quick-titles').textContent).toBe('PRESEDINTE: ')
         await waitFor(() => {
-            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '])
+            expect(mockedSave).toHaveBeenCalledWith(['PRESEDINTE: '], 'show-a')
         })
+    })
+
+    it('ignores an older show read that finishes after switching to another show', async () => {
+        let resolveOldRead!: (value: { ok: true; quickTitles: string[] }) => void
+        const oldRead = new Promise<{ ok: true; quickTitles: string[] }>((resolve) => { resolveOldRead = resolve })
+        mockedLoad.mockReturnValueOnce(oldRead)
+        mockedLoad.mockResolvedValueOnce({ ok: true, quickTitles: ['CURRENT SHOW'] })
+        const view = render(<HookHarness />)
+
+        await waitFor(() => expect(mockedLoad).toHaveBeenCalledWith('show-a'))
+        showProject.id = 'show-b'
+        view.rerender(<HookHarness />)
+
+        await waitFor(() => expect(screen.getByTestId('quick-titles')).toHaveTextContent('CURRENT SHOW'))
+        resolveOldRead({ ok: true, quickTitles: ['OLD SHOW'] })
+
+        await waitFor(() => expect(screen.getByTestId('quick-titles')).toHaveTextContent('CURRENT SHOW'))
+        expect(mockedSettings.setQuickTitles).not.toHaveBeenCalledWith(['OLD SHOW'], 'show-a')
+        expect(mockedLoad).toHaveBeenNthCalledWith(2, 'show-b')
     })
 
     it('preserves order', async () => {
@@ -251,7 +276,8 @@ describe('useQuickTitles', () => {
                 'DIRECTOR: ',
                 'PRESEDINTE: ',
                 'PRIM-MINISTRU: ',
-            ])
+            ], 'show-a')
         })
     })
 })
+

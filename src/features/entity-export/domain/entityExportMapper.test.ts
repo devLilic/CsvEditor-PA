@@ -9,6 +9,131 @@ import {
 } from './entityExportMapper'
 
 describe('entity export mapper', () => {
+    it('stores uppercase template text values in exported CSVs', () => {
+        const titleTemplate = {
+            id: 'uppercase-title',
+            name: 'Uppercase title',
+            canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
+            layers: [
+                { id: 'headline', type: 'text', fieldId: 'title', textStyle: { transform: 'uppercase' }, x: 0, y: 0, width: 400, height: 80, zIndex: 1 },
+                { id: 'custom', type: 'text', fieldId: 'customLabel', textStyle: { transform: 'uppercase' }, x: 0, y: 80, width: 400, height: 80, zIndex: 2 },
+            ],
+        }
+        const showDocument = {
+            templates: { titles: titleTemplate },
+            lowerThirdVariants: { titles: { ordinary: titleTemplate } },
+        }
+        const entities = { sections: [{
+            id: 'invited', kind: 'invited' as const,
+            rows: [{ id: 'row', title: { id: 'title', title: 'Preturile la energie cresc', customFields: { customLabel: 'text demo' } } }],
+        }] }
+
+        const csv = mapEntitiesStateToExportCsvs(entities, undefined, '', undefined, showDocument as any).titlesCsv
+
+        expect(csv).toContain('PRETURILE LA ENERGIE CRESC')
+        expect(csv).toContain('TEXT DEMO')
+    })
+
+    it('applies uppercase transforms configured on individual text parts', () => {
+        const personTemplate = {
+            id: 'person-parts',
+            name: 'Person parts',
+            canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
+            layers: [{
+                id: 'person', type: 'text', fieldId: 'name',
+                textParts: [
+                    { fieldId: 'name', transform: 'uppercase' },
+                    { fieldId: 'occupation' },
+                ],
+                x: 0, y: 0, width: 400, height: 80, zIndex: 1,
+            }],
+        }
+        const showDocument = {
+            templates: { persons: personTemplate },
+            lowerThirdVariants: { persons: { ordinary: personTemplate } },
+        }
+        const entities = { sections: [{
+            id: 'invited', kind: 'invited' as const,
+            rows: [{ id: 'row', person: { id: 'person', name: 'Ana Popescu', occupation: 'Reporter' } }],
+        }] }
+
+        const csv = mapEntitiesStateToExportCsvs(entities, undefined, '', undefined, showDocument as any).personsCsv
+
+        expect(csv).toContain('ANA POPESCU')
+        expect(csv).toContain('Reporter')
+    })
+
+    it('appends only active-show template custom fields to the stable title export columns', () => {
+        const activeTemplate = {
+            id: 'title-ordinary',
+            name: 'Ordinary',
+            canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
+            layers: [
+                { id: 'headline', type: 'text', fieldId: 'headlineText', x: 0, y: 0, width: 400, height: 80, zIndex: 1 },
+                { id: 'split', type: 'text', fieldId: 'title', textParts: [{ fieldId: 'desk', prefix: ' • ' }], x: 0, y: 80, width: 400, height: 80, zIndex: 2 },
+                { id: 'collision', type: 'text', fieldId: 'Template', x: 0, y: 160, width: 400, height: 80, zIndex: 3 },
+                { id: 'hidden', type: 'text', fieldId: 'hiddenValue', visible: false, x: 0, y: 240, width: 400, height: 80, zIndex: 4 },
+            ],
+        } as any
+        const breakingTemplate = {
+            ...activeTemplate,
+            id: 'title-breaking',
+            layers: [{ id: 'breaking', type: 'text', fieldId: 'breakingOnly', x: 0, y: 0, width: 400, height: 80, zIndex: 1 }],
+        }
+        const entities = {
+            sections: [{
+                id: 'invited', kind: 'invited' as const,
+                rows: [{ id: 'row', title: { id: 't', title: 'Test headline', customFields: {
+                    headlineText: 'Custom headline', desk: 'Politics desk', unusedBase: 'Should not export',
+                    hiddenValue: 'Hidden value', anotherShow: 'Do not leak', breakingOnly: 'Wrong variant value',
+                    Template: 'Overwrite fixed template',
+                } } }],
+            }],
+        }
+        const showDocument = {
+            templates: { titles: activeTemplate },
+            lowerThirdVariants: { titles: { ordinary: activeTemplate, 'breaking-news': breakingTemplate } },
+        }
+
+        const csv = mapEntitiesStateToExportCsvs(entities, undefined, '', undefined, showDocument as any).titlesCsv
+        const [header, , row] = csv.split('\n')
+        expect(header).toBe('Nr;Titlu;Supratitlu;Template;headlineText;desk;breakingOnly')
+        expect(row).toContain('Test headline')
+        expect(row).toContain('Custom headline')
+        expect(row).toContain('Politics desk')
+        expect(csv).not.toContain('hiddenValue')
+        expect(csv).not.toContain('anotherShow')
+        expect(csv).not.toContain('Should not export')
+        expect(csv).not.toContain('Overwrite fixed template')
+        expect(csv).not.toContain('Wrong variant value')
+        expect(mapEntitiesStateToExportCsvs({ sections: [] }, undefined, '', undefined, showDocument as any).titlesCsv.split('\n')[0])
+            .toBe(header)
+    })
+
+    it('namespaces colliding custom fields for wait titles and wait locations', () => {
+        const titleTemplate = {
+            id: 'wait-title', name: 'Wait title', canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
+            layers: [{ id: 't', type: 'text', fieldId: 'customNote', x: 0, y: 0, width: 400, height: 80, zIndex: 1 }],
+        }
+        const locationTemplate = {
+            ...titleTemplate, id: 'wait-location', name: 'Wait location',
+        }
+        const showDocument = {
+            templates: { waitTitles: titleTemplate, waitLocations: locationTemplate },
+            lowerThirdVariants: { titles: {}, persons: {} },
+        }
+        const csv = mapEntitiesStateToExportCsvs({ sections: [{
+            id: 'invited', kind: 'invited', rows: [{
+                id: 'row',
+                waitTitle: { id: 'wt', title: 'Wait', customFields: { customNote: 'TITLE NOTE' } },
+                waitLocation: { id: 'wl', location: 'Place', customFields: { customNote: 'LOCATION NOTE' } },
+            }],
+        }] }, undefined, '', undefined, showDocument as any).waitTitlesLocationsCsv
+
+        expect(csv.split('\n')[0]).toBe('Titlu;Template Titlu;Locatie;Template Locatie;waitTitle.customNote;waitLocation.customNote')
+        expect(csv.split('\n')[1]).toContain('TITLE NOTE;LOCATION NOTE')
+    })
+
     it('maps titles to OC CSV', () => {
         expect(mapTitlesToExportCsv([
             {

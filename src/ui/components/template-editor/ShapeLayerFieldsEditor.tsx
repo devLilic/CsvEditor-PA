@@ -5,11 +5,13 @@ import { ColorPickerInput } from './ColorPickerInput'
 type ShapeLayerFieldsEditorProps = {
     layer: BroadcastShapeLayer
     onChange: (layer: BroadcastShapeLayer) => void
+    showColorField?: boolean
 }
 
 export function ShapeLayerFieldsEditor({
     layer,
     onChange,
+    showColorField = true,
 }: ShapeLayerFieldsEditorProps) {
     return (
         <>
@@ -23,7 +25,7 @@ export function ShapeLayerFieldsEditor({
                     <option value="rect">rect</option>
                 </select>
             </label>
-            <ColorPickerInput
+            {showColorField && <ColorPickerInput
                 label="Fill"
                 value={layer.fill.value}
                 onChange={(value) => onChange({
@@ -35,7 +37,7 @@ export function ShapeLayerFieldsEditor({
                             value,
                         },
                     })}
-            />
+            />}
             <NumericInputWithSlider
                 label="Border radius"
                 value={layer.borderRadius ?? 0}

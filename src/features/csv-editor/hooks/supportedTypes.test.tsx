@@ -126,7 +126,7 @@ afterEach(() => {
 })
 
 describe('csv editor hooks supported entity types', () => {
-    it('allows PA entity types to become active through the hook', async () => {
+    it('allows supported PA entity types to become active but keeps legacy hotTitles out of the editor', async () => {
         const user = userEvent.setup()
         renderWithCsvProvider(<ActiveEntityTypeHarness />)
 
@@ -135,8 +135,8 @@ describe('csv editor hooks supported entity types', () => {
         expect(screen.getByTestId('active-type')).toHaveTextContent('persons')
 
         await user.click(screen.getByRole('button', { name: 'hotTitles' }))
-        expect(screen.getByTestId('active-view')).toHaveTextContent('hotTitles')
-        expect(screen.getByTestId('active-type')).toHaveTextContent('hotTitles')
+        expect(screen.getByTestId('active-view')).toHaveTextContent('persons')
+        expect(screen.getByTestId('active-type')).toHaveTextContent('persons')
     })
 
     it('allows phoneCalls to be the active view without making it a selected entity type', async () => {
@@ -149,7 +149,7 @@ describe('csv editor hooks supported entity types', () => {
         expect(screen.getByTestId('active-type')).toHaveTextContent('phoneCalls')
     })
 
-    it('allows PA entity selection through the hook', async () => {
+    it('allows supported PA entity selection and ignores legacy hotTitles selection', async () => {
         const user = userEvent.setup()
         renderWithCsvProvider(<SelectedEntityHarness />)
 
@@ -158,8 +158,8 @@ describe('csv editor hooks supported entity types', () => {
         expect(screen.getByTestId('selected-active-view')).toHaveTextContent('titles')
 
         await user.click(screen.getByRole('button', { name: 'select hot' }))
-        expect(screen.getByTestId('selected-type')).toHaveTextContent('hotTitles')
-        expect(screen.getByTestId('hot-selected')).toHaveTextContent('true')
+        expect(screen.getByTestId('selected-type')).toHaveTextContent('persons')
+        expect(screen.getByTestId('hot-selected')).toHaveTextContent('false')
     })
 
     it('selects a phone call as the real persons entity while preserving phoneCalls view', async () => {
@@ -172,7 +172,7 @@ describe('csv editor hooks supported entity types', () => {
         expect(screen.getByTestId('selected-active-view')).toHaveTextContent('phoneCalls')
     })
 
-    it('exposes all PA block items in PLATOU and hides PLATOU-only items in BETA', async () => {
+    it('exposes supported block items and leaves legacy hotTitles out of PLATOU and BETA', async () => {
         const user = userEvent.setup()
         renderWithCsvProvider(<EntitiesHarness />)
 
@@ -181,7 +181,7 @@ describe('csv editor hooks supported entity types', () => {
         expect(screen.getByTestId('persons-count')).toHaveTextContent('1')
         expect(screen.getByTestId('phones-count')).toHaveTextContent('1')
         expect(screen.getByTestId('locations-count')).toHaveTextContent('1')
-        expect(screen.getByTestId('hot-count')).toHaveTextContent('1')
+        expect(screen.getByTestId('hot-count')).toHaveTextContent('0')
         expect(screen.getByTestId('wait-titles-count')).toHaveTextContent('1')
         expect(screen.getByTestId('wait-locations-count')).toHaveTextContent('1')
         expect(screen.getByTestId('beta-locations-count')).toHaveTextContent('0')
@@ -190,6 +190,6 @@ describe('csv editor hooks supported entity types', () => {
         expect(screen.getByTestId('beta-wait-locations-count')).toHaveTextContent('0')
 
         await user.click(screen.getByRole('button', { name: 'add hot' }))
-        expect(screen.getByTestId('hot-count')).toHaveTextContent('2')
+        expect(screen.getByTestId('hot-count')).toHaveTextContent('0')
     })
 })

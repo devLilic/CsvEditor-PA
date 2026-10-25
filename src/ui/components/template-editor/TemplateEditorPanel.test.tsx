@@ -33,6 +33,16 @@ vi.mock('@/features/template-editor/state/TemplateDocumentProvider', () => ({
         },
         ...templateDocumentState,
     }),
+    useOptionalTemplateDocument: () => ({
+        activeProject: {
+            lowerThirdTypes: DEFAULT_LOWER_THIRD_TYPES,
+            lowerThirdTypesEnabled: true,
+        },
+        activeProjectId: 'test-show',
+        workspaces: { 'test-show': 'C:/shows/test-show' },
+        isLoaded: true,
+        saveProject: vi.fn().mockResolvedValue({ ok: true }),
+    }),
 }))
 
 vi.mock('@/ui/context/TedModeContext', () => ({

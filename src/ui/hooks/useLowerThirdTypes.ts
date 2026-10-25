@@ -1,35 +1,27 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import {
     DEFAULT_LOWER_THIRD_TYPES,
     type LowerThirdTypeDefinition,
 } from '@/features/lower-thirds/domain/lowerThirdTypes'
-import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import { useOptionalTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 
 export function useLowerThirdTypes() {
-    const [types, setTypesState] = useState<LowerThirdTypeDefinition[]>(DEFAULT_LOWER_THIRD_TYPES)
-    const [isLoaded, setIsLoaded] = useState(false)
-
-    useEffect(() => {
-        let isMounted = true
-        lowerThirdTypesService.get().then((savedTypes) => {
-            if (!isMounted) return
-            setTypesState(savedTypes)
-            setIsLoaded(true)
-        }).catch((error) => {
-            console.error('Failed to load lower-third types:', error)
-            if (isMounted) setIsLoaded(true)
-        })
-
-        return () => {
-            isMounted = false
-        }
-    }, [])
+    const context = useOptionalTemplateDocument()
+    const { activeProject, activeProjectId, workspaces, isLoaded, saveProject } = context ?? {
+        activeProject: null,
+        activeProjectId: '',
+        workspaces: {},
+        isLoaded: false,
+        saveProject: async () => ({ ok: false as const, error: 'SHOW_PROJECT_NOT_LOADED' }),
+    }
+    const types = ((activeProject as any)?.lowerThirdTypes ?? DEFAULT_LOWER_THIRD_TYPES) as LowerThirdTypeDefinition[]
 
     const setTypes = useCallback(async (nextTypes: LowerThirdTypeDefinition[]) => {
-        const savedTypes = await lowerThirdTypesService.set(nextTypes)
-        setTypesState(savedTypes)
-        return savedTypes
-    }, [])
+        if (!activeProject) throw new Error('SHOW_PROJECT_NOT_LOADED')
+        const savedTypes = await saveProject({ ...activeProject, lowerThirdTypes: nextTypes } as any, workspaces[activeProjectId] ?? '')
+        if (!savedTypes.ok) throw new Error(savedTypes.error ?? 'SHOW_PROJECT_SAVE_FAILED')
+        return nextTypes
+    }, [activeProject, activeProjectId, saveProject, workspaces])
 
     return { types, setTypes, isLoaded }
 }

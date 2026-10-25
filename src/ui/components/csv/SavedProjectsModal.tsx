@@ -2,35 +2,34 @@ import { useEffect, useState } from 'react'
 import type { CsvProjectFileInfo } from '@/shared/ipc-types'
 import { savedProjectsService } from '@/features/csv-editor/services/savedProjectsService'
 import { ConfirmDialog } from '@/ui/components/common/ConfirmDialog'
+import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 
 type SavedProjectsModalProps = {
     open: boolean
-    currentProjectContent: string
     onClose: () => void
     onProjectLoaded: (content: string) => void
 }
 
 export function SavedProjectsModal({
     open,
-    currentProjectContent,
     onClose,
     onProjectLoaded,
 }: SavedProjectsModalProps) {
+    const { flushWorkingCopy, activeProjectId } = useTemplateDocument()
     const [files, setFiles] = useState<CsvProjectFileInfo[]>([])
-    const [projectName, setProjectName] = useState('')
     const [status, setStatus] = useState<string | null>(null)
     const [isBusy, setIsBusy] = useState(false)
 
     const loadProjects = async () => {
         setStatus(null)
-        const result = await savedProjectsService.listSavedProjects()
+        const result = await savedProjectsService.listSavedProjects(activeProjectId || undefined)
         if (result.ok) {
             setFiles(result.files)
             return
         }
 
         setFiles([])
-        setStatus(result.error ?? 'Nu s-au putut încărca proiectele salvate.')
+        setStatus(result.error ?? 'Nu s-au putut încărca edițiile salvate.')
     }
 
     useEffect(() => {
@@ -43,40 +42,28 @@ export function SavedProjectsModal({
         return null
     }
 
-    const handleSave = async () => {
+    const handleLoad = async (filename: string) => {
+        const capturedProjectId = activeProjectId
         setIsBusy(true)
         setStatus(null)
 
-        const result = await savedProjectsService.saveCurrentAsProject({
-            filename: projectName,
-            content: currentProjectContent,
-        })
-
-        setIsBusy(false)
-
-        if (!result.ok) {
-            setStatus(result.error === 'FILE_EXISTS'
-                ? 'Există deja un proiect salvat cu acest nume.'
-                : result.error ?? 'Proiectul nu a putut fi salvat.')
+        const flushed = await flushWorkingCopy()
+        if (!flushed.ok) {
+            setIsBusy(false)
+            setStatus(flushed.error ?? 'Ediția curentă nu a putut fi salvată înainte de încărcare.')
             return
         }
 
-        setProjectName('')
-        await loadProjects()
-    }
-
-    const handleLoad = async (filename: string) => {
-        setIsBusy(true)
-        setStatus(null)
-
-        const result = await savedProjectsService.loadProjectIntoWorkingCsv({ filename })
+        const result = capturedProjectId
+            ? await savedProjectsService.loadProjectIntoWorkingCsv({ filename }, capturedProjectId)
+            : await savedProjectsService.loadProjectIntoWorkingCsv({ filename })
 
         setIsBusy(false)
 
         if (!result.ok || typeof result.content !== 'string') {
             setStatus(result.error === 'BACKUP_FAILED'
-                ? 'Backupul proiectului curent nu a putut fi creat. Proiectul salvat nu a fost încărcat. Verifică folderul Backup din Setări.'
-                : result.error ?? 'Proiectul nu a putut fi încărcat.')
+                ? 'Backupul ediției curente nu a putut fi creat. Ediția salvată nu a fost încărcată. Verifică folderul Backup din Setări.'
+                : result.error ?? 'Ediția nu a putut fi încărcată.')
             return
         }
 
@@ -85,19 +72,21 @@ export function SavedProjectsModal({
     }
 
     const handleDelete = async (filename: string) => {
-        if (!window.confirm(`Ștergi proiectul salvat ${filename}?`)) {
+        if (!window.confirm(`Ștergi ediția salvată ${filename}?`)) {
             return
         }
 
         setIsBusy(true)
         setStatus(null)
 
-        const result = await savedProjectsService.deleteSavedProject({ filename })
+        const result = activeProjectId
+            ? await savedProjectsService.deleteSavedProject({ filename }, activeProjectId)
+            : await savedProjectsService.deleteSavedProject({ filename })
 
         setIsBusy(false)
 
         if (!result.ok) {
-            setStatus(result.error ?? 'Proiectul salvat nu a putut fi șters.')
+            setStatus(result.error ?? 'Ediția salvată nu a putut fi ștearsă.')
             return
         }
 
@@ -114,7 +103,7 @@ export function SavedProjectsModal({
             <div className="app-modal flex max-h-[85vh] w-full max-w-2xl flex-col rounded bg-white p-5 shadow-lg">
                 <div className="flex items-center justify-between gap-4">
                     <h2 id="saved-projects-title" className="text-lg font-semibold text-gray-900">
-                        Proiecte salvate
+                        Ediții salvate
                     </h2>
 
                     <button
@@ -126,26 +115,6 @@ export function SavedProjectsModal({
                     </button>
                 </div>
 
-                <div className="mt-5 flex flex-col gap-2">
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Salvează proiectul curent ca...</span>
-                        <input
-                            value={projectName}
-                            onChange={(event) => setProjectName(event.target.value)}
-                            className="app-input rounded border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </label>
-
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={isBusy}
-                        className="app-button app-button-primary w-fit rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        Salvează
-                    </button>
-                </div>
-
                 {status && (
                     <div role="alert" className="app-notification app-notification-danger mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
                         {status}
@@ -153,10 +122,10 @@ export function SavedProjectsModal({
                 )}
 
                 <div className="mt-5 min-h-0 overflow-y-auto">
-                    <h3 className="text-sm font-semibold text-gray-900">Listă proiecte salvate</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">Listă ediții salvate</h3>
 
                     {files.length === 0 ? (
-                        <p className="mt-3 text-sm text-gray-600">Nu există proiecte salvate.</p>
+                        <p className="mt-3 text-sm text-gray-600">Nu există ediții salvate.</p>
                     ) : (
                         <ul className="mt-3 divide-y divide-gray-200 rounded border border-gray-200">
                             {files.map((file) => (
@@ -167,8 +136,8 @@ export function SavedProjectsModal({
 
                                     <div className="flex shrink-0 gap-2">
                                         <ConfirmDialog
-                                            title="Încarci acest proiect?"
-                                            description="Starea proiectului curent va fi salvată în Backup, apoi proiectul selectat va deveni activ."
+                                            title="Încarci această ediție?"
+                                            description="Ediția curentă va fi salvată în Backup, apoi ediția selectată va deveni activă."
                                             confirmLabel="Încarcă"
                                             cancelLabel="Anulează"
                                             onConfirm={() => handleLoad(file.filename)}
@@ -178,7 +147,7 @@ export function SavedProjectsModal({
                                                 disabled={isBusy}
                                                 className="app-button rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                                             >
-                                                Încarcă proiectul
+                                                Încarcă ediția
                                             </button>
                                         </ConfirmDialog>
 

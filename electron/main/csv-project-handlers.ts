@@ -1,6 +1,10 @@
+import { scopedIpcHandle } from './show-project-scope'
+import { getScopedShowProject, getScopedShowProjectId } from './show-project-scope'
+import { parseShowEdition, serializeShowEdition } from '../../src/features/show-projects/domain/showEdition'
 import { BrowserWindow, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
+import { writeFile as writeFileAtomically } from 'atomically'
 import { createSavedProjectJsonFilename, isSavedProjectFilename } from '../../src/features/csv-editor/domain/savedProjectFile'
 import { parseCsv } from '../../src/features/csv-editor/utils/csvParser'
 import { resolveEntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
@@ -35,6 +39,7 @@ function samePath(a: string, b: string): boolean {
 
 function isSafeCsvFilename(filename: string): boolean {
     return isSavedProjectFilename(filename) && filename === path.basename(filename)
+        && filename.toLowerCase() !== 'current-project.json'
 }
 
 async function listSavedCsvProjects(): Promise<CsvProjectListResponse> {
@@ -63,6 +68,7 @@ async function listSavedCsvProjects(): Promise<CsvProjectListResponse> {
     const workingCsvPath = settings.workingCsvPath.trim()
 
     for (const filename of filenames) {
+        if (filename.toLowerCase() === 'current-project.json') continue
         if (!/\.(csv|json)$/i.test(filename)) {
             continue
         }
@@ -125,6 +131,7 @@ async function saveCsvProjectAs(request: unknown): Promise<CsvProjectSaveAsRespo
     }
 
     const filename = createSavedProjectJsonFilename(payload.filename)
+    if (!isSafeCsvFilename(filename)) return { ok: false, error: 'RESERVED_EDITION_FILENAME' }
     const fullPath = path.join(folder.folderPath, filename)
     const existingStat = await fsp.stat(fullPath).catch(() => null)
     if (existingStat?.isFile()) {
@@ -136,7 +143,8 @@ async function saveCsvProjectAs(request: unknown): Promise<CsvProjectSaveAsRespo
         }
     }
 
-    await fsp.writeFile(fullPath, payload.content, 'utf-8')
+    const edition = parseShowEdition(payload.content, getScopedShowProjectId())
+    await fsp.writeFile(fullPath, serializeShowEdition(edition, getScopedShowProjectId()), 'utf-8')
 
     return {
         ok: true,
@@ -152,6 +160,7 @@ async function exportEntityCsvsAfterProjectLoad(input: {
     workingCsvPath?: string
     exportCsvFolderPath: string
     exportPrefix: string
+    restoreLegacyAssignments?: boolean
 }): Promise<EntityExportResult> {
     try {
         const entities = input.entities
@@ -167,22 +176,23 @@ async function exportEntityCsvsAfterProjectLoad(input: {
         ])
         const types = normalizeLowerThirdTypes(getAppConfig()[LOWER_THIRD_TYPES_CONFIG_KEY])
         const entityTemplateNames = normalizeEntityTemplateNames(getAppConfig()[ENTITY_TEMPLATE_NAMES_CONFIG_KEY])
-        const restoredEntities = restoreLowerThirdAssignments({
+        const restoredEntities = input.restoreLegacyAssignments ? restoreLowerThirdAssignments({
             entities: migrateHotTitlesToUrgent(entities),
             titlesExport,
             personsExport,
             types,
             exportPrefix: input.exportPrefix,
             onWarning: (message) => console.warn('[lower-thirds]', message),
-        })
+        }) : migrateHotTitlesToUrgent(entities)
         await fsp.mkdir(path.join(input.projectFolderPath, 'Saved'), { recursive: true })
-        await fsp.writeFile(path.join(input.projectFolderPath, 'Saved', 'current-project.json'), JSON.stringify({ version: 1, entities: restoredEntities }, null, 2), 'utf-8')
+        await writeFileAtomically(path.join(input.projectFolderPath, 'Saved', 'current-project.json'), serializeShowEdition(restoredEntities, getScopedShowProjectId()), 'utf-8')
         return await exportEntityCsvFilesFromEntities({
             paths: exportPaths,
             entities: restoredEntities,
             lowerThirdTypes: types,
             exportPrefix: input.exportPrefix,
             entityTemplateNames,
+            showProject: getScopedShowProject(),
             onError: (error) => notifyEntityExportFailure(input.mainWindow, error),
         })
     } catch (error) {
@@ -202,6 +212,7 @@ async function loadCsvProjectIntoWorking(
     if (typeof payload?.filename !== 'string') {
         return { ok: false, error: 'Invalid filename type, expected string' }
     }
+    if (!isSafeCsvFilename(payload.filename)) return { ok: false, error: 'INVALID_EDITION_FILENAME' }
 
     const settings = getCsvFileSettings()
     const projectFolderPath = settings.projectFolderPath.trim()
@@ -222,15 +233,7 @@ async function loadCsvProjectIntoWorking(
     }
 
     const savedProjectContent = await fsp.readFile(savedProjectPath, 'utf-8')
-    let projectEntities: ReturnType<typeof parseCsv>
-    try {
-        const saved = JSON.parse(savedProjectContent) as { entities?: unknown }
-        projectEntities = saved.entities && typeof saved.entities === 'object' && Array.isArray((saved.entities as { sections?: unknown }).sections)
-            ? saved.entities as ReturnType<typeof parseCsv>
-            : parseCsv(savedProjectContent)
-    } catch {
-        projectEntities = parseCsv(savedProjectContent)
-    }
+    const projectEntities = parseShowEdition(savedProjectContent, getScopedShowProjectId())
     const currentStatePath = path.join(projectFolderPath, 'Saved', 'current-project.json')
     const currentState = await fsp.readFile(currentStatePath, 'utf-8').catch(() => '')
     if (currentState) {
@@ -246,6 +249,7 @@ async function loadCsvProjectIntoWorking(
         workingCsvPath: settings.workingCsvPath,
         exportCsvFolderPath: settings.exportCsvFolderPath,
         exportPrefix: settings.exportPrefix,
+        restoreLegacyAssignments: !savedProjectContent.trim().startsWith('{'),
     })
     if (!exportResult.ok) {
         return {
@@ -293,7 +297,7 @@ async function deleteCsvProject(request: unknown): Promise<CsvProjectDeleteRespo
 }
 
 export function registerCsvProjectHandlers(mainWindow: BrowserWindow) {
-    ipcMain.handle(IPC_CHANNELS.CSV_PROJECT_LIST, async () => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_PROJECT_LIST, async () => {
         try {
             return await listSavedCsvProjects()
         } catch (error) {
@@ -306,7 +310,7 @@ export function registerCsvProjectHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.CSV_PROJECT_SAVE_AS, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_PROJECT_SAVE_AS, async (_event, request: unknown) => {
         try {
             return await saveCsvProjectAs(request)
         } catch (error) {
@@ -318,7 +322,7 @@ export function registerCsvProjectHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_PROJECT_LOAD_INTO_WORKING, async (_event, request: unknown) => {
         try {
             return await loadCsvProjectIntoWorking(mainWindow, request)
         } catch (error) {
@@ -330,7 +334,7 @@ export function registerCsvProjectHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.CSV_PROJECT_DELETE, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.CSV_PROJECT_DELETE, async (_event, request: unknown) => {
         try {
             return await deleteCsvProject(request)
         } catch (error) {

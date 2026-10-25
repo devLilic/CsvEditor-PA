@@ -12,6 +12,8 @@ import {
     mapPaWaitTitlesLocationsExport,
     mapPaWaitTitlesLocationsValues,
 } from './paEntityExportMapper'
+import type { ShowTemplateFieldConfig } from './entityTemplateFieldValues'
+import { applyTemplateTextTransformsToEntities } from './entityTemplateFieldValues'
 
 export interface ExportTitle {
     nr: string
@@ -95,13 +97,17 @@ export function mapEntitiesStateToExportCsvs(
     lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
     exportPrefix = '',
     entityTemplateNames: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+    showProject?: ShowTemplateFieldConfig,
 ): EntityExportCsvs {
+    const exportState = showProject
+        ? applyTemplateTextTransformsToEntities(state, showProject)
+        : state
     return {
-        titlesCsv: mapPaTitlesExport(state, lowerThirdTypes, exportPrefix),
-        personsCsv: mapPaPersonsExport(state, lowerThirdTypes, exportPrefix),
-        locationsCsv: mapPaLocationsExport(state, entityTemplateNames, exportPrefix),
-        phonesCsv: mapPaPhonesExport(state, entityTemplateNames, exportPrefix),
-        waitTitlesLocationsCsv: mapPaWaitTitlesLocationsExport(state, entityTemplateNames, exportPrefix),
+        titlesCsv: mapPaTitlesExport(exportState, lowerThirdTypes, exportPrefix, showProject),
+        personsCsv: mapPaPersonsExport(exportState, lowerThirdTypes, exportPrefix, showProject),
+        locationsCsv: mapPaLocationsExport(exportState, entityTemplateNames, exportPrefix, showProject),
+        phonesCsv: mapPaPhonesExport(exportState, entityTemplateNames, exportPrefix, showProject),
+        waitTitlesLocationsCsv: mapPaWaitTitlesLocationsExport(exportState, entityTemplateNames, exportPrefix, showProject),
     }
 }
 
@@ -110,6 +116,7 @@ export function mapFullCsvContentToExportCsvs(
     lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
     exportPrefix = '',
     entityTemplateNames: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+    showProject?: ShowTemplateFieldConfig,
 ): EntityExportCsvs {
-    return mapEntitiesStateToExportCsvs(parseCsv(content), lowerThirdTypes, exportPrefix, entityTemplateNames)
+    return mapEntitiesStateToExportCsvs(parseCsv(content), lowerThirdTypes, exportPrefix, entityTemplateNames, showProject)
 }

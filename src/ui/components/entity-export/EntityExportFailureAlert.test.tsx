@@ -53,7 +53,7 @@ describe('EntityExportFailureAlert', () => {
         })
 
         expect(screen.getByRole('alert')).toHaveTextContent(
-            'Quick Titles nu au putut fi salvate in PA_quickTitles.csv.'
+            'Quick Titles nu au putut fi salvate în fișierul CSV de export.'
         )
         expect(screen.getByRole('alert')).toHaveTextContent(
             'Verifica folderul de export si accesul la fisier.'

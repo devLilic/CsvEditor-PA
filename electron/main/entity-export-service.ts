@@ -9,6 +9,8 @@ import {
 import type { EntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
 import type { LowerThirdTypeDefinition } from '../../src/features/lower-thirds/domain/lowerThirdTypes'
 import type { EntityTemplateNames } from '../../src/features/lower-thirds/domain/entityTemplateNames'
+import type { ShowProject } from '../../src/features/show-projects/domain/showProject'
+import { applyShowExportSettings } from '../../src/features/show-projects/domain/showExportSettings'
 
 const fsp = fs.promises
 const DEFAULT_RETRY_COUNT = 3
@@ -39,6 +41,7 @@ export interface ExportEntityCsvFilesFromFullCsvContentInput {
     content: string
     exportPrefix?: string
     entityTemplateNames?: EntityTemplateNames
+    showProject?: Pick<ShowProject, 'document' | 'lowerThirdTypesEnabled'>
     retryCount?: number
     onError?: (error: EntityExportError) => void
     afterTitlesExport?: () => Promise<void>
@@ -50,6 +53,7 @@ export interface ExportEntityCsvFilesFromEntitiesInput {
     lowerThirdTypes?: LowerThirdTypeDefinition[]
     exportPrefix?: string
     entityTemplateNames?: EntityTemplateNames
+    showProject?: Pick<ShowProject, 'document' | 'lowerThirdTypesEnabled'>
     retryCount?: number
     onError?: (error: EntityExportError) => void
     afterTitlesExport?: () => Promise<void>
@@ -209,6 +213,9 @@ export async function exportEntityCsvFilesFromFullCsvContent(
             undefined,
             input.exportPrefix,
             input.entityTemplateNames,
+            input.showProject
+                ? { ...input.showProject.document, lowerThirdTypesEnabled: input.showProject.lowerThirdTypesEnabled }
+                : undefined,
         ),
         retryCount: input.retryCount,
         onError: input.onError,
@@ -222,10 +229,13 @@ export async function exportEntityCsvFilesFromEntities(
     return exportEntityCsvFiles({
         paths: input.paths,
         csvs: mapEntitiesStateToExportCsvs(
-            input.entities,
+            applyShowExportSettings(input.entities, input.showProject),
             input.lowerThirdTypes,
             input.exportPrefix,
             input.entityTemplateNames,
+            input.showProject
+                ? { ...input.showProject.document, lowerThirdTypesEnabled: input.showProject.lowerThirdTypesEnabled }
+                : undefined,
         ),
         retryCount: input.retryCount,
         onError: input.onError,

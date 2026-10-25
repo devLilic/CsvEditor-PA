@@ -1,3 +1,4 @@
+import { scopedIpcHandle } from './show-project-scope'
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 import {
@@ -17,7 +18,7 @@ function getBackupFolderPath(): string {
 }
 
 export function registerTitleBackupHandlers() {
-    ipcMain.handle(IPC_CHANNELS.TITLE_BACKUP_RESERVE, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.TITLE_BACKUP_RESERVE, async (_event, request: unknown) => {
         const forceNewProject = !!(request as { forceNewProject?: unknown } | null)?.forceNewProject
 
         return reserveTitleBackupName({
@@ -31,7 +32,7 @@ export function registerTitleBackupHandlers() {
         })
     })
 
-    ipcMain.handle(IPC_CHANNELS.TITLE_BACKUP_LIST, async () => {
+    scopedIpcHandle(IPC_CHANNELS.TITLE_BACKUP_LIST, async () => {
         try {
             const files = await listTitleBackupFiles({
                 backupFolderPath: getBackupFolderPath(),
@@ -43,14 +44,14 @@ export function registerTitleBackupHandlers() {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.TITLE_BACKUP_READ, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.TITLE_BACKUP_READ, async (_event, request: unknown) => {
         return readTitleBackup({
             backupFolderPath: getBackupFolderPath(),
             filename: String((request as { filename?: unknown } | null)?.filename ?? ''),
         })
     })
 
-    ipcMain.handle(IPC_CHANNELS.TITLE_BACKUP_WRITE, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.TITLE_BACKUP_WRITE, async (_event, request: unknown) => {
         const payload = request as { filename?: unknown; content?: unknown } | null
 
         if (typeof payload?.filename !== 'string' || typeof payload.content !== 'string') {

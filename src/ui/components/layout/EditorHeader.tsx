@@ -1,20 +1,20 @@
 // src/ui/components/layout/EditorHeader.tsx
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useEntities } from '@/features/csv-editor'
 import { useCsvContext } from '@/features/csv-editor/context/CsvContext'
 import { parseCsv } from '@/features/csv-editor/utils/csvParser'
 import type { EntitiesState } from '@/features/csv-editor/domain/entities'
 import { EditModeToggle } from '@/ui/components/EditModeToggle'
-import { useEditMode } from '@/ui/context/EditModeContext'
-import { useTedMode } from '@/ui/context/TedModeContext'
 import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 import { useTitleFilter } from '@/ui/context/TitleFilterContext'
 import { SectionsTabs } from '@/ui/components/SectionsTabs'
-import { useWorkingCsvInfo } from '@/features/csv-editor/hooks/useWorkingCsvInfo'
 import { BackupFailedDialog } from '@/ui/components/csv/BackupFailedDialog'
 import { SavedProjectsModal } from '@/ui/components/csv/SavedProjectsModal'
+import { TextPromptDialog } from '@/ui/components/common/TextPromptDialog'
+import { savedProjectsService } from '@/features/csv-editor/services/savedProjectsService'
+import { showErrorToast } from '@/ui/components/common/toast'
 import { ConfirmDialog } from '../common/ConfirmDialog'
-import { TedUnsavedChangesDialog } from '../template-editor/TedUnsavedChangesDialog'
+import { settingsService } from '@/features/csv-editor/services/settingsService'
 
 function TrashIcon() {
     return (
@@ -56,12 +56,13 @@ function TrashIcon() {
 }
 
 export function EditorHeader() {
-    const { editMode } = useEditMode()
-    const { isTedMode, setTedMode } = useTedMode()
     const {
-        isDirty: isTemplateDirty,
-        discardUnsavedChanges,
-        saveTemplates,
+        projects: showProjects,
+        activeProjectId,
+        workspaces,
+        activateProject,
+        isLoaded: areShowProjectsLoaded,
+        flushWorkingCopy,
     } = useTemplateDocument()
     const { startNewProject, forceStartNewProjectWithoutBackup } = useEntities()
     const { state, dispatch } = useCsvContext()
@@ -70,11 +71,67 @@ export function EditorHeader() {
     const [backupFailedError, setBackupFailedError] = useState<string | undefined>()
     const [isBackupFailedDialogOpen, setIsBackupFailedDialogOpen] = useState(false)
     const [isSavedProjectsModalOpen, setIsSavedProjectsModalOpen] = useState(false)
-    const [isTedExitDialogOpen, setIsTedExitDialogOpen] = useState(false)
-    const [isSavingTemplates, setIsSavingTemplates] = useState(false)
-    const [templateSaveError, setTemplateSaveError] = useState<string | undefined>()
-    const [templateSaveWarning, setTemplateSaveWarning] = useState<string | undefined>()
-    const workingCsvInfo = useWorkingCsvInfo()
+    const [isSaveEditionPromptOpen, setIsSaveEditionPromptOpen] = useState(false)
+    const [isSwitchingShow, setIsSwitchingShow] = useState(false)
+    const [showProjectError, setShowProjectError] = useState<string | undefined>()
+    const [showProjectSelector, setShowProjectSelector] = useState(false)
+    const [projectSelectorSettingLoaded, setProjectSelectorSettingLoaded] = useState(false)
+    const canEditEdition = Boolean(areShowProjectsLoaded && activeProjectId && workspaces[activeProjectId] && state.isLoaded)
+    const showAddBetaButton = showProjects.find((project) => project.id === activeProjectId)?.betaSectionButtonEnabled !== false
+
+    useEffect(() => {
+        let isMounted = true
+        settingsService.getShowProjectSelectorEnabled().then((enabled) => {
+            if (!isMounted) return
+            setShowProjectSelector(enabled)
+            setProjectSelectorSettingLoaded(true)
+        }).catch(() => {
+            // Keep multi-show access available if reading the local preference fails.
+            if (!isMounted) return
+            setShowProjectSelector(true)
+            setProjectSelectorSettingLoaded(true)
+        })
+        return () => { isMounted = false }
+    }, [])
+
+    useEffect(() => {
+        const openSavedEditions = () => setIsSavedProjectsModalOpen(true)
+        const saveEdition = () => setIsSaveEditionPromptOpen(true)
+        window.addEventListener('tales:open-saved-editions', openSavedEditions)
+        window.addEventListener('tales:save-edition', saveEdition)
+        return () => {
+            window.removeEventListener('tales:open-saved-editions', openSavedEditions)
+            window.removeEventListener('tales:save-edition', saveEdition)
+        }
+    }, [])
+
+    const handleSaveEdition = async (name: string) => {
+        const trimmedName = name.trim()
+        if (!trimmedName) {
+            showErrorToast('Introdu un nume pentru ediția salvată.')
+            return
+        }
+        if (!activeProjectId || !canEditEdition) {
+            showErrorToast('Nu există o ediție activă care poate fi salvată.')
+            return
+        }
+
+        const flushed = await flushWorkingCopy()
+        if (!flushed.ok) {
+            showErrorToast(flushed.error ?? 'Ediția curentă nu a putut fi salvată.')
+            return
+        }
+        const content = flushed.snapshot?.content
+            ?? JSON.stringify({ version: 1, entities: state.entities }, null, 2)
+        const result = await savedProjectsService.saveCurrentAsProject({ filename: trimmedName, content }, activeProjectId)
+        if (!result.ok) {
+            showErrorToast(result.error === 'FILE_EXISTS'
+                ? 'Există deja o ediție salvată cu acest nume.'
+                : result.error ?? 'Ediția nu a putut fi salvată.')
+            return
+        }
+        setIsSavedProjectsModalOpen(true)
+    }
 
     const handleStartNewProject = async () => {
         setNewProjectError(null)
@@ -99,7 +156,7 @@ export function EditorHeader() {
 
         const result = await forceStartNewProjectWithoutBackup()
         if (!result.ok) {
-            setNewProjectError(`Nu s-a putut porni proiectul nou: ${result.error ?? 'UNKNOWN_ERROR'}`)
+            setNewProjectError(`Nu s-a putut porni ediția nouă: ${result.error ?? 'UNKNOWN_ERROR'}`)
         }
     }
 
@@ -118,51 +175,27 @@ export function EditorHeader() {
         })
     }
 
-    const handleToggleTedMode = () => {
-        if (!isTedMode) {
-            setTedMode(true)
-            return
+    const handleShowChange = async (projectId: string) => {
+        if (isSwitchingShow) return
+        setIsSwitchingShow(true)
+        setShowProjectError(undefined)
+        try {
+            const flushed = await flushWorkingCopy()
+            if (!flushed.ok) {
+                setShowProjectError(flushed.error ?? 'Nu s-a putut salva ediția curentă.')
+                return
+            }
+            const result = await activateProject(projectId)
+            if (!result.ok) setShowProjectError(result.error ?? 'Nu s-a putut schimba emisiunea.')
+        } finally {
+            setIsSwitchingShow(false)
         }
-
-        if (!isTemplateDirty) {
-            setTedMode(false)
-            return
-        }
-
-        setTemplateSaveError(undefined)
-        setTemplateSaveWarning(undefined)
-        setIsTedExitDialogOpen(true)
-    }
-
-    const handleExitTedWithoutSaving = () => {
-        discardUnsavedChanges()
-        setIsTedExitDialogOpen(false)
-        setTedMode(false)
-    }
-
-    const handleSaveTemplatesAndExit = async () => {
-        setIsSavingTemplates(true)
-        setTemplateSaveError(undefined)
-        setTemplateSaveWarning(undefined)
-        const result = await saveTemplates()
-        setIsSavingTemplates(false)
-
-        if (!result.ok) {
-            setTemplateSaveError(result.error ?? 'SAVE_FAILED')
-            return
-        }
-
-        setTemplateSaveWarning(result.warning)
-        setIsTedExitDialogOpen(false)
-        setTedMode(false)
     }
 
     return (
         <div className="app-header relative flex items-center justify-between gap-4 border-b bg-white px-4 py-2">
             <div className="app-header-primary flex min-w-0 items-center gap-3">
-                <img src="/tales-logo.png" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
-                <span className="hidden text-sm font-semibold tracking-tight sm:inline">Tales</span>
-                <SectionsTabs />
+                <SectionsTabs showAddBetaButton={showAddBetaButton} />
             </div>
 
             <div className="relative flex items-center">
@@ -183,42 +216,27 @@ export function EditorHeader() {
             </div>
 
             <div className="flex min-w-0 items-center gap-2">
-                {editMode && (
-                    <button
-                        type="button"
-                        onClick={handleToggleTedMode}
-                        className={`app-button rounded border px-3 py-1 text-sm font-medium ${
-                            isTedMode
-                                ? 'border-blue-700 bg-blue-700 text-white hover:bg-blue-800'
-                                : 'border-blue-600 bg-white text-blue-700 hover:bg-blue-50'
-                        }`}
+                {projectSelectorSettingLoaded && showProjectSelector && <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
+                    <select
+                        aria-label="Proiect de emisiune"
+                        value={activeProjectId}
+                        disabled={!areShowProjectsLoaded || isSwitchingShow}
+                        onChange={(event) => void handleShowChange(event.target.value)}
+                        className="app-input max-w-40 rounded border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 disabled:opacity-60"
                     >
-                        {isTedMode ? 'Exit Templates' : 'EDIT Templates'}
-                    </button>
-                )}
-
-                <span className="app-chip max-w-48 truncate rounded border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700">
-                    Proiect: {workingCsvInfo.filename}
-                </span>
+                        {showProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                    </select>
+                </label>}
 
                 <EditModeToggle />
 
-                <button
-                    type="button"
-                    onClick={() => setIsSavedProjectsModalOpen(true)}
-                    className="app-button rounded border border-gray-300 bg-white px-4 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                    Proiecte salvate
-                </button>
-
                 <ConfirmDialog
-                    title="Incepi un proiect nou?"
-                    description="Se va crea un backup CSV in folderul setat in Setari. Doar dupa backup, fisierul de lucru va fi resetat cu continutul standard. Daca backup-ul esueaza, resetarea nu se face."
+                    title="Începi o ediție nouă?"
+                    description="Se va crea un backup al ediției curente. După backup, lista de valori va fi resetată pentru emisiunea selectată."
                     onConfirm={handleStartNewProject}
                 >
-                    <button className="app-button app-button-danger inline-flex items-center gap-2 rounded bg-red-600 px-4 py-1 text-white">
-                        <TrashIcon />
-                        Proiect nou
+                    <button disabled={!canEditEdition} className="app-button app-button-primary inline-flex items-center rounded border border-blue-700 bg-blue-600 px-4 py-1 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                        Ediție nouă
                     </button>
                 </ConfirmDialog>
             </div>
@@ -232,14 +250,12 @@ export function EditorHeader() {
                 </div>
             )}
 
-            {templateSaveWarning && (
-                <div
-                    role="status"
-                    className="app-notification app-notification-warning absolute right-4 top-14 max-w-md rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 shadow-sm"
-                >
-                    {templateSaveWarning}
+            {showProjectError && (
+                <div role="alert" className="app-notification app-notification-danger absolute right-4 top-14 max-w-md rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 shadow-sm">
+                    {showProjectError}
                 </div>
             )}
+
 
             <BackupFailedDialog
                 open={isBackupFailedDialogOpen}
@@ -250,19 +266,20 @@ export function EditorHeader() {
 
             <SavedProjectsModal
                 open={isSavedProjectsModalOpen}
-                currentProjectContent={JSON.stringify({ version: 1, entities: state.entities }, null, 2)}
                 onClose={() => setIsSavedProjectsModalOpen(false)}
                 onProjectLoaded={handleProjectLoaded}
             />
 
-            <TedUnsavedChangesDialog
-                open={isTedExitDialogOpen}
-                onCancel={() => setIsTedExitDialogOpen(false)}
-                onExitWithoutSaving={handleExitTedWithoutSaving}
-                onSaveAndExit={() => void handleSaveTemplatesAndExit()}
-                isSaving={isSavingTemplates}
-                error={templateSaveError}
+            <TextPromptDialog
+                open={isSaveEditionPromptOpen}
+                title="Salvează ediția"
+                description="Introdu un nume pentru ediția curentă."
+                placeholder="Numele ediției"
+                confirmText="Salvează"
+                onConfirm={(name) => { void handleSaveEdition(name) }}
+                onClose={() => setIsSaveEditionPromptOpen(false)}
             />
+
         </div>
     )
 }

@@ -11,7 +11,7 @@ import { isPhoneCallPerson } from '../domain/phoneCall'
 import { createDefaultProjectEntities } from '../domain/defaultProject'
 import { FALLBACK_DEFAULT_PROJECT_SETTINGS } from '../domain/defaultProjectSettings'
 import { csvService } from '../services/csvService'
-import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
+import { DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
 import { defaultProjectSettingsService } from '../services/defaultProjectSettingsService'
 import { settingsService } from '../services/settingsService'
 import { reorderPlateauTitlesService } from '../services/reorderPlateauTitlesService'
@@ -20,6 +20,8 @@ import * as quickTitlesCsvStorageService from '../../quick-titles/services/quick
 import type { TitleBackupListItem } from '@/features/title-backup/domain/titleBackupCsv'
 import { importPlateauTitles } from '@/features/title-backup/services/importPlateauTitlesService'
 import { titleBackupReservationService } from '@/features/title-backup/services/titleBackupReservationService'
+import { applyEntityTemplateTextTransforms } from '@/features/entity-export/domain/entityTemplateFieldValues'
+import { useOptionalTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 
 type BlockItem =
     | { type: 'title'; entityType: 'titles'; id: string; rowId: string; data: SimpleTitle }
@@ -106,6 +108,13 @@ function getDividerInsertIndex(rows: SectionRow[], afterItemId?: string): number
 
 export function useEntities() {
     const { state, dispatch } = useCsvContext()
+    const showProject = useOptionalTemplateDocument()
+    const projectId = showProject?.activeProjectId
+    const activeProject = showProject?.activeProject ?? null
+    const lowerThirdTypes = (activeProject as any)?.lowerThirdTypes ?? DEFAULT_LOWER_THIRD_TYPES
+    const templateTextConfig = activeProject
+        ? { ...activeProject.document, lowerThirdTypesEnabled: activeProject.lowerThirdTypesEnabled }
+        : undefined
 
     const sections = state.entities.sections
 
@@ -165,18 +174,24 @@ export function useEntities() {
     const addEntity = useCallback(
         (sectionId: string, entityType: EntityType, data: Record<string, unknown>) => {
             if (!isSupportedEntityType(entityType)) return
-            dispatch({ type: 'ENTITY_ADD', payload: { sectionId, entityType, data } })
+            const normalizedData = templateTextConfig
+                ? applyEntityTemplateTextTransforms(entityType, data as any, templateTextConfig)
+                : data
+            dispatch({ type: 'ENTITY_ADD', payload: { sectionId, entityType, data: normalizedData } })
         },
-        [dispatch]
+        [dispatch, templateTextConfig]
     )
 
     // -------- UPDATE --------
     const updateEntity = useCallback(
         (sectionId: string, entityType: EntityType, id: string, data: Record<string, unknown>) => {
             if (!isSupportedEntityType(entityType)) return
-            dispatch({ type: 'ENTITY_UPDATE', payload: { sectionId, entityType, id, data } })
+            const normalizedData = templateTextConfig
+                ? applyEntityTemplateTextTransforms(entityType, data as any, templateTextConfig)
+                : data
+            dispatch({ type: 'ENTITY_UPDATE', payload: { sectionId, entityType, id, data: normalizedData } })
         },
-        [dispatch]
+        [dispatch, templateTextConfig]
     )
 
     const savePersonEntity = useCallback(async (input: {
@@ -189,6 +204,9 @@ export function useEntities() {
             return { ok: false, error: 'INVALID_PERSON' }
         }
 
+        const normalizedData: Record<string, unknown> = templateTextConfig
+            ? applyEntityTemplateTextTransforms('persons', input.data as any, templateTextConfig) as unknown as Record<string, unknown>
+            : input.data
         const action = input.id
             ? {
                 type: 'ENTITY_UPDATE' as const,
@@ -196,7 +214,7 @@ export function useEntities() {
                     sectionId: input.sectionId,
                     entityType: 'persons' as const,
                     id: input.id,
-                    data: input.data,
+                    data: normalizedData,
                 },
             }
             : {
@@ -204,7 +222,7 @@ export function useEntities() {
                 payload: {
                     sectionId: input.sectionId,
                     entityType: 'persons' as const,
-                    data: input.data,
+                    data: normalizedData,
                 },
             }
         const nextState = csvReducer(state, action)
@@ -215,15 +233,14 @@ export function useEntities() {
 
         dispatch(action)
 
-        const lowerThirdTypes = await lowerThirdTypesService.get()
-        const writeRes = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes)
+        const writeRes = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes, projectId)
         if (!writeRes.ok) {
             console.error('Failed to save person:', writeRes.error)
             return { ok: false, error: writeRes.error ?? 'WRITE_FAILED' }
         }
 
         return { ok: true }
-    }, [dispatch, state])
+    }, [dispatch, lowerThirdTypes, projectId, state, templateTextConfig])
 
     // -------- DELETE --------
     const deleteEntity = useCallback(
@@ -250,15 +267,14 @@ export function useEntities() {
         nextState: typeof state,
         errorPrefix: string
     ): Promise<PlateauTitleDividerResult> => {
-        const lowerThirdTypes = await lowerThirdTypesService.get()
-        const writeRes = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes)
+        const writeRes = await csvService.write(serializeCsv(nextState.entities), nextState.entities, lowerThirdTypes, projectId)
         if (!writeRes.ok) {
             console.error(errorPrefix, writeRes.error)
             return { ok: false, error: writeRes.error ?? 'WRITE_FAILED' }
         }
 
         return { ok: true }
-    }, [])
+    }, [lowerThirdTypes, projectId])
 
     const addPlateauTitleDivider = useCallback(async (options?: {
         afterItemId?: string
@@ -333,11 +349,13 @@ export function useEntities() {
             activeId,
             overId,
             dispatch,
+            projectId,
+            lowerThirdTypes,
         })
-    }, [canModifyPlateauTitleDividers, dispatch, state])
+    }, [canModifyPlateauTitleDividers, dispatch, lowerThirdTypes, projectId, state])
 
     const resetToDefaultProject = useCallback(async (): Promise<ForceStartNewProjectWithoutBackupResult> => {
-        const defaultProjectSettings = await defaultProjectSettingsService
+        const defaultProjectSettings = (activeProject as any)?.defaultProjectSettings ?? await defaultProjectSettingsService
             .getDefaultProjectSettings()
             .catch((error) => {
                 console.error('Failed to read default project settings:', error)
@@ -345,7 +363,7 @@ export function useEntities() {
             })
         const nextEntities = createDefaultProjectEntities(defaultProjectSettings)
 
-        const titleBackupReservation = await titleBackupReservationService.reserveActiveTitleBackup(true)
+        const titleBackupReservation = await titleBackupReservationService.reserveActiveTitleBackup(true, projectId)
         if (!titleBackupReservation.ok) {
             console.error('Failed to reserve title backup for new project:', titleBackupReservation.error)
             return {
@@ -355,7 +373,7 @@ export function useEntities() {
         }
 
         // QuickTitles belong to the current project workflow; clear the authoritative CSV after backup succeeds or explicit override.
-        const quickTitlesClearResult = await quickTitlesCsvStorageService.clearQuickTitlesCsv()
+        const quickTitlesClearResult = await quickTitlesCsvStorageService.clearQuickTitlesCsv(projectId)
         if (!quickTitlesClearResult.ok) {
             console.error('Failed to clear quick titles CSV:', quickTitlesClearResult.error)
             return {
@@ -364,13 +382,12 @@ export function useEntities() {
             }
         }
 
-        await settingsService.setQuickTitles([])
+        await settingsService.setQuickTitles([], projectId)
 
         dispatch({ type: 'ENTITY_CLEAR_ALL', payload: nextEntities })
 
         const defaultProjectCsv = serializeCsv(nextEntities)
-        const lowerThirdTypes = await lowerThirdTypesService.get()
-        const writeRes = await csvService.write(defaultProjectCsv, nextEntities, lowerThirdTypes)
+        const writeRes = await csvService.write(defaultProjectCsv, nextEntities, lowerThirdTypes, projectId)
         if (!writeRes.ok) {
             console.error('Failed to write empty CSV:', writeRes.error)
             return {
@@ -380,7 +397,7 @@ export function useEntities() {
         }
 
         return { ok: true }
-    }, [dispatch])
+    }, [activeProject, dispatch, lowerThirdTypes, projectId])
 
     // -------- START NEW PROJECT (CANONICAL) --------
     /**
@@ -393,7 +410,7 @@ export function useEntities() {
     const startNewProject = useCallback(async (): Promise<StartNewProjectResult> => {
         // 1) serialize and 2) back up the current state before reset.
         const currentSnapshot = JSON.stringify({ version: 1, entities: state.entities }, null, 2)
-        const backupRes = await csvService.createBackup(currentSnapshot)
+        const backupRes = await csvService.createBackup(currentSnapshot, projectId)
         if (!backupRes.ok) {
             console.error('Backup failed:', backupRes.error)
             return {
@@ -409,7 +426,7 @@ export function useEntities() {
         }
 
         return { ok: true }
-    }, [resetToDefaultProject, state.entities])
+    }, [projectId, resetToDefaultProject, state.entities])
 
     const forceStartNewProjectWithoutBackup = useCallback(
         async (): Promise<ForceStartNewProjectWithoutBackupResult> => resetToDefaultProject(),
@@ -425,11 +442,11 @@ export function useEntities() {
         deps: {
             createId: uuidv4,
             // csv:write in Electron already persists the full CSV and all derived export files in order.
-            writeFullCsv: (content) => csvService.write(content),
+            writeFullCsv: (content) => csvService.write(content, undefined, lowerThirdTypes, projectId),
             getActiveTitleBackupFile: async () => null,
             writeTitleBackup: async () => ({ ok: true }),
         },
-    }), [dispatch, state])
+    }), [dispatch, lowerThirdTypes, projectId, state])
 
     return {
         // state

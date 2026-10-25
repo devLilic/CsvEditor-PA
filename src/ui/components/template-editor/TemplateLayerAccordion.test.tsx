@@ -44,6 +44,22 @@ describe('TemplateLayerAccordion', () => {
         }
     })
 
+    it('hides layer color controls when the lower-third palette owns colors', async () => {
+        const user = userEvent.setup()
+        const template = broadcastTemplates.persons
+        const textLayer = template.layers.find((layer) => layer.type === 'text')
+        const shapeLayer = template.layers.find((layer) => layer.type === 'shape')
+        render(<TemplateLayerAccordion template={template} onTemplateChange={vi.fn()} showLayerColorFields={false} />)
+
+        const textSummary = screen.getByText(`${textLayer!.id} (text)`)
+        await user.click(textSummary)
+        expect(within(textSummary.closest('details') as HTMLElement).queryByLabelText('Color')).not.toBeInTheDocument()
+
+        const shapeSummary = screen.getByText(`${shapeLayer!.id} (shape)`)
+        await user.click(shapeSummary)
+        expect(within(shapeSummary.closest('details') as HTMLElement).queryByLabelText('Fill')).not.toBeInTheDocument()
+    })
+
     it('adds and expands a usable text layer with a unique id', async () => {
         const user = userEvent.setup()
         const onTemplateChange = vi.fn()
@@ -119,16 +135,40 @@ describe('TemplateLayerAccordion', () => {
         expect(onTemplateChange.mock.lastCall?.[0].layers.at(-1).id).toBe('custom-text-2')
     })
 
-    it('does not expose delete layer actions', () => {
+    it('configures an added text layer as a supported editable field', async () => {
+        const user = userEvent.setup()
+        const onTemplateChange = vi.fn()
         render(
-            <TemplateLayerAccordion
-                template={broadcastTemplates.persons}
-                onTemplateChange={vi.fn()}
+            <StatefulTemplateLayerAccordion
+                initialTemplate={broadcastTemplates.persons}
+                onTemplateChange={onTemplateChange}
             />
         )
 
-        expect(screen.queryByRole('button', { name: /delete layer/i })).not.toBeInTheDocument()
-        expect(screen.queryByRole('button', { name: /remove layer/i })).not.toBeInTheDocument()
+        await user.click(screen.getByRole('button', { name: 'Add text layer' }))
+        const layerDetails = screen.getByText('custom-text-1 (text)').closest('details') as HTMLElement
+        await user.type(within(layerDetails).getByLabelText('Field id'), 'supratitle')
+        await user.type(within(layerDetails).getByLabelText('Entity input label'), 'Supratitlu nouă')
+
+        const configuredLayer = onTemplateChange.mock.lastCall?.[0].layers.find((layer: { id: string }) => layer.id === 'custom-text-1')
+        expect(configuredLayer).toMatchObject({ fieldId: 'supratitle', inputLabel: 'Supratitlu nouă' })
+    })
+
+    it('removes a selected layer from the template configuration', async () => {
+        const user = userEvent.setup()
+        const onTemplateChange = vi.fn()
+        render(
+            <StatefulTemplateLayerAccordion
+                initialTemplate={broadcastTemplates.persons}
+                onTemplateChange={onTemplateChange}
+            />
+        )
+
+        await user.click(screen.getByText('person-name-text (text)'))
+        await user.click(screen.getByRole('button', { name: 'Remove layer person-name-text' }))
+
+        expect(onTemplateChange.mock.lastCall?.[0].layers.some((layer: { id: string }) => layer.id === 'person-name-text')).toBe(false)
+        expect(screen.queryByText('person-name-text (text)')).not.toBeInTheDocument()
     })
 
     it('allows each layer to expand and collapse', async () => {

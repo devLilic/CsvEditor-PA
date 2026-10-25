@@ -1,3 +1,4 @@
+import { scopedIpcHandle } from './show-project-scope'
 import { BrowserWindow, ipcMain } from 'electron'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -181,7 +182,7 @@ async function clearQuickTitlesCsv(
 }
 
 export function registerQuickTitlesHandlers(mainWindow: BrowserWindow): void {
-    ipcMain.handle(IPC_CHANNELS.QUICK_TITLES_READ_CSV, async () => {
+    scopedIpcHandle(IPC_CHANNELS.QUICK_TITLES_READ_CSV, async () => {
         const result = await readQuickTitlesCsvContent(mainWindow)
         if (result.ok) {
             const readResult = await readQuickTitlesCsv({
@@ -195,12 +196,12 @@ export function registerQuickTitlesHandlers(mainWindow: BrowserWindow): void {
         return result
     })
 
-    ipcMain.handle(IPC_CHANNELS.QUICK_TITLES_WRITE_CSV, async (_event, request: unknown) => {
+    scopedIpcHandle(IPC_CHANNELS.QUICK_TITLES_WRITE_CSV, async (_event, request: unknown) => {
         return writeQuickTitlesCsvContent({
             mainWindow,
             content: (request as { content?: unknown } | null)?.content,
         })
     })
 
-    ipcMain.handle(IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV, async () => clearQuickTitlesCsv(mainWindow))
+    scopedIpcHandle(IPC_CHANNELS.QUICK_TITLES_CLEAR_CSV, async () => clearQuickTitlesCsv(mainWindow))
 }

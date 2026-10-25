@@ -28,7 +28,7 @@ export function BackupFailedDialog({
                 </h2>
 
                 <p className="mt-3 text-sm text-gray-700">
-                    Proiectul curent nu a fost resetat încă.
+                    Ediția curentă nu a fost resetată încă.
                     Poți reveni pentru a verifica setările folderului de backup sau poți continua fără backup.
                 </p>
 

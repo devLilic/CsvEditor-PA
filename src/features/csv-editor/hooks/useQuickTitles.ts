@@ -1,172 +1,143 @@
 // src/features/csv-editor/hooks/useQuickTitles.ts
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { settingsService } from '../services/settingsService'
-import { csvFileSettingsService } from '../services/csvFileSettingsService'
-import type { CsvFileSettings } from '../domain/csvFileSettings'
 import {
     clearQuickTitlesCsv,
     loadQuickTitlesFromCsv,
     saveQuickTitlesToCsv,
 } from '../../quick-titles/services/quickTitlesCsvStorageService'
 import { normalizeAndDeduplicateQuickTitles } from '../../quick-titles/domain/quickTitle'
+import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 
-let cachedQuickTitles: string[] = []
-let hasLoadedQuickTitles = false
-
-function hasQuickTitlesCsvPathChanged(
-    previous: CsvFileSettings | null,
-    next: CsvFileSettings
-): boolean {
-    if (!previous) return true
-
-    return previous.exportCsvFolderPath !== next.exportCsvFolderPath
-        || previous.workingCsvPath !== next.workingCsvPath
+async function mirrorLegacyQuickTitles(list: string[], projectId: string): Promise<void> {
+    await settingsService.setQuickTitles(list, projectId)
 }
 
-async function mirrorLegacyQuickTitles(list: string[]): Promise<void> {
-    await settingsService.setQuickTitles(list)
-}
-
-async function persistQuickTitles(list: string[]): Promise<void> {
+async function persistQuickTitles(list: string[], projectId: string): Promise<void> {
     const normalized = normalizeAndDeduplicateQuickTitles(list)
-    const result = await saveQuickTitlesToCsv(normalized)
+    const result = await saveQuickTitlesToCsv(normalized, projectId)
     if (!result.ok) {
         throw new Error(result.error ?? 'UNKNOWN_QUICK_TITLES_CSV_ERROR')
     }
 
-    mirrorLegacyQuickTitles(normalized).catch((error) =>
+    mirrorLegacyQuickTitles(normalized, projectId).catch((error) =>
         console.error('Failed to mirror quickTitles legacy cache:', error)
     )
 }
 
 export function useQuickTitles() {
-    const [quickTitles, setQuickTitlesState] = useState<string[]>(cachedQuickTitles)
-    const isLoadedRef = useRef(hasLoadedQuickTitles)
-    const csvFileSettingsRef = useRef<CsvFileSettings | null>(null)
+    const { activeProjectId } = useTemplateDocument()
+    const [quickTitles, setQuickTitlesState] = useState<string[]>([])
+    const [isLoaded, setIsLoaded] = useState(false)
+    const [loadedProjectId, setLoadedProjectId] = useState(activeProjectId)
+    const quickTitlesRef = useRef<string[]>([])
+    const projectIdRef = useRef(activeProjectId)
+    projectIdRef.current = activeProjectId
 
-    const setQuickTitles = useCallback((titles: string[] | ((prev: string[]) => string[])) => {
-        setQuickTitlesState((prev) => {
-            const next = typeof titles === 'function' ? titles(prev) : titles
-            cachedQuickTitles = next
-            return next
-        })
+    const commitQuickTitles = useCallback((titles: string[]) => {
+        const normalized = normalizeAndDeduplicateQuickTitles(titles)
+        quickTitlesRef.current = normalized
+        setQuickTitlesState(normalized)
+        return normalized
     }, [])
 
     const reloadQuickTitles = useCallback(async () => {
-        const result = await loadQuickTitlesFromCsv()
-        const list = result.ok ? result.quickTitles : []
-        hasLoadedQuickTitles = true
-        setQuickTitles(list)
-        isLoadedRef.current = true
-        mirrorLegacyQuickTitles(list).catch((error) =>
+        const capturedProjectId = projectIdRef.current
+        if (!capturedProjectId) return
+        setIsLoaded(false)
+        const result = await loadQuickTitlesFromCsv(capturedProjectId)
+        // The CSV read may finish after the active show changed. Do not copy its data into
+        // this hook's current state or mirror it under a different project.
+        if (projectIdRef.current !== capturedProjectId) return
+        const list = result.ok ? normalizeAndDeduplicateQuickTitles(result.quickTitles) : []
+        commitQuickTitles(list)
+        setLoadedProjectId(capturedProjectId)
+        setIsLoaded(true)
+        mirrorLegacyQuickTitles(list, capturedProjectId).catch((error) =>
             console.error('Failed to mirror quickTitles legacy cache:', error)
         )
-    }, [setQuickTitles])
+    }, [commitQuickTitles])
 
     useEffect(() => {
-        const unsubscribeQuickTitles = settingsService.subscribeQuickTitles((titles) => {
-            hasLoadedQuickTitles = true
-            isLoadedRef.current = true
-            setQuickTitles(titles)
+        quickTitlesRef.current = []
+        setQuickTitlesState([])
+        setIsLoaded(false)
+        setLoadedProjectId(activeProjectId)
+        const unsubscribeQuickTitles = settingsService.subscribeQuickTitles((titles, showProjectId) => {
+            if (!showProjectId || showProjectId !== projectIdRef.current) return
+            commitQuickTitles(titles)
+            setLoadedProjectId(showProjectId)
+            setIsLoaded(true)
         })
-
-        const unsubscribeCsvFileSettings = csvFileSettingsService.subscribeCsvFileSettings((settings) => {
-            if (!hasQuickTitlesCsvPathChanged(csvFileSettingsRef.current, settings)) {
-                return
-            }
-
-            csvFileSettingsRef.current = settings
-            reloadQuickTitles().catch((error) =>
-                console.error('Failed to reload quickTitles after CSV file settings changed:', error)
-            )
-        })
-
-        // External PC-to-PC synchronization is intentionally pull-based in this version.
-        // The Quick Titles export is reread when this hook mounts during app start/restart,
-        // when the export/working CSV settings change, or when callers use reloadQuickTitles().
-        // Do not add polling or filesystem watchers here without a dedicated product requirement.
-        void csvFileSettingsService.getCsvFileSettings().then((settings) => {
-            csvFileSettingsRef.current = settings
-        })
-
         void reloadQuickTitles()
-
-        return () => {
-            unsubscribeQuickTitles()
-            unsubscribeCsvFileSettings()
-        }
-    }, [reloadQuickTitles, setQuickTitles])
+        return unsubscribeQuickTitles
+    }, [activeProjectId, commitQuickTitles, reloadQuickTitles])
 
     const addQuickTitle = useCallback(async (title: string) => {
         const trimmed = title.trim()
-        if (!trimmed) return
-
-        setQuickTitles((prev) => {
-            const next = normalizeAndDeduplicateQuickTitles([...prev, trimmed])
-            persistQuickTitles(next).catch((error) =>
-                console.error('Failed to persist quickTitles (add):', error)
-            )
-            return next
-        })
-    }, [setQuickTitles])
+        const projectId = projectIdRef.current
+        if (!trimmed || !projectId) return
+        const next = normalizeAndDeduplicateQuickTitles([...quickTitlesRef.current, trimmed])
+        commitQuickTitles(next)
+        await persistQuickTitles(next, projectId).catch((error) =>
+            console.error('Failed to persist quickTitles (add):', error)
+        )
+    }, [commitQuickTitles])
 
     const removeQuickTitle = useCallback(async (title: string) => {
-        setQuickTitles((prev) => {
-            const next = normalizeAndDeduplicateQuickTitles(prev.filter((t) => t !== title))
-            persistQuickTitles(next).catch((error) =>
-                console.error('Failed to persist quickTitles (remove):', error)
-            )
-            return next
-        })
-    }, [setQuickTitles])
+        const projectId = projectIdRef.current
+        if (!projectId) return
+        const next = normalizeAndDeduplicateQuickTitles(quickTitlesRef.current.filter((item) => item !== title))
+        commitQuickTitles(next)
+        await persistQuickTitles(next, projectId).catch((error) =>
+            console.error('Failed to persist quickTitles (remove):', error)
+        )
+    }, [commitQuickTitles])
 
     const updateQuickTitle = useCallback(async (currentTitle: string, nextTitle: string) => {
         const current = currentTitle.trim()
         const nextValue = nextTitle.trim()
-        if (!current || !nextValue) return
-
-        setQuickTitles((prev) => {
-            const index = prev.findIndex((title) => title === currentTitle)
-            if (index < 0) {
-                return prev
-            }
-
-            const next = [...prev]
-            next[index] = nextValue
-            const normalized = normalizeAndDeduplicateQuickTitles(next)
-            persistQuickTitles(normalized).catch((error) =>
-                console.error('Failed to persist quickTitles (update):', error)
-            )
-            return normalized
-        })
-    }, [setQuickTitles])
+        const projectId = projectIdRef.current
+        if (!current || !nextValue || !projectId) return
+        const index = quickTitlesRef.current.findIndex((title) => title === currentTitle)
+        if (index < 0) return
+        const next = [...quickTitlesRef.current]
+        next[index] = nextValue
+        const normalized = normalizeAndDeduplicateQuickTitles(next)
+        commitQuickTitles(normalized)
+        await persistQuickTitles(normalized, projectId).catch((error) =>
+            console.error('Failed to persist quickTitles (update):', error)
+        )
+    }, [commitQuickTitles])
 
     const setAllQuickTitles = useCallback(async (titles: string[]) => {
+        const projectId = projectIdRef.current
+        if (!projectId) return
         const safe = normalizeAndDeduplicateQuickTitles(Array.isArray(titles) ? titles : [])
-        setQuickTitles(safe)
-        await persistQuickTitles(safe)
-    }, [setQuickTitles])
+        commitQuickTitles(safe)
+        await persistQuickTitles(safe, projectId)
+    }, [commitQuickTitles])
 
     const clearQuickTitles = useCallback(async () => {
-        setQuickTitles([])
-        const result = await clearQuickTitlesCsv()
+        const projectId = projectIdRef.current
+        if (!projectId) return
+        commitQuickTitles([])
+        const result = await clearQuickTitlesCsv(projectId)
         if (!result.ok) {
             throw new Error(result.error ?? 'UNKNOWN_QUICK_TITLES_CSV_ERROR')
         }
-        mirrorLegacyQuickTitles([]).catch((error) =>
+        mirrorLegacyQuickTitles([], projectId).catch((error) =>
             console.error('Failed to mirror quickTitles legacy cache:', error)
         )
-    }, [setQuickTitles])
+    }, [commitQuickTitles])
 
     return {
-        quickTitles,
-        isLoaded: isLoadedRef.current,
-
+        quickTitles: loadedProjectId === activeProjectId ? quickTitles : [],
+        isLoaded: loadedProjectId === activeProjectId && isLoaded,
         addQuickTitle,
         removeQuickTitle,
         updateQuickTitle,
         setAllQuickTitles,
-
         clearQuickTitles,
         reloadQuickTitles,
     }

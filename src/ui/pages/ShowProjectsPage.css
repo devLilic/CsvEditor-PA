@@ -1,0 +1,229 @@
+.show-projects-page {
+    color: var(--text-primary, #172033);
+    background: var(--workspace-bg, #f1f5f9);
+}
+
+.show-projects-page .show-projects-page-header,
+.show-projects-page .show-project-list,
+.show-projects-page .show-project-details {
+    background-color: var(--panel-bg, #fff);
+    border-color: var(--panel-border, #dbe1ea);
+    color: var(--text-primary, #172033);
+}
+
+.show-projects-page input,
+.show-projects-page select,
+.show-projects-page textarea {
+    color: var(--text-primary, #172033);
+}
+
+.show-projects-page input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='range']),
+.show-projects-page select,
+.show-projects-page textarea {
+    background-color: var(--input-bg, #fff);
+    border-color: var(--input-border, #cbd5e1);
+}
+
+.show-projects-page button:not([class*='bg-blue-700']):not([class*='bg-emerald-700']) {
+    border-color: var(--panel-border-strong, #cbd5e1);
+    color: var(--text-primary, #172033);
+}
+
+.show-projects-page button:hover:not(:disabled) {
+    border-color: var(--accent, #60a5fa);
+}
+
+.show-projects-page button:focus-visible,
+.show-projects-page input:focus-visible,
+.show-projects-page select:focus-visible,
+.show-projects-page textarea:focus-visible {
+    outline: 2px solid var(--accent, #60a5fa);
+    outline-offset: 2px;
+}
+
+/* Utility classes on this page are intentionally remapped through the app theme. */
+:root[data-theme='dark'] .show-projects-page,
+:root[data-theme='metallic'] .show-projects-page {
+    color: var(--text-primary);
+    background: var(--workspace-bg);
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='bg-white'],
+:root[data-theme='metallic'] .show-projects-page [class~='bg-white'],
+:root[data-theme='dark'] .show-projects-page [class*='bg-white/'],
+:root[data-theme='metallic'] .show-projects-page [class*='bg-white/'] {
+    background-color: var(--panel-bg) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='bg-slate-100'],
+:root[data-theme='metallic'] .show-projects-page [class~='bg-slate-100'] {
+    background-color: var(--workspace-bg) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='bg-slate-50'],
+:root[data-theme='metallic'] .show-projects-page [class~='bg-slate-50'] {
+    background-color: var(--panel-bg-muted) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='bg-blue-50'],
+:root[data-theme='metallic'] .show-projects-page [class~='bg-blue-50'] {
+    background-color: var(--accent-soft) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='bg-emerald-100'],
+:root[data-theme='metallic'] .show-projects-page [class~='bg-emerald-100'] {
+    background-color: color-mix(in srgb, var(--success) 16%, var(--panel-bg)) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='bg-amber-50'],
+:root[data-theme='metallic'] .show-projects-page [class~='bg-amber-50'] {
+    background-color: color-mix(in srgb, var(--warning) 14%, var(--panel-bg)) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='text-slate-950'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-slate-950'],
+:root[data-theme='dark'] .show-projects-page [class~='text-slate-900'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-slate-900'] {
+    color: var(--text-primary) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='text-slate-600'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-slate-600'],
+:root[data-theme='dark'] .show-projects-page [class~='text-slate-500'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-slate-500'] {
+    color: var(--text-secondary) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='text-blue-800'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-blue-800'],
+:root[data-theme='dark'] .show-projects-page [class~='text-blue-700'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-blue-700'] {
+    color: var(--accent) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='text-emerald-800'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-emerald-800'] {
+    color: var(--success) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='text-amber-800'],
+:root[data-theme='metallic'] .show-projects-page [class~='text-amber-800'] {
+    color: var(--warning) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class~='border-slate-200'],
+:root[data-theme='metallic'] .show-projects-page [class~='border-slate-200'],
+:root[data-theme='dark'] .show-projects-page [class~='border-slate-300'],
+:root[data-theme='metallic'] .show-projects-page [class~='border-slate-300'] {
+    border-color: var(--panel-border) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page input,
+:root[data-theme='metallic'] .show-projects-page input,
+:root[data-theme='dark'] .show-projects-page select,
+:root[data-theme='metallic'] .show-projects-page select,
+:root[data-theme='dark'] .show-projects-page textarea,
+:root[data-theme='metallic'] .show-projects-page textarea {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--text-primary);
+}
+
+:root[data-theme='dark'] .show-projects-page [class*='bg-blue-700'],
+:root[data-theme='metallic'] .show-projects-page [class*='bg-blue-700'] {
+    background-color: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
+}
+
+:root[data-theme='dark'] .show-projects-page [class*='bg-emerald-700'],
+:root[data-theme='metallic'] .show-projects-page [class*='bg-emerald-700'] {
+    background-color: var(--success) !important;
+    color: #fff !important;
+}
+
+.show-projects-workspace {
+    align-items: start;
+}
+
+.show-project-list {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+}
+
+.show-project-details {
+    min-height: 32rem;
+}
+
+.show-element-selector {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.show-element-tab {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border: 1px solid #dbe1ea;
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 0.65rem 0.8rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.show-element-tab:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
+}
+
+.show-element-tab-active {
+    border-color: #60a5fa;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.show-element-tab small {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #f1f5f9;
+    padding: 0.15rem 0.45rem;
+    color: #64748b;
+    font-size: 0.65rem;
+    font-weight: 500;
+}
+
+.show-element-tab-active small {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.show-template-preview {
+    min-height: 17rem;
+}
+
+@media (max-width: 900px) {
+    .show-project-list {
+        position: static;
+        max-height: 14rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .show-element-selector {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .show-element-tab {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+}

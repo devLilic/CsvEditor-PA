@@ -188,6 +188,24 @@ describe('Preview16x9', () => {
         expect(screen.getByText('Rendered title')).toBeInTheDocument()
     })
 
+    it('uses the selected lower-third palette as the text color source', () => {
+        render(
+            <Preview16x9
+                template={template}
+                data={{ title: 'Preturile la energie cresc' }}
+                templateVariant="Obișnuit"
+                lowerThirdPalette={{
+                    indicatorColor: '#2196f3',
+                    backgroundColor: '#1565c0',
+                    textColor: '#000000',
+                    opacity: 0.7,
+                }}
+            />,
+        )
+
+        expect(document.querySelector('[data-layer-id="title-text"]')).toHaveStyle({ color: '#000000' })
+    })
+
     it('renders a shape layer', () => {
         const { container } = render(<Preview16x9 template={template} />)
 

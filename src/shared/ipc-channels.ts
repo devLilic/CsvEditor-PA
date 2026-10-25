@@ -46,6 +46,14 @@ export const IPC_CHANNELS = {
     TEMPLATE_EDITOR_GET_USER_TEMPLATE_DOCUMENT: "template-editor:get-user-template-document",
     TEMPLATE_EDITOR_SAVE_USER_TEMPLATE_DOCUMENT: "template-editor:save-user-template-document",
     TEMPLATE_EDITOR_SAVE_DEV_DEFAULT_TEMPLATE_DOCUMENT: "template-editor:save-dev-default-template-document",
+    SHOW_PROJECTS_GET: "show-projects:get",
+    SHOW_PROJECTS_SAVE: "show-projects:save",
+    SHOW_PROJECTS_IMPORT: "show-projects:import",
+    SHOW_PROJECTS_EXPORT: "show-projects:export",
+    SHOW_PROJECTS_ACTIVATE: "show-projects:activate",
+    SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE: "show-projects:assign-legacy-workspace",
+    SHOW_PROJECTS_SAVE_PROJECT: "show-projects:save-project",
+    SHOW_PROJECTS_DELETE_PROJECT: "show-projects:delete-project",
 
     ENTITY_EXPORT_ERROR: "entity-export:error",
 

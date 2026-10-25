@@ -13,6 +13,8 @@ import { NumericInputWithSlider } from './NumericInputWithSlider'
 type TemplateLayerAccordionProps = {
     template: BroadcastTemplate
     onTemplateChange: (template: BroadcastTemplate) => void
+    supportedInputFields?: string[]
+    showLayerColorFields?: boolean
 }
 
 function cloneTemplate(template: BroadcastTemplate): BroadcastTemplate {
@@ -39,6 +41,8 @@ function updateLayerById(
 export function TemplateLayerAccordion({
     template,
     onTemplateChange,
+    supportedInputFields,
+    showLayerColorFields = true,
 }: TemplateLayerAccordionProps) {
     const [expandedLayerId, setExpandedLayerId] = useState<string | null>(null)
 
@@ -113,6 +117,14 @@ export function TemplateLayerAccordion({
         setExpandedLayerId(id)
     }
 
+    const removeLayer = (layerId: string) => {
+        applyTemplateUpdate({
+            ...cloneTemplate(template),
+            layers: template.layers.filter((layer) => layer.id !== layerId),
+        })
+        setExpandedLayerId((currentId) => currentId === layerId ? null : currentId)
+    }
+
     return (
         <div className="flex flex-col gap-3">
             <details open className="rounded border bg-white">
@@ -179,6 +191,16 @@ export function TemplateLayerAccordion({
                     <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-gray-900">
                         {layer.id} ({layer.type})
                     </summary>
+                    <div className="flex justify-end border-t px-3 pt-3">
+                        <button
+                            type="button"
+                            onClick={() => removeLayer(layer.id)}
+                            aria-label={`Remove layer ${layer.id}`}
+                            className="rounded border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                        >
+                            Remove layer
+                        </button>
+                    </div>
                     <div className="grid grid-cols-2 gap-2 border-t p-3">
                         <LayerBaseFieldsEditor
                             layer={layer}
@@ -187,6 +209,8 @@ export function TemplateLayerAccordion({
                         {layer.type === 'text' && (
                             <TextLayerFieldsEditor
                                 layer={layer}
+                                supportedFieldIds={supportedInputFields}
+                                showColorField={showLayerColorFields}
                                 onChange={(nextLayer) => updateLayer(layer.id, () => nextLayer)}
                             />
                         )}
@@ -199,6 +223,7 @@ export function TemplateLayerAccordion({
                         {layer.type === 'shape' && (
                             <ShapeLayerFieldsEditor
                                 layer={layer}
+                                showColorField={showLayerColorFields}
                                 onChange={(nextLayer) => updateLayer(layer.id, () => nextLayer)}
                             />
                         )}

@@ -55,17 +55,18 @@ export const csvService = {
         }
     },
 
-    async getWorkingCsv(): Promise<CsvGetWorkingResponse> {
+    async getWorkingCsv(projectId?: string): Promise<CsvGetWorkingResponse> {
         try {
-            const res = await getApi().getWorkingCsv()
+            const api = getApi()
+            const res = projectId ? await api.getWorkingCsv(projectId) : await api.getWorkingCsv()
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }
         }
     },
 
-    async getWorking(): Promise<CsvFileDescriptor | null> {
-        const res = await this.getWorkingCsv()
+    async getWorking(projectId?: string): Promise<CsvFileDescriptor | null> {
+        const res = await this.getWorkingCsv(projectId)
         if (!res.ok || typeof res.content !== 'string' || typeof res.path !== 'string') {
             return null
         }
@@ -95,15 +96,17 @@ export const csvService = {
     /**
      * Persistă starea proiectului și actualizează exporturile CSV individuale.
      */
-    async write(content: string, entities?: EntitiesState, lowerThirdTypes?: LowerThirdTypeDefinition[]): Promise<CsvWriteResponse> {
+    async write(content: string, entities?: EntitiesState, lowerThirdTypes?: LowerThirdTypeDefinition[], projectId?: string): Promise<CsvWriteResponse> {
         if (typeof content !== 'string') {
             return { ok: false, error: 'INVALID_CONTENT' }
         }
 
         try {
-            const res = await getApi().writeCsv(entities
+            const api = getApi()
+            const input = entities
                 ? { content, entities, lowerThirdTypes }
-                : content)
+                : content
+            const res = projectId ? await api.writeCsv(input, projectId) : await api.writeCsv(input)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }
@@ -113,13 +116,14 @@ export const csvService = {
     /**
      * Creează un snapshot JSON al proiectului curent în folderul Backup.
      */
-    async backup(content: string): Promise<CsvBackupResponse> {
+    async backup(content: string, projectId?: string): Promise<CsvBackupResponse> {
         if (typeof content !== 'string') {
             return { ok: false, error: 'INVALID_CONTENT' }
         }
 
         try {
-            const res = await getApi().bkpCsv(content)
+            const api = getApi()
+            const res = projectId ? await api.bkpCsv(content, projectId) : await api.bkpCsv(content)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }
@@ -129,13 +133,15 @@ export const csvService = {
     /**
      * Creează un snapshot JSON al proiectului în folderul Backup configurat.
      */
-    async createBackup(content: string): Promise<CsvCreateBackupResponse> {
+    async createBackup(content: string, projectId?: string): Promise<CsvCreateBackupResponse> {
         if (typeof content !== 'string') {
             return { ok: false, error: 'INVALID_CONTENT' }
         }
 
         try {
-            const res = await getApi().createCsvBackup({ content })
+            const api = getApi()
+            const input = { content }
+            const res = projectId ? await api.createCsvBackup(input, projectId) : await api.createCsvBackup(input)
             return res ?? { ok: false, error: 'NO_RESPONSE' }
         } catch {
             return { ok: false, error: 'IPC_FAILED' }

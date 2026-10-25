@@ -5,6 +5,8 @@ import { ColorPickerInput } from './ColorPickerInput'
 type TextLayerFieldsEditorProps = {
     layer: BroadcastTextLayer
     onChange: (layer: BroadcastTextLayer) => void
+    supportedFieldIds?: string[]
+    showColorField?: boolean
 }
 
 function StringInput({
@@ -63,6 +65,8 @@ function SelectInput({
 export function TextLayerFieldsEditor({
     layer,
     onChange,
+    supportedFieldIds,
+    showColorField = true,
 }: TextLayerFieldsEditorProps) {
     const updateLayer = (patch: Partial<BroadcastTextLayer>) => {
         onChange({
@@ -93,11 +97,16 @@ export function TextLayerFieldsEditor({
                 placeholder="Optional: bind to a data field"
                 onChange={(fieldId) => updateLayer({ fieldId })}
             />
+            {supportedFieldIds && (
+                <p className="col-span-2 text-xs font-normal text-gray-500">
+                    Fields built into this graphic: {supportedFieldIds.join(', ')}. Other IDs are saved as custom fields.
+                </p>
+            )}
             <StringInput
                 label="Entity input label"
                 value={layer.inputLabel ?? ''}
-                placeholder="Optional: add an input to the main entity form"
-                onChange={(inputLabel) => updateLayer({ inputLabel: inputLabel || undefined })}
+                placeholder="Optional; leave empty to hide this input"
+                onChange={(inputLabel) => updateLayer({ inputLabel })}
             />
             <StringInput
                 label="Fallback"
@@ -132,11 +141,11 @@ export function TextLayerFieldsEditor({
                 min={1}
                 onChange={(fontWeight) => updateTextStyle({ fontWeight })}
             />
-            <ColorPickerInput
+            {showColorField && <ColorPickerInput
                 label="Color"
                 value={layer.textStyle.color}
                 onChange={(color) => updateTextStyle({ color })}
-            />
+            />}
             <SelectInput
                 label="Align"
                 value={layer.textStyle.align}
