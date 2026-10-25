@@ -1,10 +1,6 @@
 import type { EntitiesState, SectionRow, SimpleTitle } from '@/features/csv-editor/domain/entities'
 import type { CsvAction, CsvState } from '@/features/csv-editor/state/csv.types'
 import { serializeCsv } from '@/features/csv-editor/utils/csvSerializer'
-import {
-    mapPaTitlesExport,
-    mapPaTitlesWithHotExport,
-} from '@/features/entity-export/domain/paEntityExportMapper'
 import type { TitleBackupListItem } from '../domain/titleBackupCsv'
 import { serializeTitleBackup } from '../domain/titleBackupCsv'
 import { mapPlateauItemsToTitleBackupItems } from './writeActiveTitleBackup'
@@ -12,10 +8,8 @@ import { mapPlateauItemsToTitleBackupItems } from './writeActiveTitleBackup'
 export type ImportPlateauTitlesDeps = {
     createId(): string
     writeFullCsv(content: string): Promise<{ ok: boolean; error?: string }>
-    writePaTitlesCsv(content: string): Promise<{ ok: boolean; error?: string }>
     getActiveTitleBackupFile(): Promise<string | null>
     writeTitleBackup(input: { filename: string; content: string }): Promise<{ ok: boolean; error?: string }>
-    writePaTitlesWithHotCsv(content: string): Promise<{ ok: boolean; error?: string }>
 }
 
 export type ImportPlateauTitlesResult =
@@ -139,34 +133,12 @@ export async function importPlateauTitles(
         }
     }
 
-    const paTitlesResult = await input.deps.writePaTitlesCsv(mapPaTitlesExport(nextState.entities))
-    if (!paTitlesResult.ok) {
-        restoreState(input.dispatch, previousEntities)
-        return {
-            ok: false,
-            error: paTitlesResult.error ?? 'PA_TITLES_WRITE_FAILED',
-            state: input.state,
-        }
-    }
-
     const activeTitleBackupFile = await input.deps.getActiveTitleBackupFile()
     if (activeTitleBackupFile) {
         await input.deps.writeTitleBackup({
             filename: activeTitleBackupFile,
             content: serializeTitleBackup(mapPlateauItemsToTitleBackupItems(nextState.entities)),
         })
-    }
-
-    const titlesWithHotResult = await input.deps.writePaTitlesWithHotCsv(
-        mapPaTitlesWithHotExport(nextState.entities)
-    )
-    if (!titlesWithHotResult.ok) {
-        restoreState(input.dispatch, previousEntities)
-        return {
-            ok: false,
-            error: titlesWithHotResult.error ?? 'PA_TITLES_WITH_HOT_WRITE_FAILED',
-            state: input.state,
-        }
     }
 
     return {

@@ -100,7 +100,7 @@ describe('reorderPlateauTitlesService', () => {
 
         const exports = mapFullCsvContentToExportCsvs(getWrittenCsv(writeSpy))
         expect(exports.titlesCsv).not.toContain(TITLE_DIVIDER_MARKER)
-        expect(exports.titlesWithHotCsv).not.toContain(TITLE_DIVIDER_MARKER)
+        expect(exports.titlesCsv).not.toContain('Ultima Ora')
     })
 
     it('rolls back when the full CSV write fails', async () => {
@@ -142,23 +142,6 @@ describe('reorderPlateauTitlesService', () => {
         })
 
         expect(result).toEqual({ ok: false, error: 'ENTITY_EXPORT_FAILED: PA_titles.csv' })
-        expect(dispatch).toHaveBeenCalledTimes(2)
-    })
-
-    it('rolls back when PA_titles_with_hot.csv export fails', async () => {
-        vi.spyOn(console, 'error').mockImplementation(() => {})
-        vi.spyOn(csvService, 'write').mockResolvedValue({ ok: false, error: 'ENTITY_EXPORT_FAILED: PA_titles_with_hot.csv' })
-        const dispatch = vi.fn()
-
-        const result = await reorderPlateauTitlesService.reorder({
-            state: makeState(),
-            sectionId: 'invited-1',
-            activeId: 'row-title-3',
-            overId: 'row-title-2',
-            dispatch,
-        })
-
-        expect(result).toEqual({ ok: false, error: 'ENTITY_EXPORT_FAILED: PA_titles_with_hot.csv' })
         expect(dispatch).toHaveBeenCalledTimes(2)
     })
 

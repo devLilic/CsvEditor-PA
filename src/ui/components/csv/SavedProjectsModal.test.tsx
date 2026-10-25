@@ -17,7 +17,7 @@ function renderModal(props?: Partial<Parameters<typeof SavedProjectsModal>[0]>) 
     return render(
         <SavedProjectsModal
             open
-            currentCsvContent="current,csv"
+            currentProjectContent='{"version":1,"entities":{"sections":[]}}'
             onClose={vi.fn()}
             onProjectLoaded={vi.fn()}
             {...props}
@@ -93,7 +93,7 @@ describe('SavedProjectsModal', () => {
         await waitFor(() => {
             expect(savedProjectsService.saveCurrentAsProject).toHaveBeenCalledWith({
                 filename: 'Nou',
-                content: 'current,csv',
+                content: '{"version":1,"entities":{"sections":[]}}',
             })
         })
     })
@@ -103,7 +103,7 @@ describe('SavedProjectsModal', () => {
         renderModal()
 
         await screen.findByText('Emisiunea_1.csv')
-        await user.click(screen.getAllByRole('button', { name: 'Încarcă în CSV-ul de lucru' })[0])
+        await user.click(screen.getAllByRole('button', { name: 'Încarcă proiectul' })[0])
         await user.click(screen.getByRole('button', { name: 'Încarcă' }))
 
         await waitFor(() => {
@@ -120,7 +120,7 @@ describe('SavedProjectsModal', () => {
         renderModal({ onProjectLoaded, onClose })
 
         await screen.findByText('Emisiunea_1.csv')
-        await user.click(screen.getAllByRole('button', { name: 'Încarcă în CSV-ul de lucru' })[0])
+        await user.click(screen.getAllByRole('button', { name: 'Încarcă proiectul' })[0])
         await user.click(screen.getByRole('button', { name: 'Încarcă' }))
 
         await waitFor(() => {
@@ -134,10 +134,10 @@ describe('SavedProjectsModal', () => {
         renderModal()
 
         await screen.findByText('Emisiunea_1.csv')
-        await user.click(screen.getAllByRole('button', { name: 'Încarcă în CSV-ul de lucru' })[0])
+        await user.click(screen.getAllByRole('button', { name: 'Încarcă proiectul' })[0])
 
-        expect(screen.getByText('Încarci acest proiect în CSV-ul de lucru?')).toBeInTheDocument()
-        expect(screen.getByText(/backup pentru CSV-ul curent/)).toBeInTheDocument()
+        expect(screen.getByText('Încarci acest proiect?')).toBeInTheDocument()
+        expect(screen.getByText(/starea proiectului curent va fi salvată în backup/i)).toBeInTheDocument()
 
         await user.click(screen.getByRole('button', { name: 'Anulează' }))
 
@@ -155,11 +155,11 @@ describe('SavedProjectsModal', () => {
         renderModal({ onProjectLoaded, onClose })
 
         await screen.findByText('Emisiunea_1.csv')
-        await user.click(screen.getAllByRole('button', { name: 'Încarcă în CSV-ul de lucru' })[0])
+        await user.click(screen.getAllByRole('button', { name: 'Încarcă proiectul' })[0])
         await user.click(screen.getByRole('button', { name: 'Încarcă' }))
 
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Backup CSV nu a putut fi creat. Proiectul salvat nu a fost încărcat în CSV-ul de lucru. Verifică folderul de backup din Setări.'
+            'Backupul proiectului curent nu a putut fi creat. Proiectul salvat nu a fost încărcat. Verifică folderul Backup din Setări.'
         )
         expect(onProjectLoaded).not.toHaveBeenCalled()
         expect(onClose).not.toHaveBeenCalled()

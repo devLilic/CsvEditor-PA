@@ -2,45 +2,22 @@
 
 ## Divider marker
 
-The exact divider marker is:
+The exact divider marker is `[ DIVIDER ]`. It is valid only in `INVITATI / PLATOU > Titles`; it remains an editor-only ordering helper and never appears in broadcast exports.
 
-```text
-[ DIVIDER ]
-```
+## Project storage
 
-The marker is valid only in `INVITATI` / `PLATOU > Titles`. It is not imported or exported as a title entity and it is not valid in BETA sections.
-
-## Full CSV storage
-
-In the full project CSV, a divider row is stored in the `Titlu` column with an empty `Nr` column:
-
-```csv
-Nr;Titlu
-;[ DIVIDER ]
-```
-
-All other columns on that row remain empty. The parser stores it as a separate ordered list item so its position among titles is preserved.
+The active project state is stored as JSON in `Saved/current-project.json`. Saved snapshots use JSON in `Backup`. The application does not write a full-project CSV during normal editing.
 
 ## Broadcast exports
 
-Dividers are editor-only ordering helpers. They are omitted from broadcast export files so downstream graphics systems receive only real titles and hot titles.
+The `Export` folder contains the current `titles`, `persons`, locations, phone images, wait-title/location, and Quick Titles CSV files. A configurable prefix is applied to each export filename. The title export includes `Nr`, `Titlu`, `Supratitlu`, and `Template`; the person export includes `Sectiune`, `Nume`, `Functie`, and `Template`.
 
-`PA_titles.csv` now contains only:
-
-```csv
-Nr;Titlu
-```
-
-It keeps existing section markers and exports only title rows.
-
-`PA_titles_with_hot.csv` contains:
-
-```csv
-Nr;Titlu;Ultima Ora
-```
-
-It keeps the previous title-plus-hot export behavior. Titles and hot titles are aligned by index only for convenience; they are not treated as semantically linked.
+Titles with the lower-third type `Ultima oră` remain ordinary title rows and carry their configured design through the `Template` column. There is no separate Hot Titles editor or `titles_with_hot` export.
 
 ## Numbering
 
-Only real title rows receive numbers. Dividers are ignored during numbering, so title numbers are always consecutive within each section: `1`, `2`, `3`, and so on.
+Only real title rows receive numbers. Dividers are ignored during numbering, so title numbers are consecutive within each section.
+
+## Title history backup
+
+The dedicated title-history backup remains a separate CSV containing only PLATOU titles and divider markers. It is stored in `Backup` and has its own retention policy.

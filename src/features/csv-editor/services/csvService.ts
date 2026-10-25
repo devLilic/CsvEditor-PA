@@ -40,7 +40,7 @@ function getApi() {
  */
 export const csvService = {
     /**
-     * Încarcă ultimul CSV salvat (dacă există)
+     * Încarcă starea curentă a proiectului și, pentru versiuni vechi, exporturile existente.
      */
     /**
      * @deprecated Legacy fallback for the old dialog-based CSV flow.
@@ -93,7 +93,7 @@ export const csvService = {
     },
 
     /**
-     * Scrie CSV-ul curent pe disc
+     * Persistă starea proiectului și actualizează exporturile CSV individuale.
      */
     async write(content: string, entities?: EntitiesState, lowerThirdTypes?: LowerThirdTypeDefinition[]): Promise<CsvWriteResponse> {
         if (typeof content !== 'string') {
@@ -111,7 +111,7 @@ export const csvService = {
     },
 
     /**
-     * Creează backup pentru CSV-ul curent
+     * Creează un snapshot JSON al proiectului curent în folderul Backup.
      */
     async backup(content: string): Promise<CsvBackupResponse> {
         if (typeof content !== 'string') {
@@ -127,7 +127,7 @@ export const csvService = {
     },
 
     /**
-     * Creeaza backup in folderul configurat in setarile CSV.
+     * Creează un snapshot JSON al proiectului în folderul Backup configurat.
      */
     async createBackup(content: string): Promise<CsvCreateBackupResponse> {
         if (typeof content !== 'string') {

@@ -42,6 +42,8 @@ export async function resolveQuickTitlesCsvPath(): Promise<string> {
     const filePath = resolveQuickTitlesCsvExportPath({
         workingCsvPath: workingCsvPath ?? '',
         exportFolderPath,
+        projectFolderPath: settings.projectFolderPath,
+        exportPrefix: settings.exportPrefix,
     })
 
     await fsp.mkdir(path.dirname(filePath), { recursive: true })
@@ -68,7 +70,7 @@ async function readQuickTitlesCsvContent(
             }
         } catch (error) {
             if (!isMissingFileError(error)) {
-                console.error('[quick-titles:read-csv] failed to read PA_quickTitles.csv:', {
+                console.error('[quick-titles:read-csv] failed to read quick-titles CSV:', {
                     path: filePath,
                     error,
                 })

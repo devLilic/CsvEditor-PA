@@ -64,6 +64,15 @@ export const csvFileSettingsService = {
         }
     },
 
+    async selectProjectFolder(): Promise<string | null> {
+        try {
+            const selectedPath = await getApi().selectProjectFolder()
+            return typeof selectedPath === 'string' ? selectedPath : null
+        } catch {
+            return null
+        }
+    },
+
     async selectBackupFolder(): Promise<string | null> {
         try {
             const selectedPath = await getApi().selectBackupFolder()

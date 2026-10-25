@@ -4,6 +4,11 @@ import { serializeEntityCsv } from './entityCsvSerializer'
 import { DEFAULT_LOWER_THIRD_TYPES } from '../../lower-thirds/domain/lowerThirdTypes'
 import { getLowerThirdTemplateName } from '../../lower-thirds/domain/lowerThirdAssignments'
 import type { LowerThirdTypeDefinition } from '../../lower-thirds/domain/lowerThirdTypes'
+import { DEFAULT_ENTITY_TEMPLATE_NAMES, type EntityTemplateNames } from '../../lower-thirds/domain/entityTemplateNames'
+
+function prefixedTemplateName(name: string, prefix: string): string {
+    return prefix && !name.startsWith(prefix) ? `${prefix}${name}` : name
+}
 
 function getSectionMarker(section: CsvSection): string {
     return section.kind === 'beta'
@@ -15,7 +20,11 @@ function hasImage(image?: string): boolean {
     return typeof image === 'string' && image.trim() !== ''
 }
 
-export function mapPaTitlesExport(state: EntitiesState, types: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES): string {
+export function mapPaTitlesExport(
+    state: EntitiesState,
+    types: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
+    exportPrefix = '',
+): string {
     const rows: Record<string, string>[] = []
 
     for (const section of state.sections) {
@@ -27,7 +36,7 @@ export function mapPaTitlesExport(state: EntitiesState, types: LowerThirdTypeDef
                 Nr: String(index + 1),
                 Titlu: titles[index].title,
                 Supratitlu: titles[index].supratitle ?? '',
-                Template: getLowerThirdTemplateName(titles[index], types, 'titles'),
+                Template: getLowerThirdTemplateName(titles[index], types, 'titles', exportPrefix),
             })
         }
     }
@@ -35,33 +44,11 @@ export function mapPaTitlesExport(state: EntitiesState, types: LowerThirdTypeDef
     return serializeEntityCsv(['Nr', 'Titlu', 'Supratitlu', 'Template'], rows)
 }
 
-export function mapPaTitlesWithHotExport(state: EntitiesState): string {
-    const rows: Record<string, string>[] = []
-
-    for (const section of state.sections) {
-        rows.push({ Nr: getSectionMarker(section), Titlu: '', Supratitlu: '', 'Ultima Ora': '' })
-        const titles = section.rows.flatMap((row) => row.title ? [row.title] : [])
-        const hotTitles = section.kind === 'invited'
-            ? section.rows.flatMap((row) => row.hotTitle
-                ? [row.hotTitle]
-                : row.title?.lowerThirdTypeId === 'urgent' ? [row.title] : [])
-            : []
-        const rowCount = Math.max(titles.length, hotTitles.length)
-
-        for (let index = 0; index < rowCount; index += 1) {
-            rows.push({
-                Nr: titles[index] ? String(index + 1) : '',
-                Titlu: titles[index]?.title ?? '',
-                Supratitlu: titles[index]?.supratitle ?? '',
-                'Ultima Ora': hotTitles[index]?.title ?? '',
-            })
-        }
-    }
-
-    return serializeEntityCsv(['Nr', 'Titlu', 'Supratitlu', 'Ultima Ora'], rows)
-}
-
-export function mapPaPersonsExport(state: EntitiesState, types: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES): string {
+export function mapPaPersonsExport(
+    state: EntitiesState,
+    types: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
+    exportPrefix = '',
+): string {
     const rows: Record<string, string>[] = []
 
     for (const section of state.sections) {
@@ -73,7 +60,7 @@ export function mapPaPersonsExport(state: EntitiesState, types: LowerThirdTypeDe
                 Sectiune: '',
                 Nume: row.person.name,
                 Functie: row.person.occupation,
-                Template: getLowerThirdTemplateName(row.person, types, 'persons'),
+                Template: getLowerThirdTemplateName(row.person, types, 'persons', exportPrefix),
             })
         }
     }
@@ -81,47 +68,76 @@ export function mapPaPersonsExport(state: EntitiesState, types: LowerThirdTypeDe
     return serializeEntityCsv(['Sectiune', 'Nume', 'Functie', 'Template'], rows)
 }
 
-export function mapPaLocationsExport(state: EntitiesState): string {
+export function mapPaLocationsExport(
+    state: EntitiesState,
+    templates: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+    exportPrefix = '',
+): string {
     return serializeEntityCsv(
-        ['Locatie'],
+        ['Locatie', 'Template'],
         state.sections
             .filter((section) => section.kind === 'invited')
             .flatMap((section) => section.rows)
-            .flatMap((row) => row.location ? [{ Locatie: row.location.location }] : [])
+            .flatMap((row) => row.location ? [{
+                Locatie: row.location.location,
+                Template: prefixedTemplateName(templates.locations, exportPrefix),
+            }] : [])
     )
 }
 
-export function mapPaPhonesExport(state: EntitiesState): string {
+export function mapPaPhonesExport(
+    state: EntitiesState,
+    templates: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+    exportPrefix = '',
+): string {
     return serializeEntityCsv(
-        ['Nume', 'Functie', 'Image'],
+        ['Nume', 'Functie', 'Image', 'Template'],
         state.sections
             .filter((section) => section.kind === 'invited')
             .flatMap((section) => section.rows)
             .flatMap((row) => row.person && hasImage(row.person.image)
-                ? [{ Nume: row.person.name, Functie: row.person.occupation, Image: row.person.image ?? '' }]
+                ? [{
+                    Nume: row.person.name,
+                    Functie: row.person.occupation,
+                    Image: row.person.image ?? '',
+                    Template: prefixedTemplateName(templates.phones, exportPrefix),
+                }]
                 : [])
     )
 }
 
-export function mapPaWaitTitlesLocationsValues(titles: string[], locations: string[]): string {
+export function mapPaWaitTitlesLocationsValues(
+    titles: string[],
+    locations: string[],
+    templates: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+    exportPrefix = '',
+): string {
     const rowCount = Math.max(titles.length, locations.length)
 
     return serializeEntityCsv(
-        ['Titlu', 'Locatie'],
+        ['Titlu', 'Template Titlu', 'Locatie', 'Template Locatie'],
         Array.from({ length: rowCount }, (_, index) => ({
             Titlu: titles[index] ?? '',
+            'Template Titlu': titles[index] ? prefixedTemplateName(templates.waitTitles, exportPrefix) : '',
             Locatie: locations[index] ?? '',
+            'Template Locatie': locations[index] ? prefixedTemplateName(templates.waitLocations, exportPrefix) : '',
         }))
     )
 }
 
-export function mapPaWaitTitlesLocationsExport(state: EntitiesState): string {
+export function mapPaWaitTitlesLocationsExport(
+    state: EntitiesState,
+    templates: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+    exportPrefix = '',
+): string {
     const invitedRows = state.sections
         .filter((section) => section.kind === 'invited')
         .flatMap((section) => section.rows)
 
     return mapPaWaitTitlesLocationsValues(
         invitedRows.flatMap((row) => row.waitTitle ? [row.waitTitle.title] : []),
-        invitedRows.flatMap((row) => row.waitLocation ? [row.waitLocation.location] : [])
+        invitedRows.flatMap((row) => row.waitLocation ? [row.waitLocation.location] : []),
+        templates,
+        exportPrefix,
     )
 }

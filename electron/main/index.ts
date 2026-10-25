@@ -53,7 +53,7 @@ const indexHtml = path.join(RENDERER_DIST, 'index.html')
 const SPELLCHECK_LANGUAGES = ['ro']
 
 function getWindowTitle() {
-  return `Punctul pe Azi (ver. ${app.getVersion()})`
+  return `Tales (ver. ${app.getVersion()})`
 }
 
 function lockWindowTitle(window: BrowserWindow) {
@@ -112,7 +112,7 @@ async function createWindow() {
     title: getWindowTitle(),
     fullscreenable: true,
     autoHideMenuBar: false,
-    icon: path.join(process.env.VITE_PUBLIC, 'PA_favicon.ico'),
+    icon: path.join(process.env.VITE_PUBLIC, 'tales-favicon.ico'),
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production

@@ -5,7 +5,6 @@ export const SUPPORTED_ENTITY_TYPES = [
     'persons',
     'locations',
     'phoneCalls',
-    'hotTitles',
     'waitTitles',
     'waitLocations',
 ] as const satisfies readonly EntityType[]

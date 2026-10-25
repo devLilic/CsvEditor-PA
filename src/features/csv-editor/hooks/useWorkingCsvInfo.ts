@@ -29,7 +29,7 @@ export function useWorkingCsvInfo(): WorkingCsvInfo {
 
         csvFileSettingsService.getCsvFileSettings().then((settings) => {
             if (!isMounted) return
-            setInfo(createWorkingCsvInfo(settings.workingCsvPath))
+            setInfo(createWorkingCsvInfo(settings.projectFolderPath))
         })
 
         return () => {

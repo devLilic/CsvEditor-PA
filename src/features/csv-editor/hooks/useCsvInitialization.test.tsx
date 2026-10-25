@@ -64,6 +64,46 @@ describe('useCsvInitialization', () => {
         expect(api.reserveTitleBackup).toHaveBeenCalledWith({ forceNewProject: false })
     })
 
+    it('loads the saved project from the configured project folder when workingCsvPath is empty', async () => {
+        vi.spyOn(csvFileSettingsService, 'getCsvFileSettings').mockResolvedValue({
+            projectFolderPath: 'C:/work',
+            exportPrefix: '',
+            workingCsvPath: '',
+            backupFolderPath: 'C:/work/Backup',
+            savedProjectsFolderPath: 'C:/work/Saved',
+            exportCsvFolderPath: 'C:/work/Export',
+        })
+        const getWorkingSpy = vi.spyOn(csvService, 'getWorkingCsv').mockResolvedValue({
+            ok: true,
+            path: 'C:/work/Saved/current-project.json',
+            filename: 'current-project.json',
+            // The JSON project state is authoritative even if its CSV projection is empty.
+            content: '',
+            entities: {
+                sections: [{
+                    id: 'invited',
+                    kind: 'invited',
+                    rows: [{ id: 'saved-title', title: { id: 'saved-title', title: 'SAVED PROJECT TITLE' } }],
+                }],
+            },
+        })
+        const defaultProjectSpy = vi.spyOn(defaultProjectSettingsService, 'getDefaultProjectSettings')
+
+        render(
+            <CsvProvider>
+                <InitializationHarness />
+            </CsvProvider>
+        )
+
+        await waitFor(() => {
+            expect(screen.getByTestId('loaded')).toHaveTextContent('true')
+        })
+
+        expect(screen.getByTestId('title')).toHaveTextContent('SAVED PROJECT TITLE')
+        expect(getWorkingSpy).toHaveBeenCalledOnce()
+        expect(defaultProjectSpy).not.toHaveBeenCalled()
+    })
+
     it('loads the default project when no working CSV is configured', async () => {
         const savedSettings = {
             title: 'INIT DEFAULT TITLE',

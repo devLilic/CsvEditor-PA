@@ -3,7 +3,6 @@ export type DefaultProjectSettings = {
     personName: string
     personOccupation: string
     location: string
-    hotTitle: string
 }
 
 export const FALLBACK_DEFAULT_PROJECT_SETTINGS: DefaultProjectSettings = {
@@ -11,7 +10,6 @@ export const FALLBACK_DEFAULT_PROJECT_SETTINGS: DefaultProjectSettings = {
     personName: 'NUME STANDARD',
     personOccupation: 'FUNCȚIE STANDARD',
     location: 'CHIȘINĂU',
-    hotTitle: '',
 }
 
 export function isDefaultProjectSettings(value: unknown): value is DefaultProjectSettings {
@@ -25,8 +23,7 @@ export function isDefaultProjectSettings(value: unknown): value is DefaultProjec
         typeof candidate.title === 'string' &&
         typeof candidate.personName === 'string' &&
         typeof candidate.personOccupation === 'string' &&
-        typeof candidate.location === 'string' &&
-        typeof candidate.hotTitle === 'string'
+        typeof candidate.location === 'string'
     )
 }
 
@@ -51,6 +48,5 @@ export function normalizeDefaultProjectSettings(value: unknown): DefaultProjectS
         personName: candidate.personName,
         personOccupation: candidate.personOccupation,
         location: candidate.location,
-        hotTitle: typeof candidate.hotTitle === 'string' ? candidate.hotTitle : '',
     }
 }

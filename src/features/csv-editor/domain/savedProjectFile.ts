@@ -15,6 +15,17 @@ export function ensureCsvExtension(filename: string): string {
         : `${filename}.csv`
 }
 
+export function createSavedProjectJsonFilename(input: string): string {
+    const sanitized = input.trim().replace(/\.json$/i, '').replace(/\.csv$/i, '')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '')
+    return `${sanitized || FALLBACK_SAVED_PROJECT_FILENAME}.json`
+}
+
+export function isSavedProjectFilename(filename: string): boolean {
+    return filename === filename.split(/[\\/]/).pop()
+        && /\.(csv|json)$/i.test(filename)
+}
+
 export function createSavedProjectFilename(input: string): string {
     const sanitized = sanitizeSavedProjectName(input)
     return ensureCsvExtension(sanitized || FALLBACK_SAVED_PROJECT_FILENAME)

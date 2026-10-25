@@ -18,6 +18,7 @@ export interface CsvGetWorkingResponse {
     filename?: string
     content?: string
     previousExports?: { titles?: string; persons?: string }
+    entities?: EntitiesState
     error?: string
 }
 
@@ -28,7 +29,7 @@ export interface CsvWriteResponse {
 
 export interface CsvWriteRequest {
     content: string
-    /** Renderer metadata used only to generate PA exports; never serialized into the working CSV. */
+    /** Canonical renderer state persisted as JSON and used to generate entity exports. */
     entities?: EntitiesState
     lowerThirdTypes?: LowerThirdTypeDefinition[]
 }
@@ -391,6 +392,16 @@ export interface IpcInvokeMap {
         response: string | null
     }
 
+    [IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER]: {
+        request: void
+        response: string | null
+    }
+
+    [IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER]: {
+        request: void
+        response: string | null
+    }
+
     [IPC_CHANNELS.SETTINGS_SELECT_BACKUP_FOLDER]: {
         request: void
         response: string | null
@@ -503,6 +514,7 @@ export interface RendererApi {
     getCsvFileSettings(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_GET_CSV_FILE>>
     setCsvFileSettings(settings: IpcRequest<typeof IPC_CHANNELS.SETTINGS_SET_CSV_FILE>): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SET_CSV_FILE>>
     selectWorkingCsv(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_WORKING_CSV>>
+    selectProjectFolder(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER>>
     selectBackupFolder(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_BACKUP_FOLDER>>
     selectSavedProjectsFolder(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_SAVED_PROJECTS_FOLDER>>
     selectExportCsvFolder(): Promise<IpcResponse<typeof IPC_CHANNELS.SETTINGS_SELECT_EXPORT_CSV_FOLDER>>

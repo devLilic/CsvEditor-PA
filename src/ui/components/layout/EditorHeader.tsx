@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useEntities } from '@/features/csv-editor'
 import { useCsvContext } from '@/features/csv-editor/context/CsvContext'
 import { parseCsv } from '@/features/csv-editor/utils/csvParser'
-import { serializeCsv } from '@/features/csv-editor/utils/csvSerializer'
+import type { EntitiesState } from '@/features/csv-editor/domain/entities'
 import { EditModeToggle } from '@/ui/components/EditModeToggle'
 import { useEditMode } from '@/ui/context/EditModeContext'
 import { useTedMode } from '@/ui/context/TedModeContext'
@@ -106,7 +106,15 @@ export function EditorHeader() {
     const handleProjectLoaded = (content: string) => {
         dispatch({
             type: 'CSV_LOADED',
-            payload: parseCsv(content),
+            payload: (() => {
+                try {
+                    const saved = JSON.parse(content) as { entities?: unknown }
+                    if (saved.entities && typeof saved.entities === 'object' && Array.isArray((saved.entities as EntitiesState).sections)) {
+                        return saved.entities as EntitiesState
+                    }
+                } catch { /* Legacy saved projects are CSV. */ }
+                return parseCsv(content)
+            })(),
         })
     }
 
@@ -152,6 +160,8 @@ export function EditorHeader() {
     return (
         <div className="app-header relative flex items-center justify-between gap-4 border-b bg-white px-4 py-2">
             <div className="app-header-primary flex min-w-0 items-center gap-3">
+                <img src="/tales-logo.png" alt="" aria-hidden="true" className="h-8 w-8 shrink-0" />
+                <span className="hidden text-sm font-semibold tracking-tight sm:inline">Tales</span>
                 <SectionsTabs />
             </div>
 
@@ -188,7 +198,7 @@ export function EditorHeader() {
                 )}
 
                 <span className="app-chip max-w-48 truncate rounded border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700">
-                    CSV: {workingCsvInfo.filename}
+                    Proiect: {workingCsvInfo.filename}
                 </span>
 
                 <EditModeToggle />
@@ -240,7 +250,7 @@ export function EditorHeader() {
 
             <SavedProjectsModal
                 open={isSavedProjectsModalOpen}
-                currentCsvContent={serializeCsv(state.entities)}
+                currentProjectContent={JSON.stringify({ version: 1, entities: state.entities }, null, 2)}
                 onClose={() => setIsSavedProjectsModalOpen(false)}
                 onProjectLoaded={handleProjectLoaded}
             />

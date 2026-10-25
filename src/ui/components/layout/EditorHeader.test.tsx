@@ -174,7 +174,7 @@ describe('EditorHeader', () => {
         expect(screen.getByRole('button', { name: /Proiect nou/i })).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: /Selecteaz/i })).not.toBeInTheDocument()
         expect(screen.queryByText('Sterge')).not.toBeInTheDocument()
-        expect(screen.getByText('CSV: emisie.csv')).toBeInTheDocument()
+        expect(screen.getByText('Proiect: emisie.csv')).toBeInTheDocument()
     })
 
     it('shows an unset CSV badge when no working CSV is configured', () => {
@@ -186,13 +186,13 @@ describe('EditorHeader', () => {
 
         render(<EditorHeader />)
 
-        expect(screen.getByText('CSV: nesetat')).toBeInTheDocument()
+        expect(screen.getByText('Proiect: nesetat')).toBeInTheDocument()
     })
 
-    it('keeps the CSV badge before Edit Mode and Proiect nou available', () => {
+    it('keeps the project badge before Edit Mode and Proiect nou available', () => {
         render(<EditorHeader />)
 
-        const badge = screen.getByText('CSV: emisie.csv')
+        const badge = screen.getByText('Proiect: emisie.csv')
         const editMode = screen.getByRole('button', { name: /Edit Mode/i })
         const newProject = screen.getByRole('button', { name: /Proiect nou/i })
 
@@ -207,12 +207,12 @@ describe('EditorHeader', () => {
         expect(screen.queryByRole('button', { name: 'Exit Templates' })).not.toBeInTheDocument()
     })
 
-    it('shows EDIT Templates before the CSV badge while Edit Mode is on', () => {
+    it('shows EDIT Templates before the project badge while Edit Mode is on', () => {
         headerModeState.editMode = true
         render(<EditorHeader />)
 
         const templatesButton = screen.getByRole('button', { name: 'EDIT Templates' })
-        const badge = screen.getByText('CSV: emisie.csv')
+        const badge = screen.getByText('Proiect: emisie.csv')
 
         expect(
             templatesButton.compareDocumentPosition(badge) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -480,7 +480,7 @@ describe('EditorHeader', () => {
 
         await user.click(screen.getByRole('button', { name: 'Proiecte salvate' }))
         await screen.findByText('Emisiunea_1.csv')
-        await user.click(screen.getByRole('button', { name: 'Încarcă în CSV-ul de lucru' }))
+        await user.click(screen.getByRole('button', { name: 'Încarcă proiectul' }))
         await user.click(screen.getByRole('button', { name: 'Încarcă' }))
 
         expect(loadProjectIntoWorkingCsvMock).toHaveBeenCalledWith({
@@ -503,7 +503,7 @@ describe('EditorHeader', () => {
         })
     })
 
-    it('passes the current serialized CSV content to the modal save flow', async () => {
+    it('passes the current project JSON to the saved projects flow', async () => {
         const user = userEvent.setup()
         render(<EditorHeader />)
 

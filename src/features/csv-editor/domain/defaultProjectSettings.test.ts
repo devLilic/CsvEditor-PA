@@ -5,7 +5,7 @@ import {
 } from './defaultProjectSettings'
 
 describe('normalizeDefaultProjectSettings', () => {
-    it('preserves existing values and adds an empty hot title for legacy settings', () => {
+    it('preserves the project defaults without a legacy hot title field', () => {
         expect(normalizeDefaultProjectSettings({
             title: 'TITLU',
             personName: 'NUME',
@@ -16,7 +16,6 @@ describe('normalizeDefaultProjectSettings', () => {
             personName: 'NUME',
             personOccupation: 'FUNCTIE',
             location: 'LOCATIE',
-            hotTitle: '',
         })
     })
 

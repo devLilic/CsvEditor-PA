@@ -54,8 +54,20 @@ function buildQueues(content: string | undefined, kind: LowerThirdEntityKind): M
     return queues
 }
 
-function templatesByName(types: LowerThirdTypeDefinition[], kind: LowerThirdEntityKind): Map<string, string> {
-    return new Map(types.map((type) => [type.templates[kind].name, type.id]))
+function templatesByName(
+    types: LowerThirdTypeDefinition[],
+    kind: LowerThirdEntityKind,
+    prefix = '',
+): Map<string, string> {
+    const names = new Map<string, string>()
+    for (const type of types) {
+        const name = type.templates[kind].name
+        // Accept both current prefixed names and legacy exports created before the
+        // project prefix was also applied to lower-third templates.
+        names.set(name, type.id)
+        if (prefix) names.set(`${prefix}${name}`, type.id)
+    }
+    return names
 }
 
 function takeAssignment(
@@ -80,12 +92,13 @@ export function restoreLowerThirdAssignments(input: {
     titlesExport?: string
     personsExport?: string
     types: LowerThirdTypeDefinition[]
+    exportPrefix?: string
     onWarning?: (message: string) => void
 }): EntitiesState {
     const titleQueues = buildQueues(input.titlesExport, 'titles')
     const personQueues = buildQueues(input.personsExport, 'persons')
-    const titleTypes = templatesByName(input.types, 'titles')
-    const personTypes = templatesByName(input.types, 'persons')
+    const titleTypes = templatesByName(input.types, 'titles', input.exportPrefix)
+    const personTypes = templatesByName(input.types, 'persons', input.exportPrefix)
 
     const sections = input.entities.sections.map((section) => {
         const sectionMarker = marker(section)
@@ -145,11 +158,14 @@ export function getLowerThirdTemplateName(
     entity: { lowerThirdTypeId?: string; lowerThirdTemplateOverride?: string },
     types: LowerThirdTypeDefinition[],
     kind: LowerThirdEntityKind,
+    prefix = '',
 ): string {
     if (typeof entity.lowerThirdTemplateOverride === 'string' && entity.lowerThirdTemplateOverride.trim()) {
         return entity.lowerThirdTemplateOverride
     }
     const type = types.find((candidate) => candidate.id === entity.lowerThirdTypeId)
         ?? types.find((candidate) => candidate.id === DEFAULT_LOWER_THIRD_TYPE_ID)
-    return type?.templates[kind].name ?? ''
+    const name = type?.templates[kind].name ?? ''
+    if (!prefix || name.startsWith(prefix)) return name
+    return `${prefix}${name}`
 }

@@ -67,7 +67,11 @@ export function ImageFileSelector({
                 accept="image/*"
                 aria-label={`${label} selector`}
                 onChange={(event) => {
-                    void getSelectedFileValue(event.target.files?.[0]).then(onChange)
+                    const file = event.currentTarget.files?.[0]
+                    // Clearing the input lets the operator select the same image
+                    // again for another template variant and still emit `change`.
+                    event.currentTarget.value = ''
+                    void getSelectedFileValue(file).then(onChange)
                 }}
                 className="sr-only"
             />

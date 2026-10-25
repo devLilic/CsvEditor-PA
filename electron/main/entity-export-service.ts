@@ -8,11 +8,12 @@ import {
 } from '../../src/features/entity-export/domain/entityExportMapper'
 import type { EntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
 import type { LowerThirdTypeDefinition } from '../../src/features/lower-thirds/domain/lowerThirdTypes'
+import type { EntityTemplateNames } from '../../src/features/lower-thirds/domain/entityTemplateNames'
 
 const fsp = fs.promises
 const DEFAULT_RETRY_COUNT = 3
 
-export type EntityExportKind = 'titles' | 'titlesWithHot' | 'persons' | 'locations' | 'phones' | 'waitTitlesLocations'
+export type EntityExportKind = 'titles' | 'persons' | 'locations' | 'phones' | 'waitTitlesLocations'
 
 export interface EntityExportError {
     kind: EntityExportKind
@@ -36,6 +37,8 @@ export interface ExportEntityCsvFilesInput {
 export interface ExportEntityCsvFilesFromFullCsvContentInput {
     paths: EntityExportPaths
     content: string
+    exportPrefix?: string
+    entityTemplateNames?: EntityTemplateNames
     retryCount?: number
     onError?: (error: EntityExportError) => void
     afterTitlesExport?: () => Promise<void>
@@ -45,6 +48,8 @@ export interface ExportEntityCsvFilesFromEntitiesInput {
     paths: EntityExportPaths
     entities: EntitiesState
     lowerThirdTypes?: LowerThirdTypeDefinition[]
+    exportPrefix?: string
+    entityTemplateNames?: EntityTemplateNames
     retryCount?: number
     onError?: (error: EntityExportError) => void
     afterTitlesExport?: () => Promise<void>
@@ -62,8 +67,6 @@ function getPathForKind(paths: EntityExportPaths, kind: EntityExportKind): strin
     switch (kind) {
         case 'titles':
             return paths.titlesPath
-        case 'titlesWithHot':
-            return paths.titlesWithHotPath
         case 'persons':
             return paths.personsPath
         case 'locations':
@@ -79,8 +82,6 @@ function getCsvForKind(csvs: EntityExportCsvs, kind: EntityExportKind): string {
     switch (kind) {
         case 'titles':
             return csvs.titlesCsv
-        case 'titlesWithHot':
-            return csvs.titlesWithHotCsv
         case 'persons':
             return csvs.personsCsv
         case 'locations':
@@ -177,7 +178,7 @@ export async function exportSingleEntityCsv(input: ExportSingleEntityCsvInput): 
 }
 
 export async function exportEntityCsvFiles(input: ExportEntityCsvFilesInput): Promise<EntityExportResult> {
-    for (const kind of ['titles', 'titlesWithHot', 'persons', 'locations', 'phones', 'waitTitlesLocations'] satisfies EntityExportKind[]) {
+    for (const kind of ['titles', 'persons', 'locations', 'phones', 'waitTitlesLocations'] satisfies EntityExportKind[]) {
         const result = await exportSingleEntityCsv({
             kind,
             paths: input.paths,
@@ -203,7 +204,12 @@ export async function exportEntityCsvFilesFromFullCsvContent(
 ): Promise<EntityExportResult> {
     return exportEntityCsvFiles({
         paths: input.paths,
-        csvs: mapFullCsvContentToExportCsvs(input.content),
+        csvs: mapFullCsvContentToExportCsvs(
+            input.content,
+            undefined,
+            input.exportPrefix,
+            input.entityTemplateNames,
+        ),
         retryCount: input.retryCount,
         onError: input.onError,
         afterTitlesExport: input.afterTitlesExport,
@@ -215,7 +221,12 @@ export async function exportEntityCsvFilesFromEntities(
 ): Promise<EntityExportResult> {
     return exportEntityCsvFiles({
         paths: input.paths,
-        csvs: mapEntitiesStateToExportCsvs(input.entities, input.lowerThirdTypes),
+        csvs: mapEntitiesStateToExportCsvs(
+            input.entities,
+            input.lowerThirdTypes,
+            input.exportPrefix,
+            input.entityTemplateNames,
+        ),
         retryCount: input.retryCount,
         onError: input.onError,
         afterTitlesExport: input.afterTitlesExport,

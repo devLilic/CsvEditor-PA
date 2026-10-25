@@ -25,6 +25,7 @@ import {
     type QuickTitlesCsvError,
 } from './quick-titles-csv-service'
 import { resolveQuickTitlesCsvPath } from './quick-titles-handlers'
+import { ensureProjectWorkspaceFolders } from './project-workspace'
 
 function isStringArray(value: unknown): value is string[] {
     return Array.isArray(value) && value.every((v) => typeof v === 'string')
@@ -167,21 +168,53 @@ export function registerSettingsHandlers(mainWindow: BrowserWindow) {
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_CSV_FILE, () => {
+    ipcMain.handle(IPC_CHANNELS.SETTINGS_GET_CSV_FILE, async () => {
         try {
-            return getCsvFileSettings()
+            const settings = getCsvFileSettings()
+            const root = settings.projectFolderPath.trim()
+            if (!root) return settings
+            const folders = await ensureProjectWorkspaceFolders(root)
+            // Keep a legacy CSV path until the startup loader has migrated its
+            // contents into Saved/current-project.json. Clearing it here loses
+            // the only copy of projects created before the folder-based format.
+            const normalized = setCsvFileSettings({ ...settings, ...folders })
+            setPhoneImageSettings({ ...getPhoneImageSettings(), workPath: folders.phoneFolderPath })
+            return normalized
         } catch (error) {
             console.error('[settings:get-csv-file] failed:', error)
             return getCsvFileSettings()
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_CSV_FILE, (_event, settings: unknown) => {
+    ipcMain.handle(IPC_CHANNELS.SETTINGS_SET_CSV_FILE, async (_event, settings: unknown) => {
         try {
-            return setCsvFileSettings(normalizeCsvFileSettings(settings))
+            const normalized = normalizeCsvFileSettings(settings)
+            const projectFolderPath = normalized.projectFolderPath.trim()
+            if (projectFolderPath) {
+                const folders = await ensureProjectWorkspaceFolders(projectFolderPath)
+                const saved = setCsvFileSettings({
+                    ...normalized,
+                    workingCsvPath: '',
+                    ...folders,
+                })
+                const phoneSettings = getPhoneImageSettings()
+                setPhoneImageSettings({ ...phoneSettings, workPath: folders.phoneFolderPath })
+                return saved
+            }
+            return setCsvFileSettings(normalized)
         } catch (error) {
             console.error('[settings:set-csv-file] failed:', error)
             return getCsvFileSettings()
+        }
+    })
+
+    ipcMain.handle(IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER, async () => {
+        try {
+            const result = await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
+            return result.canceled ? null : result.filePaths[0] ?? null
+        } catch (error) {
+            console.error('[settings:select-project-folder] failed:', error)
+            return null
         }
     })
 

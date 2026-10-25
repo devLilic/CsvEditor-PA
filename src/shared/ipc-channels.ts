@@ -32,6 +32,7 @@ export const IPC_CHANNELS = {
     SETTINGS_SELECT_WORK_PATH: "settings:select-work-path",
     SETTINGS_GET_CSV_FILE: "settings:get-csv-file",
     SETTINGS_SET_CSV_FILE: "settings:set-csv-file",
+    SETTINGS_SELECT_PROJECT_FOLDER: "settings:select-project-folder",
     SETTINGS_SELECT_WORKING_CSV: "settings:select-working-csv",
     SETTINGS_SELECT_BACKUP_FOLDER: "settings:select-backup-folder",
     SETTINGS_SELECT_SAVED_PROJECTS_FOLDER: "settings:select-saved-projects-folder",

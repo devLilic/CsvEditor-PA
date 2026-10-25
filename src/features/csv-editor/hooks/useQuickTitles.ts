@@ -82,7 +82,7 @@ export function useQuickTitles() {
         })
 
         // External PC-to-PC synchronization is intentionally pull-based in this version.
-        // PA_quickTitles.csv is reread when this hook mounts during app start/restart,
+        // The Quick Titles export is reread when this hook mounts during app start/restart,
         // when the export/working CSV settings change, or when callers use reloadQuickTitles().
         // Do not add polling or filesystem watchers here without a dedicated product requirement.
         void csvFileSettingsService.getCsvFileSettings().then((settings) => {

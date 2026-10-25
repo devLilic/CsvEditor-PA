@@ -112,7 +112,7 @@ export async function writeQuickTitlesCsv(input: {
     }
 
     const finalError = lastError ?? new Error('UNKNOWN_QUICK_TITLES_CSV_ERROR')
-    const contextualError = new Error(`Failed to write PA_quickTitles.csv at ${input.filePath}: ${finalError.message}`)
+    const contextualError = new Error(`Failed to write quick-titles CSV at ${input.filePath}: ${finalError.message}`)
     notifyError({
         filePath: input.filePath,
         error: contextualError,

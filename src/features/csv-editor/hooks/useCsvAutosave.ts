@@ -9,7 +9,7 @@ import type { EntitiesState } from '../domain/entities'
 import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 
 /**
- * Autosave sigur, debounced.
+ * Autosave JSON sigur, debounced.
  * - NU rulează la init
  * - NU face backup automat
  * - Scrie doar când entities se schimbă
@@ -96,16 +96,16 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
 
     /**
      * Clear total:
-     * 1) backup CSV curent
+     * 1) backup JSON curent
      * 2) reset state
-     * 3) scrie CSV gol
+     * 3) persistă proiectul gol și actualizează exporturile
      */
     const clearAllSafely = useCallback(
         async (nextEmptyEntities: EntitiesState) => {
-            const currentCsv = serializeForDisk(state.entities)
+            const currentSnapshot = JSON.stringify({ version: 1, entities: state.entities }, null, 2)
 
-            // 1️⃣ backup
-            const backupRes = await csvService.backup(currentCsv)
+            // 1️⃣ backup JSON
+            const backupRes = await csvService.backup(currentSnapshot)
             if (!backupRes.ok) {
                 console.error('Backup failed:', backupRes.error)
                 // decizie: continuăm sau nu
@@ -118,7 +118,7 @@ export function useCsvAutosave(options?: { debounceMs?: number }) {
                 payload: nextEmptyEntities,
             })
 
-            // 3️⃣ scriere CSV gol
+            // 3️⃣ persistă proiectul gol
             const emptyCsv = serializeForDisk(nextEmptyEntities)
             const lowerThirdTypes = await lowerThirdTypesService.get()
             const writeRes = await csvService.write(emptyCsv, nextEmptyEntities, lowerThirdTypes)

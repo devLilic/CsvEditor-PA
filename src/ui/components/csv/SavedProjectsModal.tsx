@@ -5,14 +5,14 @@ import { ConfirmDialog } from '@/ui/components/common/ConfirmDialog'
 
 type SavedProjectsModalProps = {
     open: boolean
-    currentCsvContent: string
+    currentProjectContent: string
     onClose: () => void
     onProjectLoaded: (content: string) => void
 }
 
 export function SavedProjectsModal({
     open,
-    currentCsvContent,
+    currentProjectContent,
     onClose,
     onProjectLoaded,
 }: SavedProjectsModalProps) {
@@ -49,7 +49,7 @@ export function SavedProjectsModal({
 
         const result = await savedProjectsService.saveCurrentAsProject({
             filename: projectName,
-            content: currentCsvContent,
+            content: currentProjectContent,
         })
 
         setIsBusy(false)
@@ -75,7 +75,7 @@ export function SavedProjectsModal({
 
         if (!result.ok || typeof result.content !== 'string') {
             setStatus(result.error === 'BACKUP_FAILED'
-                ? 'Backup CSV nu a putut fi creat. Proiectul salvat nu a fost încărcat în CSV-ul de lucru. Verifică folderul de backup din Setări.'
+                ? 'Backupul proiectului curent nu a putut fi creat. Proiectul salvat nu a fost încărcat. Verifică folderul Backup din Setări.'
                 : result.error ?? 'Proiectul nu a putut fi încărcat.')
             return
         }
@@ -167,8 +167,8 @@ export function SavedProjectsModal({
 
                                     <div className="flex shrink-0 gap-2">
                                         <ConfirmDialog
-                                            title="Încarci acest proiect în CSV-ul de lucru?"
-                                            description="Se va crea automat backup pentru CSV-ul curent. Apoi conținutul proiectului selectat va fi copiat în fișierul CSV de lucru."
+                                            title="Încarci acest proiect?"
+                                            description="Starea proiectului curent va fi salvată în Backup, apoi proiectul selectat va deveni activ."
                                             confirmLabel="Încarcă"
                                             cancelLabel="Anulează"
                                             onConfirm={() => handleLoad(file.filename)}
@@ -178,7 +178,7 @@ export function SavedProjectsModal({
                                                 disabled={isBusy}
                                                 className="app-button rounded border border-gray-300 bg-white px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                                             >
-                                                Încarcă în CSV-ul de lucru
+                                                Încarcă proiectul
                                             </button>
                                         </ConfirmDialog>
 

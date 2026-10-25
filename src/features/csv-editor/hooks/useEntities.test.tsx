@@ -158,7 +158,7 @@ describe('useEntities startNewProject', () => {
         cleanup()
     })
 
-    it('resets state to the default project and writes the default CSV after backup', async () => {
+    it('resets state to the default project and persists it after backup', async () => {
         const user = userEvent.setup()
         const api = (window as any).electronAPI
         const savedSettings = {
@@ -166,7 +166,6 @@ describe('useEntities startNewProject', () => {
             personName: 'SAVED DEFAULT NAME',
             personOccupation: 'SAVED DEFAULT ROLE',
             location: 'SAVED DEFAULT LOCATION',
-            hotTitle: 'SAVED DEFAULT HOT TITLE',
         }
         const backupSpy = vi.spyOn(csvService, 'createBackup').mockResolvedValue({ ok: true })
         const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })
@@ -199,7 +198,6 @@ describe('useEntities startNewProject', () => {
         expect(screen.getByTestId('person-name')).toHaveTextContent(savedSettings.personName)
         expect(screen.getByTestId('person-occupation')).toHaveTextContent(savedSettings.personOccupation)
         expect(screen.getByTestId('location')).toHaveTextContent(savedSettings.location)
-        expect(screen.getByTestId('hot-title')).toHaveTextContent(savedSettings.hotTitle)
         expect(screen.getByTestId('sections-count')).toHaveTextContent('1')
         expect(screen.getByTestId('beta-count')).toHaveTextContent('0')
 
@@ -226,7 +224,6 @@ describe('useEntities startNewProject', () => {
         expect(writtenCsv).toContain(savedSettings.personName)
         expect(writtenCsv).toContain(savedSettings.personOccupation)
         expect(writtenCsv).toContain(savedSettings.location)
-        expect(writtenCsv).toContain(savedSettings.hotTitle)
         expect(writtenCsv).toContain('--- INVITATI ---')
         expect(writtenCsv).not.toMatch(/---\s*beta/i)
         expect(writtenCsv).not.toContain('OLD TITLE')

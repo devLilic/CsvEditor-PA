@@ -10,6 +10,29 @@ import { useEntities } from '@/features/csv-editor'
 import { csvService } from '@/features/csv-editor/services/csvService'
 import { serializeCsv } from '@/features/csv-editor/utils/csvSerializer'
 import { useLowerThirdTypes } from '@/ui/hooks/useLowerThirdTypes'
+import { csvFileSettingsService } from '@/features/csv-editor/services/csvFileSettingsService'
+import { DEFAULT_ENTITY_TEMPLATE_NAMES, type EntityTemplateNameKey, type EntityTemplateNames } from '@/features/lower-thirds/domain/entityTemplateNames'
+import { entityTemplateNamesService } from '@/features/lower-thirds/services/entityTemplateNamesService'
+
+const SINGLE_TEMPLATE_FIELDS: Array<{ key: EntityTemplateNameKey; label: string }> = [
+    { key: 'locations', label: 'Locație' },
+    { key: 'phones', label: 'Telefon' },
+    { key: 'waitTitles', label: 'Wait title' },
+    { key: 'waitLocations', label: 'Wait location' },
+]
+
+function removeEntityTemplatePrefixes(names: EntityTemplateNames, prefix: string): EntityTemplateNames {
+    return {
+        locations: removeConfiguredPrefix(names.locations, prefix),
+        phones: removeConfiguredPrefix(names.phones, prefix),
+        waitTitles: removeConfiguredPrefix(names.waitTitles, prefix),
+        waitLocations: removeConfiguredPrefix(names.waitLocations, prefix),
+    }
+}
+
+function removeConfiguredPrefix(name: string, prefix: string): string {
+    return prefix && name.startsWith(prefix) ? name.slice(prefix.length) : name
+}
 
 function updateType(
     types: LowerThirdTypeDefinition[],
@@ -55,25 +78,57 @@ export function SettingsPage() {
     const { types, setTypes, isLoaded } = useLowerThirdTypes()
     const { sections, updateEntity } = useEntities()
     const [draft, setDraft] = useState(types)
+    const [exportPrefix, setExportPrefix] = useState('')
+    const [entityTemplateNames, setEntityTemplateNames] = useState<EntityTemplateNames>(DEFAULT_ENTITY_TEMPLATE_NAMES)
+    const [savedEntityTemplateNames, setSavedEntityTemplateNames] = useState<EntityTemplateNames>(DEFAULT_ENTITY_TEMPLATE_NAMES)
+    const [isPrefixLoaded, setIsPrefixLoaded] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState('')
 
     useEffect(() => {
-        setDraft(types)
-    }, [types])
+        let isMounted = true
+        Promise.all([
+            csvFileSettingsService.getCsvFileSettings(),
+            entityTemplateNamesService.get(),
+        ]).then(([settings, names]) => {
+            if (!isMounted) return
+            setExportPrefix(settings.exportPrefix)
+            const unprefixedNames = removeEntityTemplatePrefixes(names, settings.exportPrefix)
+            setEntityTemplateNames(unprefixedNames)
+            setSavedEntityTemplateNames(unprefixedNames)
+            setIsPrefixLoaded(true)
+        })
+        return () => { isMounted = false }
+    }, [])
+
+    useEffect(() => {
+        if (!isLoaded || !isPrefixLoaded) return
+        setDraft(types.map((type) => ({
+            ...type,
+            templates: {
+                titles: { name: removeConfiguredPrefix(type.templates.titles.name, exportPrefix) },
+                persons: { name: removeConfiguredPrefix(type.templates.persons.name, exportPrefix) },
+            },
+        })))
+    }, [types, exportPrefix, isLoaded, isPrefixLoaded])
 
     const save = async () => {
         setIsSaving(true)
         setSaved(false)
         setError('')
         let didSaveTypes = false
+        let didSaveEntityTemplateNames = false
         try {
             const savedTypes = await setTypes(draft)
             didSaveTypes = true
+            const savedNames = await entityTemplateNamesService.set(entityTemplateNames)
+            didSaveEntityTemplateNames = true
             const entities = { sections }
             const write = await csvService.write(serializeCsv(entities), entities, savedTypes)
             if (!write.ok) throw new Error(write.error ?? 'LOWER_THIRD_TYPES_EXPORT_FAILED')
+            setEntityTemplateNames(savedNames)
+            setSavedEntityTemplateNames(savedNames)
             setSaved(true)
         } catch (saveError) {
             if (didSaveTypes) {
@@ -81,6 +136,13 @@ export function SettingsPage() {
                     await setTypes(types)
                 } catch {
                     // Keep the original save error visible; the settings service reports rollback failure separately.
+                }
+            }
+            if (didSaveEntityTemplateNames) {
+                try {
+                    await entityTemplateNamesService.set(savedEntityTemplateNames)
+                } catch {
+                    // Keep the original save error visible.
                 }
             }
             const message = saveError instanceof Error ? saveError.message : 'LOWER_THIRD_TYPES_SAVE_FAILED'
@@ -107,6 +169,10 @@ export function SettingsPage() {
         typeId,
         (type) => ({ ...type, templates: { ...type.templates, [kind]: { name } } }),
     ))
+    const updateSingleTemplate = (key: EntityTemplateNameKey, name: string) => {
+        setSaved(false)
+        setEntityTemplateNames((current) => ({ ...current, [key]: name }))
+    }
 
     const addType = () => {
         const id = createTypeId(draft)
@@ -196,7 +262,7 @@ export function SettingsPage() {
                         <button
                             type="button"
                             onClick={save}
-                            disabled={!isLoaded || isSaving}
+                            disabled={!isLoaded || !isPrefixLoaded || isSaving}
                             className="app-button app-button-primary rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-wait disabled:opacity-60"
                         >
                             {isSaving ? 'Se salvează…' : 'Salvează'}
@@ -205,6 +271,30 @@ export function SettingsPage() {
 
                     {error && <p role="alert" className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}
                     {saved && <p role="status" className="mb-3 rounded bg-green-50 p-2 text-sm text-green-700">Setările au fost salvate.</p>}
+
+                    <section className="mb-5 rounded border border-gray-200 p-4">
+                        <h3 className="font-semibold">Șabloane pentru celelalte entități</h3>
+                        <p className="mt-1 text-sm text-gray-600">Fiecare entitate folosește un singur șablon. Prefixul configurat se adaugă automat la export.</p>
+                        <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {SINGLE_TEMPLATE_FIELDS.map(({ key, label }) => (
+                                <label key={key} className="flex flex-col gap-1 text-sm font-medium">
+                                    Șablon {label}
+                                    <span className="flex items-center rounded border border-gray-300 bg-gray-50">
+                                        <span aria-label={`Prefix șablon ${key}`} className="border-r border-gray-300 px-3 py-2 font-mono text-sm text-gray-600">
+                                            {exportPrefix || 'fără prefix'}
+                                        </span>
+                                        <input
+                                            aria-label={`Șablon ${key}`}
+                                            value={removeConfiguredPrefix(entityTemplateNames[key], exportPrefix)}
+                                            onChange={(event) => updateSingleTemplate(key, event.target.value)}
+                                            className="min-w-0 flex-1 bg-transparent px-3 py-2 font-mono"
+                                        />
+                                    </span>
+                                    <span className="text-xs font-normal text-gray-500">Nume la export: <span className="font-mono">{exportPrefix}{removeConfiguredPrefix(entityTemplateNames[key], exportPrefix)}</span></span>
+                                </label>
+                            ))}
+                        </div>
+                    </section>
 
                     <div className="grid gap-4">
                         {draft.map((type, index) => (
@@ -290,23 +380,36 @@ export function SettingsPage() {
                                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                                     <label className="flex flex-col gap-1 text-sm font-medium">
                                         Șablon titlu
-                                        <input
-                                            aria-label={`Șablon titlu ${type.id}`}
-                                            value={type.templates.titles.name}
-                                            onChange={(event) => updateTemplate(type.id, 'titles', event.target.value)}
-                                            className="rounded border border-gray-300 px-3 py-2"
-                                        />
+                                        <span className="flex items-center rounded border border-gray-300 bg-gray-50">
+                                            <span aria-label={`Prefix șablon titlu ${type.id}`} className="border-r border-gray-300 px-3 py-2 font-mono text-sm text-gray-600">
+                                                {exportPrefix || 'fără prefix'}
+                                            </span>
+                                            <input
+                                                aria-label={`Șablon titlu ${type.id}`}
+                                                value={removeConfiguredPrefix(type.templates.titles.name, exportPrefix)}
+                                                onChange={(event) => updateTemplate(type.id, 'titles', event.target.value)}
+                                                className="min-w-0 flex-1 bg-transparent px-3 py-2 font-mono"
+                                            />
+                                        </span>
                                     </label>
                                     <label className="flex flex-col gap-1 text-sm font-medium">
                                         Șablon persoană
-                                        <input
-                                            aria-label={`Șablon persoană ${type.id}`}
-                                            value={type.templates.persons.name}
-                                            onChange={(event) => updateTemplate(type.id, 'persons', event.target.value)}
-                                            className="rounded border border-gray-300 px-3 py-2"
-                                        />
+                                        <span className="flex items-center rounded border border-gray-300 bg-gray-50">
+                                            <span aria-label={`Prefix șablon persoană ${type.id}`} className="border-r border-gray-300 px-3 py-2 font-mono text-sm text-gray-600">
+                                                {exportPrefix || 'fără prefix'}
+                                            </span>
+                                            <input
+                                                aria-label={`Șablon persoană ${type.id}`}
+                                                value={removeConfiguredPrefix(type.templates.persons.name, exportPrefix)}
+                                                onChange={(event) => updateTemplate(type.id, 'persons', event.target.value)}
+                                                className="min-w-0 flex-1 bg-transparent px-3 py-2 font-mono"
+                                            />
+                                        </span>
                                     </label>
                                 </div>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Numele complet pentru export include prefixul configurat: <span className="font-mono">{exportPrefix}{removeConfiguredPrefix(type.templates.titles.name, exportPrefix)}</span> / <span className="font-mono">{exportPrefix}{removeConfiguredPrefix(type.templates.persons.name, exportPrefix)}</span>.
+                                </p>
                             </fieldset>
                         ))}
                     </div>

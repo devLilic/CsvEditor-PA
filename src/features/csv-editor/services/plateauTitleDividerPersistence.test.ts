@@ -107,7 +107,7 @@ describe('plateau title divider persistence orchestration', () => {
         expect(exports.titlesCsv).not.toContain(TITLE_DIVIDER_MARKER)
     })
 
-    it('derives PA_titles_with_hot.csv without the divider marker from the persisted CSV', async () => {
+    it('exports titles without a separate Ultima Ora column or divider markers', async () => {
         const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })
         const { result } = renderHook(() => useHarness(), { wrapper })
 
@@ -117,9 +117,9 @@ describe('plateau title divider persistence orchestration', () => {
         })
 
         const exports = mapFullCsvContentToExportCsvs(getWrittenCsv(writeSpy))
-        expect(exports.titlesWithHotCsv).toContain('Nr;Titlu;Supratitlu;Ultima Ora')
-        expect(exports.titlesWithHotCsv).toContain('HOT TITLE')
-        expect(exports.titlesWithHotCsv).not.toContain(TITLE_DIVIDER_MARKER)
+        expect(exports.titlesCsv).toContain('Nr;Titlu;Supratitlu;Template')
+        expect(exports.titlesCsv).not.toContain('Ultima Ora')
+        expect(exports.titlesCsv).not.toContain(TITLE_DIVIDER_MARKER)
     })
 
     it('keeps the divider in state after successful persistence', async () => {
@@ -161,18 +161,6 @@ describe('plateau title divider persistence orchestration', () => {
         expect(result.current.titleListItems.some((item) => item.startsWith('divider:'))).toBe(false)
     })
 
-    it('rolls back when PA_titles_with_hot.csv export fails through the existing write flow', async () => {
-        vi.spyOn(console, 'error').mockImplementation(() => {})
-        vi.spyOn(csvService, 'write').mockResolvedValue({ ok: false, error: 'ENTITY_EXPORT_FAILED: PA_titles_with_hot.csv' })
-        const { result } = renderHook(() => useHarness(), { wrapper })
-
-        act(() => result.current.seedInvitedWithoutDivider())
-        const addResult = await act(async () => result.current.addPlateauTitleDivider())
-
-        expect(addResult).toEqual({ ok: false, error: 'ENTITY_EXPORT_FAILED: PA_titles_with_hot.csv' })
-        expect(result.current.titleListItems.some((item) => item.startsWith('divider:'))).toBe(false)
-    })
-
     it('delete divider uses the same persistence flow', async () => {
         const writeSpy = vi.spyOn(csvService, 'write').mockResolvedValue({ ok: true })
         const { result } = renderHook(() => useHarness(), { wrapper })
@@ -187,7 +175,7 @@ describe('plateau title divider persistence orchestration', () => {
         expect(writeSpy).toHaveBeenCalledTimes(1)
         expect(writtenCsv).not.toContain(TITLE_DIVIDER_MARKER)
         expect(exports.titlesCsv).not.toContain(TITLE_DIVIDER_MARKER)
-        expect(exports.titlesWithHotCsv).not.toContain(TITLE_DIVIDER_MARKER)
+        expect(exports.titlesCsv).not.toContain('Ultima Ora')
         expect(result.current.titleListItems).toEqual([
             'title:row-title-1:1:FIRST TITLE',
             'title:row-title-2:2:SECOND TITLE',

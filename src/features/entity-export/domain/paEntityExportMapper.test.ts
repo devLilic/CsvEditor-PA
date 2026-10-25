@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EntitiesState } from '../../csv-editor/domain/entities'
+import { DEFAULT_LOWER_THIRD_TYPES } from '../../lower-thirds/domain/lowerThirdTypes'
 import {
     mapPaLocationsExport,
     mapPaPersonsExport,
@@ -103,33 +104,33 @@ describe('PA entity export mapper', () => {
 
     it('writes PA_locations.csv without markers and only with INVITATI locations', () => {
         expect(mapPaLocationsExport(paState())).toBe([
-            'Locatie',
-            'Chișinău',
+            'Locatie;Template',
+            'Chișinău;Location Bug',
         ].join('\n'))
     })
 
     it('writes header-only PA_locations.csv when INVITATI has no locations', () => {
         expect(mapPaLocationsExport({ sections: [{ id: 'invited', kind: 'invited', rows: [] }] }))
-            .toBe('Locatie')
+            .toBe('Locatie;Template')
     })
 
     it('writes PA_phones.csv only for persons with image and preserves the image path', () => {
         expect(mapPaPhonesExport(paState())).toBe([
-            'Nume;Functie;Image',
-            'PHONE;Funcție Phone;D:\\photos\\phone.jpg',
+            'Nume;Functie;Image;Template',
+            'PHONE;Funcție Phone;D:\\photos\\phone.jpg;Phone Call Lower Third',
         ].join('\n'))
     })
 
     it('writes header-only PA_phones.csv when no persons have image', () => {
         expect(mapPaPhonesExport({ sections: [{ id: 'invited', kind: 'invited', rows: [] }] }))
-            .toBe('Nume;Functie;Image')
+            .toBe('Nume;Functie;Image;Template')
     })
 
     it('writes wait titles and locations without Nr or markers', () => {
         expect(mapPaWaitTitlesLocationsExport(paState())).toBe([
-            'Titlu;Locatie',
-            'Titlu așteptare 1;Locație așteptare 1',
-            'Titlu așteptare 2;',
+            'Titlu;Template Titlu;Locatie;Template Locatie',
+            'Titlu așteptare 1;Wait Title;Locație așteptare 1;Wait Location',
+            'Titlu așteptare 2;Wait Title;;',
         ].join('\n'))
     })
 
@@ -138,15 +139,37 @@ describe('PA entity export mapper', () => {
             ['Titlu așteptare 1', 'Titlu așteptare 2', ''],
             ['Locație așteptare 1', '', 'Locație așteptare 2'],
         )).toBe([
-            'Titlu;Locatie',
-            'Titlu așteptare 1;Locație așteptare 1',
-            'Titlu așteptare 2;',
-            ';Locație așteptare 2',
+            'Titlu;Template Titlu;Locatie;Template Locatie',
+            'Titlu așteptare 1;Wait Title;Locație așteptare 1;Wait Location',
+            'Titlu așteptare 2;Wait Title;;',
+            ';;Locație așteptare 2;Wait Location',
         ].join('\n'))
     })
 
     it('writes header-only PA_wait_titles_locations.csv when both lists are empty', () => {
-        expect(mapPaWaitTitlesLocationsValues([], [])).toBe('Titlu;Locatie')
+        expect(mapPaWaitTitlesLocationsValues([], [])).toBe('Titlu;Template Titlu;Locatie;Template Locatie')
+    })
+
+    it('applies the project prefix once to template names across all entity exports', () => {
+        const state = paState()
+        expect(mapPaLocationsExport(state, undefined, 'PA_')).toContain('Chișinău;PA_Location Bug')
+        expect(mapPaPhonesExport(state, undefined, 'PA_')).toContain('D:\\photos\\phone.jpg;PA_Phone Call Lower Third')
+        expect(mapPaWaitTitlesLocationsExport(state, undefined, 'PA_')).toContain('Titlu așteptare 1;PA_Wait Title;Locație așteptare 1;PA_Wait Location')
+    })
+
+    it('applies the project prefix to title and person template names in their dedicated exports', () => {
+        const state: EntitiesState = {
+            sections: [{
+                id: 'invited',
+                kind: 'invited',
+                rows: [
+                    { id: 'title', title: { id: 'title', title: 'Headline' } },
+                    { id: 'person', person: { id: 'person', name: 'Ana', occupation: 'Editor' } },
+                ],
+            }],
+        }
+        expect(mapPaTitlesExport(state, DEFAULT_LOWER_THIRD_TYPES, 'PA_')).toContain('1;Headline;;PA_01_Titlu')
+        expect(mapPaPersonsExport(state, DEFAULT_LOWER_THIRD_TYPES, 'PA_')).toContain(';Ana;Editor;PA_02_Nume')
     })
 
     it('escapes separators, quotes, and newlines through the shared serializer', () => {
@@ -160,9 +183,8 @@ describe('PA entity export mapper', () => {
                 }],
             }],
         })).toBe([
-            'Locatie',
-            '"Chișinău; ""Centru""',
-            'Live"',
+            'Locatie;Template',
+            '"Chișinău; ""Centru""\nLive";Location Bug',
         ].join('\n'))
     })
 })

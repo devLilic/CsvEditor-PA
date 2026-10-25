@@ -586,7 +586,6 @@ export function EntityEditor({
                 return Boolean(form.location?.trim())
 
             case 'titles':
-            case 'hotTitles':
             case 'waitTitles':
             default:
                 if (!form.title?.trim()) return false
@@ -968,7 +967,7 @@ export function EntityEditor({
                     />
                 )}
 
-                {(editorEntityType === 'titles' || editorEntityType === 'hotTitles' || editorEntityType === 'waitTitles') && (
+                {(editorEntityType === 'titles' || editorEntityType === 'waitTitles') && (
                     <>
                         {editorEntityType === 'titles' && titleInputFields.map(({ fieldId, label }) => (
                             <InputField

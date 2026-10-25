@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.devlilic.punctulpeazi.graphics",
   "asar": true,
-  "productName": "Punctul pe Azi",
+  "productName": "Tales",
   "directories": {
     "output": "release/${version}"
   },
@@ -19,7 +19,7 @@
     "dist"
   ],
   "mac": {
-    "artifactName": "PunctulPeAzi-Graphics-${version}-${os}.${ext}",
+    "artifactName": "Tales-${version}-${os}.${ext}",
     "target": [
       "dmg"
     ]
@@ -34,7 +34,7 @@
         ]
       }
     ],
-    "artifactName": "PunctulPeAzi-Graphics-${version}-${os}.${ext}"
+    "artifactName": "Tales-${version}-${os}.${ext}"
   },
   "nsis": {
     "oneClick": false,
@@ -44,6 +44,6 @@
   },
   "linux": {
     "target": ["AppImage"],
-    "artifactName": "PunctulPeAzi-Graphics-${version}-${os}.${ext}"
+    "artifactName": "Tales-${version}-${os}.${ext}"
   }
 }

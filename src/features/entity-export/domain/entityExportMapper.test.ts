@@ -170,25 +170,20 @@ describe('entity export mapper', () => {
                 '--- INVITATI ---;;;',
                 '1;Titlu din state;;01_Titlu',
             ].join('\n'),
-            titlesWithHotCsv: [
-                'Nr;Titlu;Supratitlu;Ultima Ora',
-                '--- INVITATI ---;;;',
-                '1;Titlu din state;;',
-            ].join('\n'),
             personsCsv: [
                 'Sectiune;Nume;Functie;Template',
                 '--- INVITATI ---;;;',
                 ';Ion;Invitat;02_Nume',
             ].join('\n'),
             locationsCsv: [
-                'Locatie',
-                'Chișinău',
+                'Locatie;Template',
+                'Chișinău;Location Bug',
             ].join('\n'),
             phonesCsv: [
-                'Nume;Functie;Image',
-                'Ana;Reporter;D:\\photos\\ana.jpg',
+                'Nume;Functie;Image;Template',
+                'Ana;Reporter;D:\\photos\\ana.jpg;Phone Call Lower Third',
             ].join('\n'),
-            waitTitlesLocationsCsv: 'Titlu;Locatie',
+            waitTitlesLocationsCsv: 'Titlu;Template Titlu;Locatie;Template Locatie',
         })
     })
 
@@ -206,26 +201,20 @@ describe('entity export mapper', () => {
                 '1;Titlu CSV;;01_Titlu',
                 '2;Alt titlu;;01_Titlu',
             ].join('\n'),
-            titlesWithHotCsv: [
-                'Nr;Titlu;Supratitlu;Ultima Ora',
-                '--- INVITATI ---;;;',
-                '1;Titlu CSV;;',
-                '2;Alt titlu;;',
-            ].join('\n'),
             personsCsv: [
                 'Sectiune;Nume;Functie;Template',
                 '--- INVITATI ---;;;',
                 ';Ion;Invitat;02_Nume',
             ].join('\n'),
             locationsCsv: [
-                'Locatie',
-                'Chișinău',
+                'Locatie;Template',
+                'Chișinău;Location Bug',
             ].join('\n'),
             phonesCsv: [
-                'Nume;Functie;Image',
-                'Ana;Reporter;D:\\photos\\ana.jpg',
+                'Nume;Functie;Image;Template',
+                'Ana;Reporter;D:\\photos\\ana.jpg;Phone Call Lower Third',
             ].join('\n'),
-            waitTitlesLocationsCsv: 'Titlu;Locatie',
+            waitTitlesLocationsCsv: 'Titlu;Template Titlu;Locatie;Template Locatie',
         })
     })
 
@@ -241,18 +230,13 @@ describe('entity export mapper', () => {
                 '--- INVITATI ---;;;',
                 '1;Titlu implicit;;01_Titlu',
             ].join('\n'),
-            titlesWithHotCsv: [
-                'Nr;Titlu;Supratitlu;Ultima Ora',
-                '--- INVITATI ---;;;',
-                '1;Titlu implicit;;',
-            ].join('\n'),
             personsCsv: [
                 'Sectiune;Nume;Functie;Template',
                 '--- INVITATI ---;;;',
             ].join('\n'),
-            locationsCsv: 'Locatie',
-            phonesCsv: 'Nume;Functie;Image',
-            waitTitlesLocationsCsv: 'Titlu;Locatie',
+            locationsCsv: 'Locatie;Template',
+            phonesCsv: 'Nume;Functie;Image;Template',
+            waitTitlesLocationsCsv: 'Titlu;Template Titlu;Locatie;Template Locatie',
         })
     })
 
@@ -264,8 +248,8 @@ describe('entity export mapper', () => {
         ].join('\n'))
 
         expect(result.waitTitlesLocationsCsv).toBe([
-            'Titlu;Locatie',
-            'Titlu wait;Locatie wait',
+            'Titlu;Template Titlu;Locatie;Template Locatie',
+            'Titlu wait;Wait Title;Locatie wait;Wait Location',
         ].join('\n'))
     })
 
@@ -284,13 +268,6 @@ describe('entity export mapper', () => {
             '1;Titlu beta;;01_Titlu',
             '--- INVITATI ---;;;',
             '1;Titlu platou;;01_Titlu',
-        ].join('\n'))
-        expect(result.titlesWithHotCsv).toBe([
-            'Nr;Titlu;Supratitlu;Ultima Ora',
-            '--- beta 1 - Extern ---;;;',
-            '1;Titlu beta;;',
-            '--- INVITATI ---;;;',
-            '1;Titlu platou;;Ultima ora',
         ].join('\n'))
         expect(result.personsCsv).toBe([
             'Sectiune;Nume;Functie;Template',

@@ -1,21 +1,21 @@
 export const ENTITY_EXPORT_FILENAMES = {
-    titles: 'PA_titles.csv',
-    titlesWithHot: 'PA_titles_with_hot.csv',
-    persons: 'PA_persons.csv',
-    locations: 'PA_locations.csv',
-    phones: 'PA_phones.csv',
-    waitTitlesLocations: 'PA_wait_titles_locations.csv',
-    quickTitles: 'PA_quickTitles.csv',
+    titles: 'titles.csv',
+    persons: 'persons.csv',
+    locations: 'locations.csv',
+    phones: 'phones.csv',
+    waitTitlesLocations: 'wait_titles_locations.csv',
+    quickTitles: 'quickTitles.csv',
 } as const
 
 export interface ResolveEntityExportPathInput {
-    workingCsvPath: string
+    workingCsvPath?: string
+    projectFolderPath?: string | null
     exportFolderPath?: string | null
+    exportPrefix?: string | null
 }
 
 export interface EntityExportPaths {
     titlesPath: string
-    titlesWithHotPath: string
     personsPath: string
     locationsPath: string
     phonesPath: string
@@ -65,22 +65,27 @@ export function resolveEntityExportFolder(input: ResolveEntityExportPathInput): 
         return configuredFolder
     }
 
-    return joinPath(dirname(input.workingCsvPath), 'Export')
+    const projectFolder = input.projectFolderPath?.trim()
+    if (projectFolder) return joinPath(projectFolder, 'Export')
+
+    return joinPath(dirname(input.workingCsvPath ?? ''), 'Export')
 }
 
 export function resolveEntityExportPaths(input: ResolveEntityExportPathInput): EntityExportPaths {
     const exportFolder = resolveEntityExportFolder(input)
+    const prefix = (input.exportPrefix ?? '').trim().replace(/[\\/:*?"<>|]/g, '')
+    const filename = (value: string) => `${prefix}${value}`
 
     return {
-        titlesPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.titles),
-        titlesWithHotPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.titlesWithHot),
-        personsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.persons),
-        locationsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.locations),
-        phonesPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.phones),
-        waitTitlesLocationsPath: joinPath(exportFolder, ENTITY_EXPORT_FILENAMES.waitTitlesLocations),
+        titlesPath: joinPath(exportFolder, filename(ENTITY_EXPORT_FILENAMES.titles)),
+        personsPath: joinPath(exportFolder, filename(ENTITY_EXPORT_FILENAMES.persons)),
+        locationsPath: joinPath(exportFolder, filename(ENTITY_EXPORT_FILENAMES.locations)),
+        phonesPath: joinPath(exportFolder, filename(ENTITY_EXPORT_FILENAMES.phones)),
+        waitTitlesLocationsPath: joinPath(exportFolder, filename(ENTITY_EXPORT_FILENAMES.waitTitlesLocations)),
     }
 }
 
 export function resolveQuickTitlesCsvPath(input: ResolveEntityExportPathInput): string {
-    return joinPath(resolveEntityExportFolder(input), ENTITY_EXPORT_FILENAMES.quickTitles)
+    const prefix = (input.exportPrefix ?? '').trim().replace(/[\\/:*?"<>|]/g, '')
+    return joinPath(resolveEntityExportFolder(input), `${prefix}${ENTITY_EXPORT_FILENAMES.quickTitles}`)
 }

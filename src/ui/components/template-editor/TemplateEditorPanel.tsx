@@ -158,7 +158,7 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
                         Main screen availability
                     </legend>
                     <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                        {(['titles', 'persons', 'locations', 'phoneCalls', 'hotTitles', 'waitTitles', 'waitLocations'] as const).map((entityType) => {
+                        {(['titles', 'persons', 'locations', 'phoneCalls', 'waitTitles', 'waitLocations'] as const).map((entityType) => {
                             const enabled = !(document.disabledEntityTypes ?? []).includes(entityType)
                             return (
                                 <label key={entityType} className="flex items-center gap-2 text-xs text-gray-700">
@@ -173,7 +173,7 @@ export function TemplateEditorPanel({ isTedMode }: TemplateEditorPanelProps) {
                                             setSaveWarning(null)
                                         }}
                                     />
-                                    {entityType === 'hotTitles' ? 'Hot Titles' : entityType === 'phoneCalls' ? 'Phones' : entityType === 'waitTitles' ? 'Wait Titles' : entityType === 'waitLocations' ? 'Wait Locations' : entityType[0].toUpperCase() + entityType.slice(1)}
+                                    {entityType === 'phoneCalls' ? 'Phones' : entityType === 'waitTitles' ? 'Wait Titles' : entityType === 'waitLocations' ? 'Wait Locations' : entityType[0].toUpperCase() + entityType.slice(1)}
                                 </label>
                             )
                         })}

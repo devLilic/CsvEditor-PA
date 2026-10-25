@@ -3,7 +3,6 @@ import type { EntitiesState } from '../../csv-editor/domain/entities'
 import { createTitleDivider, TITLE_DIVIDER_MARKER } from '../../csv-editor/domain/plateauTitleList'
 import {
     mapPaTitlesExport,
-    mapPaTitlesWithHotExport,
 } from './paEntityExportMapper'
 
 function stateWithDividers(): EntitiesState {
@@ -67,23 +66,4 @@ describe('PA title exports', () => {
         expect(csv).not.toContain(TITLE_DIVIDER_MARKER)
     })
 
-    it('writes PA_titles_with_hot.csv with Supratitlu, hot titles, ordered titles, and no dividers', () => {
-        const csv = mapPaTitlesWithHotExport(stateWithDividers())
-
-        expect(csv).toBe([
-            'Nr;Titlu;Supratitlu;Ultima Ora',
-            '--- beta 1 - Externe ---;;;',
-            '1;Beta 1;;',
-            '2;Beta 2;;',
-            '--- INVITATI ---;;;',
-            '1;Platou 1;Supra 1;Hot 1',
-            '2;Platou 2;;Hot 2',
-            ';;;Hot 3',
-        ].join('\n'))
-        expect(csv).toContain('Ultima Ora')
-        expect(csv).toContain('Hot 1')
-        expect(csv).toContain('Hot 2')
-        expect(csv).toContain('Hot 3')
-        expect(csv).not.toContain(TITLE_DIVIDER_MARKER)
-    })
 })

@@ -385,15 +385,15 @@ export function useEntities() {
     // -------- START NEW PROJECT (CANONICAL) --------
     /**
      * Start a new project:
-     * 1) serialize current CSV
-     * 2) backup current CSV
+     * 1) serialize current state as JSON
+     * 2) backup the current state
      * 3) if backup succeeds, reset entities -> default project seed
-     * 4) write default project CSV (so disk matches state)
+     * 4) persist default project state (so disk matches state)
      */
     const startNewProject = useCallback(async (): Promise<StartNewProjectResult> => {
-        // 1) serialize and 2) backup current CSV before any reset/write.
-        const currentCsv = serializeCsv(state.entities)
-        const backupRes = await csvService.createBackup(currentCsv)
+        // 1) serialize and 2) back up the current state before reset.
+        const currentSnapshot = JSON.stringify({ version: 1, entities: state.entities }, null, 2)
+        const backupRes = await csvService.createBackup(currentSnapshot)
         if (!backupRes.ok) {
             console.error('Backup failed:', backupRes.error)
             return {
@@ -426,10 +426,8 @@ export function useEntities() {
             createId: uuidv4,
             // csv:write in Electron already persists the full CSV and all derived export files in order.
             writeFullCsv: (content) => csvService.write(content),
-            writePaTitlesCsv: async () => ({ ok: true }),
             getActiveTitleBackupFile: async () => null,
             writeTitleBackup: async () => ({ ok: true }),
-            writePaTitlesWithHotCsv: async () => ({ ok: true }),
         },
     }), [dispatch, state])
 

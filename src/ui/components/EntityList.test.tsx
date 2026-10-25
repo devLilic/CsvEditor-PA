@@ -7,6 +7,7 @@ import { EditModeProvider, useEditMode } from '@/ui/context/EditModeContext'
 import { TitleFilterProvider } from '@/ui/context/TitleFilterContext'
 import { lowerThirdTypesService } from '@/features/lower-thirds/services/lowerThirdTypesService'
 import { DEFAULT_LOWER_THIRD_TYPE_ID, DEFAULT_LOWER_THIRD_TYPES } from '@/features/lower-thirds/domain/lowerThirdTypes'
+import { SUPPORTED_ENTITY_TYPES } from '@/features/csv-editor/domain/supportedEntityTypes'
 
 const csvHooks = vi.hoisted(() => ({
     activeSectionId: 'invited-1',
@@ -520,16 +521,8 @@ describe('EntityList', () => {
         expect(csvHooks.deleteEntity).toHaveBeenCalledWith('invited-1', 'persons', 'person-2')
     })
 
-    it('renders hot title lists provided by the PA hooks', () => {
-        csvHooks.activeEntityType = 'hotTitles'
-        csvHooks.getBlockItems.mockReturnValue([
-            { entityType: 'hotTitles', id: 'hot-1', data: { title: 'HOT' } },
-        ])
-
-        renderEntityList()
-
-        expect(csvHooks.getBlockItems).toHaveBeenCalledWith('invited-1', 'hotTitles')
-        expect(screen.getByText('HOT')).toBeInTheDocument()
+    it('does not expose the legacy Hot Titles editor view', () => {
+        expect(SUPPORTED_ENTITY_TYPES).not.toContain('hotTitles')
     })
 
     it.each([

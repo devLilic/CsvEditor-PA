@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
-import { createSavedProjectFilename } from '../../src/features/csv-editor/domain/savedProjectFile'
+import { createSavedProjectJsonFilename, isSavedProjectFilename } from '../../src/features/csv-editor/domain/savedProjectFile'
 import { parseCsv } from '../../src/features/csv-editor/utils/csvParser'
 import { resolveEntityExportPaths } from '../../src/features/entity-export/domain/exportPathResolver'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
@@ -20,7 +20,7 @@ import { getAppConfig } from '../store'
 import { normalizeLowerThirdTypes } from '../../src/features/lower-thirds/domain/lowerThirdTypesValidation'
 import { restoreLowerThirdAssignments, migrateHotTitlesToUrgent } from '../../src/features/lower-thirds/domain/lowerThirdAssignments'
 import { LOWER_THIRD_TYPES_CONFIG_KEY } from '../../src/features/lower-thirds/domain/lowerThirdTypesConfig'
-import { writeCsvBackup } from './csv-backup'
+import { ENTITY_TEMPLATE_NAMES_CONFIG_KEY, normalizeEntityTemplateNames } from '../../src/features/lower-thirds/domain/entityTemplateNames'
 import { notifyEntityExportFailure } from './entity-export-notification'
 import {
     exportEntityCsvFilesFromEntities,
@@ -34,7 +34,7 @@ function samePath(a: string, b: string): boolean {
 }
 
 function isSafeCsvFilename(filename: string): boolean {
-    return filename === path.basename(filename) && filename.toLowerCase().endsWith('.csv')
+    return isSavedProjectFilename(filename) && filename === path.basename(filename)
 }
 
 async function listSavedCsvProjects(): Promise<CsvProjectListResponse> {
@@ -63,7 +63,7 @@ async function listSavedCsvProjects(): Promise<CsvProjectListResponse> {
     const workingCsvPath = settings.workingCsvPath.trim()
 
     for (const filename of filenames) {
-        if (!filename.toLowerCase().endsWith('.csv')) {
+        if (!/\.(csv|json)$/i.test(filename)) {
             continue
         }
 
@@ -124,7 +124,7 @@ async function saveCsvProjectAs(request: unknown): Promise<CsvProjectSaveAsRespo
         return { ok: false, error: folder.error }
     }
 
-    const filename = createSavedProjectFilename(payload.filename)
+    const filename = createSavedProjectJsonFilename(payload.filename)
     const fullPath = path.join(folder.folderPath, filename)
     const existingStat = await fsp.stat(fullPath).catch(() => null)
     if (existingStat?.isFile()) {
@@ -147,32 +147,42 @@ async function saveCsvProjectAs(request: unknown): Promise<CsvProjectSaveAsRespo
 
 async function exportEntityCsvsAfterProjectLoad(input: {
     mainWindow: BrowserWindow
-    content: string
-    workingCsvPath: string
+    entities: ReturnType<typeof parseCsv>
+    projectFolderPath: string
+    workingCsvPath?: string
     exportCsvFolderPath: string
+    exportPrefix: string
 }): Promise<EntityExportResult> {
     try {
-        const entities = parseCsv(input.content)
+        const entities = input.entities
         const exportPaths = resolveEntityExportPaths({
             workingCsvPath: input.workingCsvPath,
+            projectFolderPath: input.projectFolderPath,
             exportFolderPath: input.exportCsvFolderPath,
+            exportPrefix: input.exportPrefix,
         })
         const [titlesExport, personsExport] = await Promise.all([
             fsp.readFile(exportPaths.titlesPath, 'utf-8').catch(() => undefined),
             fsp.readFile(exportPaths.personsPath, 'utf-8').catch(() => undefined),
         ])
         const types = normalizeLowerThirdTypes(getAppConfig()[LOWER_THIRD_TYPES_CONFIG_KEY])
+        const entityTemplateNames = normalizeEntityTemplateNames(getAppConfig()[ENTITY_TEMPLATE_NAMES_CONFIG_KEY])
         const restoredEntities = restoreLowerThirdAssignments({
             entities: migrateHotTitlesToUrgent(entities),
             titlesExport,
             personsExport,
             types,
+            exportPrefix: input.exportPrefix,
             onWarning: (message) => console.warn('[lower-thirds]', message),
         })
+        await fsp.mkdir(path.join(input.projectFolderPath, 'Saved'), { recursive: true })
+        await fsp.writeFile(path.join(input.projectFolderPath, 'Saved', 'current-project.json'), JSON.stringify({ version: 1, entities: restoredEntities }, null, 2), 'utf-8')
         return await exportEntityCsvFilesFromEntities({
             paths: exportPaths,
             entities: restoredEntities,
             lowerThirdTypes: types,
+            exportPrefix: input.exportPrefix,
+            entityTemplateNames,
             onError: (error) => notifyEntityExportFailure(input.mainWindow, error),
         })
     } catch (error) {
@@ -194,9 +204,9 @@ async function loadCsvProjectIntoWorking(
     }
 
     const settings = getCsvFileSettings()
-    const workingCsvPath = settings.workingCsvPath.trim()
-    if (!workingCsvPath) {
-        return { ok: false, error: 'No working CSV configured' }
+    const projectFolderPath = settings.projectFolderPath.trim()
+    if (!projectFolderPath) {
+        return { ok: false, error: 'No project folder configured' }
     }
 
     const folder = await getSavedProjectsFolderPath()
@@ -204,37 +214,38 @@ async function loadCsvProjectIntoWorking(
         return { ok: false, error: folder.error }
     }
 
-    const filename = createSavedProjectFilename(payload.filename)
+    const filename = payload.filename
     const savedProjectPath = path.join(folder.folderPath, filename)
     const savedProjectStat = await fsp.stat(savedProjectPath).catch(() => null)
     if (!savedProjectStat?.isFile()) {
         return { ok: false, error: 'Saved project file does not exist' }
     }
 
-    const workingStat = await fsp.stat(workingCsvPath).catch(() => null)
-    if (!workingStat?.isFile()) {
-        return { ok: false, error: 'Working CSV file does not exist' }
-    }
-
     const savedProjectContent = await fsp.readFile(savedProjectPath, 'utf-8')
-    const workingCsvContent = await fsp.readFile(workingCsvPath, 'utf-8')
-    const backupResult = await writeCsvBackup({
-        content: workingCsvContent,
-        workingCsvPath,
-        backupFolderPath: settings.backupFolderPath,
-        now: new Date(),
-    })
-
-    if (!backupResult.ok) {
-        return { ok: false, error: 'BACKUP_FAILED' }
+    let projectEntities: ReturnType<typeof parseCsv>
+    try {
+        const saved = JSON.parse(savedProjectContent) as { entities?: unknown }
+        projectEntities = saved.entities && typeof saved.entities === 'object' && Array.isArray((saved.entities as { sections?: unknown }).sections)
+            ? saved.entities as ReturnType<typeof parseCsv>
+            : parseCsv(savedProjectContent)
+    } catch {
+        projectEntities = parseCsv(savedProjectContent)
     }
-
-    await fsp.writeFile(workingCsvPath, savedProjectContent, 'utf-8')
+    const currentStatePath = path.join(projectFolderPath, 'Saved', 'current-project.json')
+    const currentState = await fsp.readFile(currentStatePath, 'utf-8').catch(() => '')
+    if (currentState) {
+        const backupFolderPath = path.join(projectFolderPath, 'Backup')
+        await fsp.mkdir(backupFolderPath, { recursive: true })
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        await fsp.writeFile(path.join(backupFolderPath, `project-${timestamp}.json`), currentState, 'utf-8')
+    }
     const exportResult = await exportEntityCsvsAfterProjectLoad({
         mainWindow,
-        content: savedProjectContent,
-        workingCsvPath,
+        entities: projectEntities,
+        projectFolderPath,
+        workingCsvPath: settings.workingCsvPath,
         exportCsvFolderPath: settings.exportCsvFolderPath,
+        exportPrefix: settings.exportPrefix,
     })
     if (!exportResult.ok) {
         return {
@@ -245,7 +256,7 @@ async function loadCsvProjectIntoWorking(
 
     return {
         ok: true,
-        content: savedProjectContent,
+        content: await fsp.readFile(currentStatePath, 'utf-8'),
     }
 }
 

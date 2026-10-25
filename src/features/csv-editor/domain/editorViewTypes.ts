@@ -5,6 +5,7 @@ export const EditorViewTypes = {
     PERSONS: 'persons',
     LOCATIONS: 'locations',
     PHONE_CALLS: 'phoneCalls',
+    /** Legacy import/migration compatibility; no longer exposed as an editor tab. */
     HOT_TITLES: 'hotTitles',
     WAIT_TITLES: 'waitTitles',
     WAIT_LOCATIONS: 'waitLocations',

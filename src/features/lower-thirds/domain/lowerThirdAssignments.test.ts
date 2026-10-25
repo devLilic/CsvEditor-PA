@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_LOWER_THIRD_TYPES } from './lowerThirdTypes'
-import { migrateHotTitlesToUrgent, restoreLowerThirdAssignments } from './lowerThirdAssignments'
+import { getLowerThirdTemplateName, migrateHotTitlesToUrgent, restoreLowerThirdAssignments } from './lowerThirdAssignments'
 import type { EntitiesState } from '@/features/csv-editor/domain/entities'
 
 const baseEntities: EntitiesState = {
@@ -16,6 +16,19 @@ const baseEntities: EntitiesState = {
 }
 
 describe('lower-third assignment restoration', () => {
+    it('restores prefixed template names and exports the configured prefix once', () => {
+        const result = restoreLowerThirdAssignments({
+            entities: { sections: [{ id: 'invited', kind: 'invited', rows: [{ id: 't', title: { id: 't', title: 'Headline' } }] }] },
+            types: DEFAULT_LOWER_THIRD_TYPES,
+            exportPrefix: 'PA_',
+            titlesExport: 'Nr;Titlu;Supratitlu;Template\n--- INVITATI ---;;;\n1;Headline;;PA_03_Titlu_Breaking_News',
+        })
+
+        const title = result.sections[0].rows[0].title!
+        expect(title.lowerThirdTypeId).toBe('breaking-news')
+        expect(getLowerThirdTemplateName(title, DEFAULT_LOWER_THIRD_TYPES, 'titles', 'PA_')).toBe('PA_03_Titlu_Breaking_News')
+    })
+
     it('matches by section and content, consuming duplicate matches in export order', () => {
         const result = restoreLowerThirdAssignments({
             entities: baseEntities,

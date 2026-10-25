@@ -2,13 +2,13 @@ import type { EntitiesState } from '../../csv-editor/domain/entities'
 import { parseCsv } from '../../csv-editor/utils/csvParser'
 import { DEFAULT_LOWER_THIRD_TYPES } from '../../lower-thirds/domain/lowerThirdTypes'
 import type { LowerThirdTypeDefinition } from '../../lower-thirds/domain/lowerThirdTypes'
+import { DEFAULT_ENTITY_TEMPLATE_NAMES, type EntityTemplateNames } from '../../lower-thirds/domain/entityTemplateNames'
 import { serializeEntityCsv } from './entityCsvSerializer'
 import {
     mapPaLocationsExport,
     mapPaPersonsExport,
     mapPaPhonesExport,
     mapPaTitlesExport,
-    mapPaTitlesWithHotExport,
     mapPaWaitTitlesLocationsExport,
     mapPaWaitTitlesLocationsValues,
 } from './paEntityExportMapper'
@@ -31,7 +31,6 @@ export interface ExportLocation {
 
 export interface EntityExportCsvs {
     titlesCsv: string
-    titlesWithHotCsv: string
     personsCsv: string
     locationsCsv: string
     phonesCsv: string
@@ -91,17 +90,26 @@ export function mapWaitTitlesLocationsToExportCsv(titles: string[], locations: s
     return mapPaWaitTitlesLocationsValues(titles, locations)
 }
 
-export function mapEntitiesStateToExportCsvs(state: EntitiesState, lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES): EntityExportCsvs {
+export function mapEntitiesStateToExportCsvs(
+    state: EntitiesState,
+    lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
+    exportPrefix = '',
+    entityTemplateNames: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+): EntityExportCsvs {
     return {
-        titlesCsv: mapPaTitlesExport(state, lowerThirdTypes),
-        titlesWithHotCsv: mapPaTitlesWithHotExport(state),
-        personsCsv: mapPaPersonsExport(state, lowerThirdTypes),
-        locationsCsv: mapPaLocationsExport(state),
-        phonesCsv: mapPaPhonesExport(state),
-        waitTitlesLocationsCsv: mapPaWaitTitlesLocationsExport(state),
+        titlesCsv: mapPaTitlesExport(state, lowerThirdTypes, exportPrefix),
+        personsCsv: mapPaPersonsExport(state, lowerThirdTypes, exportPrefix),
+        locationsCsv: mapPaLocationsExport(state, entityTemplateNames, exportPrefix),
+        phonesCsv: mapPaPhonesExport(state, entityTemplateNames, exportPrefix),
+        waitTitlesLocationsCsv: mapPaWaitTitlesLocationsExport(state, entityTemplateNames, exportPrefix),
     }
 }
 
-export function mapFullCsvContentToExportCsvs(content: string, lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES): EntityExportCsvs {
-    return mapEntitiesStateToExportCsvs(parseCsv(content), lowerThirdTypes)
+export function mapFullCsvContentToExportCsvs(
+    content: string,
+    lowerThirdTypes: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
+    exportPrefix = '',
+    entityTemplateNames: EntityTemplateNames = DEFAULT_ENTITY_TEMPLATE_NAMES,
+): EntityExportCsvs {
+    return mapEntitiesStateToExportCsvs(parseCsv(content), lowerThirdTypes, exportPrefix, entityTemplateNames)
 }

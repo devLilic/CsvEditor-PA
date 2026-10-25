@@ -121,6 +121,9 @@ export const electronApi: RendererApi = {
     selectWorkingCsv() {
         return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SELECT_WORKING_CSV)
     },
+    selectProjectFolder() {
+        return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SELECT_PROJECT_FOLDER)
+    },
 
     selectBackupFolder() {
         return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SELECT_BACKUP_FOLDER)

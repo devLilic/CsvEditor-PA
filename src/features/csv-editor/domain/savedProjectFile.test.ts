@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
     createSavedProjectFilename,
+    createSavedProjectJsonFilename,
     ensureCsvExtension,
     sanitizeSavedProjectName,
 } from './savedProjectFile'
@@ -28,5 +29,11 @@ describe('savedProjectFile', () => {
         expect(createSavedProjectFilename('proiect')).toBe('proiect.csv')
         expect(createSavedProjectFilename('proiect.txt')).toBe('proiect.txt.csv')
         expect(ensureCsvExtension('proiect')).toBe('proiect.csv')
+    })
+
+    it('creates JSON files for new saved projects', () => {
+        expect(createSavedProjectJsonFilename('Ediție specială')).toBe('Edi_ie_special.json')
+        expect(createSavedProjectJsonFilename('proiect.json')).toBe('proiect.json')
+        expect(createSavedProjectJsonFilename('')).toBe('proiect_salvat.json')
     })
 })

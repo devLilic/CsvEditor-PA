@@ -17,7 +17,6 @@ const baseInput: ExportSingleEntityCsvInput = {
     kind: 'titles',
     paths: {
         titlesPath: 'D:\\TV\\OC\\Export\\PA_titles.csv',
-        titlesWithHotPath: 'D:\\TV\\OC\\Export\\PA_titles_with_hot.csv',
         personsPath: 'D:\\TV\\OC\\Export\\PA_persons.csv',
         locationsPath: 'D:\\TV\\OC\\Export\\PA_locations.csv',
         phonesPath: 'D:\\TV\\OC\\Export\\PA_phones.csv',
@@ -25,7 +24,6 @@ const baseInput: ExportSingleEntityCsvInput = {
     },
     csvs: {
         titlesCsv: 'Nr;Titlu;Supratitlu\n3;Titlu test;',
-        titlesWithHotCsv: 'Nr;Titlu;Supratitlu;Ultima Ora\n3;Titlu test;;',
         personsCsv: 'Nume;Functie',
         locationsCsv: 'Locatie',
         phonesCsv: 'Nume;Functie;Image',
@@ -144,15 +142,10 @@ describe('entity-export-service retry write logic', () => {
             },
         })).resolves.toEqual({ ok: true })
 
-        expect(fsp.writeFile).toHaveBeenCalledTimes(6)
+        expect(fsp.writeFile).toHaveBeenCalledTimes(5)
         expect(fsp.writeFile).toHaveBeenCalledWith(
             'D:\\TV\\OC\\Export\\PA_titles.csv',
             'Nr;Titlu;Supratitlu;Template\n--- INVITATI ---;;;\n1;Titlu proiect;;01_Titlu',
-            expect.any(Object)
-        )
-        expect(fsp.writeFile).toHaveBeenCalledWith(
-            'D:\\TV\\OC\\Export\\PA_titles_with_hot.csv',
-            'Nr;Titlu;Supratitlu;Ultima Ora\n--- INVITATI ---;;;\n1;Titlu proiect;;',
             expect.any(Object)
         )
         expect(fsp.writeFile).toHaveBeenCalledWith(
@@ -162,17 +155,17 @@ describe('entity-export-service retry write logic', () => {
         )
         expect(fsp.writeFile).toHaveBeenCalledWith(
             'D:\\TV\\OC\\Export\\PA_locations.csv',
-            'Locatie\nChisinau',
+            'Locatie;Template\nChisinau;Location Bug',
             expect.any(Object)
         )
         expect(fsp.writeFile).toHaveBeenCalledWith(
             'D:\\TV\\OC\\Export\\PA_phones.csv',
-            'Nume;Functie;Image\nAna;Reporter;D:\\photos\\ana.jpg',
+            'Nume;Functie;Image;Template\nAna;Reporter;D:\\photos\\ana.jpg;Phone Call Lower Third',
             expect.any(Object)
         )
         expect(fsp.writeFile).toHaveBeenCalledWith(
             'D:\\TV\\OC\\Export\\PA_wait_titles_locations.csv',
-            'Titlu;Locatie',
+            'Titlu;Template Titlu;Locatie;Template Locatie',
             expect.any(Object)
         )
     })

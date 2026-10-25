@@ -6,15 +6,15 @@ In partea dreapta este afisata structura backupului selectat. Titlurile apar ca 
 
 Selectia este individuala si permite alegerea mai multor titluri. Nu exista actiuni globale de tip Select All sau Deselect All. Butonul Import ramane dezactivat pana cand exista cel putin un titlu selectat.
 
-La import se preiau numai titlurile selectate, in ordinea lor din backup. Separatoarele, numerele vechi si orice informatie de tip Ultima Ora sunt ignorate. Duplicatele sunt permise.
+La import se preiau numai titlurile selectate, in ordinea lor din backup. Separatoarele si numerele vechi sunt ignorate. Duplicatele sunt permise.
 
 Titlurile importate sunt adaugate la finalul sectiunii PLATOU. Dupa adaugare se recalculeaza `Nr` pentru toate titlurile din PLATOU.
 
 Ordinea persistentei este:
 
-1. CSV-ul integral.
+1. Starea proiectului in JSON.
 2. `PA_titles.csv`.
 3. Backupul activ dedicat titlurilor, dupa succesul `PA_titles.csv`.
-4. `PA_titles_with_hot.csv`.
+4. Restul exporturilor configurate.
 
 Daca apare un esec critic la persistenta, importul face rollback la lista anterioara, modalul ramane deschis si se afiseaza eroarea. Daca fisierul selectat este invalid, modalul afiseaza eroarea controlat si nu blocheaza listarea celorlalte backupuri.

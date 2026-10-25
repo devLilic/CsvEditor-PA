@@ -15,10 +15,10 @@ Nu pot exista doua dividers consecutive. Regula se aplica atat la adaugare, cat 
 
 Dupa reorder, numerele titlurilor sunt recalculate consecutiv. Divider-ele nu primesc numar.
 
-Persistenta reorder-ului este tranzactionala: se pastreaza snapshot-ul vechi, UI-ul este actualizat optimist, apoi se scrie CSV-ul integral. Daca scrierea CSV-ului integral sau a exporturilor critice esueaza, lista revine la snapshot.
+Persistenta reorder-ului este tranzactionala: se pastreaza snapshot-ul vechi, UI-ul este actualizat optimist, apoi se scrie starea JSON a proiectului. Daca salvarea starii sau a exporturilor critice esueaza, lista revine la snapshot.
 
 Fluxul existent de scriere actualizeaza:
 
-- CSV-ul integral, care pastreaza `[ DIVIDER ]`;
-- `PA_titles.csv`, fara dividers;
-- `PA_titles_with_hot.csv`, fara dividers.
+- JSON-ul proiectului, care pastreaza `[ DIVIDER ]`;
+- exportul `titles`, fara dividers;
+- exportul `titles` cu coloanele configurate, fara dividers.

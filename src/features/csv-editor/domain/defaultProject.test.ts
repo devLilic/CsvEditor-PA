@@ -42,15 +42,6 @@ describe('createDefaultProjectEntities', () => {
         expect(project.sections[0].rows.some((row) => row.location?.location)).toBe(true)
     })
 
-    it('creates the configured default hot title in INVITATI', () => {
-        const project = createDefaultProjectEntities({
-            ...FALLBACK_DEFAULT_PROJECT_SETTINGS,
-            hotTitle: 'ULTIMA ORA DEFAULT',
-        })
-
-        expect(project.sections[0].rows[0].hotTitle?.title).toBe('ULTIMA ORA DEFAULT')
-    })
-
     it('accepts legacy settings without a default hot title', () => {
         const project = createDefaultProjectEntities({
             title: 'LEGACY TITLE',
@@ -61,7 +52,6 @@ describe('createDefaultProjectEntities', () => {
 
         expect(project.sections[0].rows[0].title?.title).toBe('LEGACY TITLE')
         expect(project.sections[0].rows[0].person?.name).toBe('LEGACY NAME')
-        expect(project.sections[0].rows[0].hotTitle).toBeUndefined()
     })
 
     it('creates ids for the section, rows, and entities', () => {
@@ -120,7 +110,6 @@ describe('createDefaultProjectEntities', () => {
             personName: 'CUSTOM NAME',
             personOccupation: 'CUSTOM OCCUPATION',
             location: 'CUSTOM LOCATION',
-            hotTitle: 'CUSTOM HOT TITLE',
         })
 
         const row = project.sections[0].rows[0]
@@ -129,7 +118,6 @@ describe('createDefaultProjectEntities', () => {
         expect(row.person?.name).toBe('CUSTOM NAME')
         expect(row.person?.occupation).toBe('CUSTOM OCCUPATION')
         expect(row.location?.location).toBe('CUSTOM LOCATION')
-        expect(row.hotTitle?.title).toBe('CUSTOM HOT TITLE')
     })
 
     it('does not create a title entity when provided settings have an empty title', () => {
@@ -138,7 +126,6 @@ describe('createDefaultProjectEntities', () => {
             personName: 'CUSTOM NAME',
             personOccupation: 'CUSTOM OCCUPATION',
             location: 'CUSTOM LOCATION',
-            hotTitle: '',
         })
 
         expect(project.sections[0].rows[0].title).toBeUndefined()
@@ -150,7 +137,6 @@ describe('createDefaultProjectEntities', () => {
             personName: 'CUSTOM NAME',
             personOccupation: 'CUSTOM OCCUPATION',
             location: '',
-            hotTitle: '',
         })
 
         expect(project.sections[0].rows[0].location).toBeUndefined()
@@ -162,18 +148,9 @@ describe('createDefaultProjectEntities', () => {
             personName: 'CUSTOM NAME',
             personOccupation: 'CUSTOM OCCUPATION',
             location: '   ',
-            hotTitle: '',
         })
 
         expect(project.sections[0].rows[0].location).toBeUndefined()
     })
 
-    it('does not create a hot title entity when provided settings have an empty hot title', () => {
-        const project = createDefaultProjectEntities({
-            ...FALLBACK_DEFAULT_PROJECT_SETTINGS,
-            hotTitle: '',
-        })
-
-        expect(project.sections[0].rows[0].hotTitle).toBeUndefined()
-    })
 })

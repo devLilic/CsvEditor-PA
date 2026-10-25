@@ -14,7 +14,6 @@ export function createDefaultProjectEntities(settings: DefaultProjectSettings): 
     const normalizedSettings = normalizeDefaultProjectSettings(settings)
     const title = normalizedSettings.title.trim()
     const location = normalizedSettings.location.trim()
-    const hotTitle = normalizedSettings.hotTitle.trim()
 
     return {
         sections: [
@@ -39,14 +38,6 @@ export function createDefaultProjectEntities(settings: DefaultProjectSettings): 
                             location: {
                                 id: uuidv4(),
                                 location,
-                            },
-                        }
-                        : {}),
-                    ...(hotTitle
-                        ? {
-                            hotTitle: {
-                                id: uuidv4(),
-                                title: hotTitle,
                             },
                         }
                         : {}),

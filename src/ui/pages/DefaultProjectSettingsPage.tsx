@@ -145,17 +145,6 @@ export function DefaultProjectSettingsPage() {
         await savePhoneImageSettings(FALLBACK_PHONE_IMAGE_SETTINGS)
     }
 
-    const handleSelectWorkPath = async () => {
-        setPhoneImageStatus('idle')
-        const selectedPath = await phoneImageSettingsService.selectWorkPath()
-        if (!selectedPath) return
-
-        setPhoneImageSettings((current) => ({
-            ...current,
-            workPath: selectedPath,
-        }))
-    }
-
     const saveCsvFileSettings = async (nextSettings: CsvFileSettings) => {
         setCsvFileStatus('saving')
 
@@ -174,47 +163,14 @@ export function DefaultProjectSettingsPage() {
         await saveCsvFileSettings(csvFileSettings)
     }
 
-    const handleSelectWorkingCsv = async () => {
+    const handleSelectProjectFolder = async () => {
         setCsvFileStatus('idle')
-        const selectedPath = await csvFileSettingsService.selectWorkingCsv()
+        const selectedPath = await csvFileSettingsService.selectProjectFolder()
         if (!selectedPath) return
 
         setCsvFileSettings((current) => ({
             ...current,
-            workingCsvPath: selectedPath,
-        }))
-    }
-
-    const handleSelectBackupFolder = async () => {
-        setCsvFileStatus('idle')
-        const selectedPath = await csvFileSettingsService.selectBackupFolder()
-        if (!selectedPath) return
-
-        setCsvFileSettings((current) => ({
-            ...current,
-            backupFolderPath: selectedPath,
-        }))
-    }
-
-    const handleSelectSavedProjectsFolder = async () => {
-        setCsvFileStatus('idle')
-        const selectedPath = await csvFileSettingsService.selectSavedProjectsFolder()
-        if (!selectedPath) return
-
-        setCsvFileSettings((current) => ({
-            ...current,
-            savedProjectsFolderPath: selectedPath,
-        }))
-    }
-
-    const handleSelectExportCsvFolder = async () => {
-        setCsvFileStatus('idle')
-        const selectedPath = await csvFileSettingsService.selectExportCsvFolder()
-        if (!selectedPath) return
-
-        setCsvFileSettings((current) => ({
-            ...current,
-            exportCsvFolderPath: selectedPath,
+            projectFolderPath: selectedPath,
         }))
     }
 
@@ -246,11 +202,8 @@ export function DefaultProjectSettingsPage() {
         }
     }
 
-    const resolvedExportCsvFolder = csvFileSettings.workingCsvPath
-        ? resolveEntityExportFolder({
-            workingCsvPath: csvFileSettings.workingCsvPath,
-            exportFolderPath: csvFileSettings.exportCsvFolderPath,
-        })
+    const resolvedExportCsvFolder = csvFileSettings.projectFolderPath
+        ? resolveEntityExportFolder({ projectFolderPath: csvFileSettings.projectFolderPath })
         : ''
 
     return (
@@ -259,7 +212,7 @@ export function DefaultProjectSettingsPage() {
                 <header className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900">
-                            Punctul pe Azi - Setări proiect nou
+                            Tales - Setări proiect nou
                         </h1>
                         <p className="mt-1 text-sm text-gray-600">
                             Texte standard pentru proiect nou. Aceste valori vor fi folosite pentru următorul proiect nou.
@@ -391,15 +344,6 @@ export function DefaultProjectSettingsPage() {
                         />
                     </label>
 
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Ultima oră implicită</span>
-                        <input
-                            value={settings.hotTitle}
-                            onChange={(event) => updateField('hotTitle', event.target.value)}
-                            className="app-input rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </label>
-
                     <div className="flex flex-wrap items-center gap-3">
                         <button
                             type="submit"
@@ -435,23 +379,7 @@ export function DefaultProjectSettingsPage() {
                         </h2>
                     </div>
 
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Folder imagini telefonice</span>
-                        <div className="flex gap-2">
-                            <input
-                                value={phoneImageSettings.workPath}
-                                onChange={(event) => updatePhoneImageField('workPath', event.target.value)}
-                                className="app-input min-w-0 flex-1 rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleSelectWorkPath}
-                                className="app-button shrink-0 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                            >
-                                Alege folder
-                            </button>
-                        </div>
-                    </label>
+                    <p className="text-sm text-gray-600">Imaginile telefonice se salvează în subfolderul Telefon din folderul proiectului.</p>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                         <label className="flex flex-col gap-1">
@@ -507,100 +435,38 @@ export function DefaultProjectSettingsPage() {
 
                 <form onSubmit={handleCsvFileSubmit} className="app-panel app-settings-section app-settings-storage flex flex-col gap-5 rounded bg-white p-5 shadow-sm">
                     <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                            Setări fișier CSV
-                        </h2>
+                        <h2 className="text-lg font-semibold text-gray-900">Stocarea proiectului</h2>
+                        <p className="mt-1 text-sm text-gray-600">Alege folderul proiectului. Aplicația creează în el folderele Saved, Backup, Export și Telefon.</p>
                     </div>
-
-                    <div className="app-settings-subsection">
-                        <h3 className="text-sm font-semibold text-gray-800">Fi?iere ?i foldere</h3>
-                    </div>
-
                     <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Fișier CSV de lucru</span>
+                        <span className="text-sm font-medium text-gray-700">Folder de lucru al proiectului</span>
                         <div className="flex gap-2">
                             <input
-                                value={csvFileSettings.workingCsvPath}
-                                onChange={(event) => updateCsvFileField('workingCsvPath', event.target.value)}
+                                aria-label="Folder de lucru al proiectului"
+                                value={csvFileSettings.projectFolderPath}
+                                onChange={(event) => updateCsvFileField('projectFolderPath', event.target.value)}
                                 className="app-input min-w-0 flex-1 rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <button
                                 type="button"
-                                onClick={handleSelectWorkingCsv}
+                                onClick={handleSelectProjectFolder}
                                 className="app-button shrink-0 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
                             >
-                                Alege CSV
+                                Alege folder
                             </button>
                         </div>
                     </label>
-
-                    <div className="app-settings-subsection">
-                        <h3 className="text-sm font-semibold text-gray-800">Backup</h3>
-                    </div>
-
                     <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Folder backup CSV</span>
-                        <div className="flex gap-2">
-                            <input
-                                value={csvFileSettings.backupFolderPath}
-                                onChange={(event) => updateCsvFileField('backupFolderPath', event.target.value)}
-                                className="app-input min-w-0 flex-1 rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleSelectBackupFolder}
-                                className="app-button shrink-0 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                            >
-                                Alege folder backup
-                            </button>
-                        </div>
+                        <span className="text-sm font-medium text-gray-700">Prefix export</span>
+                        <input
+                            aria-label="Prefix export"
+                            value={csvFileSettings.exportPrefix}
+                            onChange={(event) => updateCsvFileField('exportPrefix', event.target.value)}
+                            className="app-input rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-gray-500">Se aplică numelor fișierelor CSV și numelor șabloanelor scrise în exporturi.</span>
                     </label>
-
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Folder proiecte salvate</span>
-                        <div className="flex gap-2">
-                            <input
-                                value={csvFileSettings.savedProjectsFolderPath}
-                                onChange={(event) => updateCsvFileField('savedProjectsFolderPath', event.target.value)}
-                                className="app-input min-w-0 flex-1 rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleSelectSavedProjectsFolder}
-                                className="app-button shrink-0 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                            >
-                                Alege folder proiecte salvate
-                            </button>
-                        </div>
-                    </label>
-
-                    <div className="app-settings-subsection">
-                        <h3 className="text-sm font-semibold text-gray-800">Export</h3>
-                    </div>
-
-                    <label className="flex flex-col gap-1">
-                        <span className="text-sm font-medium text-gray-700">Export CSV Folder</span>
-                        <div className="flex gap-2">
-                            <input
-                                aria-label="Export CSV Folder"
-                                value={csvFileSettings.exportCsvFolderPath}
-                                onChange={(event) => updateCsvFileField('exportCsvFolderPath', event.target.value)}
-                                className="app-input min-w-0 flex-1 rounded border border-gray-300 px-3 py-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <button
-                                type="button"
-                                onClick={handleSelectExportCsvFolder}
-                                className="app-button shrink-0 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                            >
-                                Alege folder export
-                            </button>
-                        </div>
-                        <span className="app-chip w-fit max-w-full truncate rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">
-                            {resolvedExportCsvFolder
-                                ? `Folder efectiv: ${resolvedExportCsvFolder}`
-                                : 'Fallback: folderul Export langa fisierul CSV de lucru'}
-                        </span>
-                    </label>
+                    {resolvedExportCsvFolder && <span className="text-xs text-gray-500">Exporturile vor fi salvate în: {resolvedExportCsvFolder}</span>}
 
                     <div className="flex flex-wrap items-center gap-3">
                         <button

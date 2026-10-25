@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { broadcastTemplates } from '@/templates/broadcast'
@@ -13,6 +13,7 @@ const lowerThirdVariants = {
 const templateDocumentState = vi.hoisted(() => ({
     isLoaded: true,
     isDirty: false,
+    activeLowerThirdTypeId: 'ordinary',
     updateTemplate: vi.fn(),
     updateLowerThirdVariant: vi.fn(),
     setTemplateEntityEnabled: vi.fn(),
@@ -38,7 +39,7 @@ vi.mock('@/ui/context/TedModeContext', () => ({
     useTedMode: () => ({
         activeTedEntityType: 'titles',
         setActiveTedEntityType: templateDocumentState.setActiveTedEntityType,
-        activeLowerThirdTypeId: 'ordinary',
+        activeLowerThirdTypeId: templateDocumentState.activeLowerThirdTypeId,
         setActiveLowerThirdTypeId: templateDocumentState.setActiveLowerThirdTypeId,
         tedSampleOverrides: {},
         setTedSampleOverrides: templateDocumentState.setTedSampleOverrides,
@@ -47,6 +48,7 @@ vi.mock('@/ui/context/TedModeContext', () => ({
 
 beforeEach(() => {
     templateDocumentState.isDirty = false
+    templateDocumentState.activeLowerThirdTypeId = 'ordinary'
     templateDocumentState.updateTemplate.mockReset()
     templateDocumentState.updateLowerThirdVariant.mockReset()
     templateDocumentState.setTemplateEntityEnabled.mockReset()
@@ -67,7 +69,10 @@ beforeEach(() => {
     templateDocumentState.saveTemplates.mockReset()
     templateDocumentState.saveTemplates.mockResolvedValue({ ok: true })
     templateDocumentState.setActiveTedEntityType.mockClear()
-    templateDocumentState.setActiveLowerThirdTypeId.mockClear()
+    templateDocumentState.setActiveLowerThirdTypeId.mockReset()
+    templateDocumentState.setActiveLowerThirdTypeId.mockImplementation((typeId: string) => {
+        templateDocumentState.activeLowerThirdTypeId = typeId
+    })
     templateDocumentState.setTedSampleOverrides.mockClear()
 })
 
@@ -133,12 +138,40 @@ describe('TemplateEditorPanel', () => {
         expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
     })
 
+    it('saves an image background to the selected non-ordinary variant', async () => {
+        const { rerender } = render(<TemplateEditorPanel isTedMode />)
+        fireEvent.change(screen.getByLabelText('Lower-third variant'), {
+            target: { value: 'urgent' },
+        })
+        rerender(<TemplateEditorPanel isTedMode />)
+
+        const image = new File(['png-data'], 'shared-background.png', { type: 'image/png' })
+        fireEvent.change(screen.getByLabelText('Image path selector'), {
+            target: { files: [image] },
+        })
+
+        await waitFor(() => {
+            expect(templateDocumentState.updateLowerThirdVariant).toHaveBeenCalledWith(
+                'titles',
+                'urgent',
+                expect.objectContaining({
+                    canvas: expect.objectContaining({
+                        background: expect.objectContaining({
+                            type: 'image',
+                            value: expect.stringMatching(/^data:image\/png;base64,/),
+                        }),
+                    }),
+                }),
+            )
+        })
+    })
+
     it('can hide and reactivate a template type from the main screen', async () => {
         const user = userEvent.setup()
         render(<TemplateEditorPanel isTedMode />)
 
-        await user.click(screen.getByRole('checkbox', { name: 'Show hotTitles in main screen' }))
-        expect(templateDocumentState.setTemplateEntityEnabled).toHaveBeenCalledWith('hotTitles', false)
+        await user.click(screen.getByRole('checkbox', { name: 'Show phoneCalls in main screen' }))
+        expect(templateDocumentState.setTemplateEntityEnabled).toHaveBeenCalledWith('phoneCalls', false)
     })
 
     it('does not set dirty when sample input changes', () => {

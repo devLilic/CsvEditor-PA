@@ -9,7 +9,7 @@ const EXPORT_FAILURE_MESSAGE = [
 ].join('\n')
 
 const QUICK_TITLES_FAILURE_MESSAGE = [
-    'Quick Titles nu au putut fi salvate in PA_quickTitles.csv.',
+    'Quick Titles nu au putut fi salvate în fișierul CSV de export.',
     'Verifica folderul de export si accesul la fisier.',
 ].join('\n')
 

@@ -32,7 +32,7 @@ export function AppUpdatePanel() {
         <section className="app-panel flex flex-col gap-4 rounded bg-white p-5 shadow-sm">
             <div>
                 <h2 className="text-lg font-semibold text-gray-900">
-                    Actualizari Punctul pe Azi
+                    Actualizari Tales
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
                     Versiune curenta: {currentVersion || 'se incarca...'}

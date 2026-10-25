@@ -12,12 +12,11 @@ describe('exportPathResolver', () => {
             workingCsvPath: 'D:\\TV\\OC\\working.csv',
             exportFolderPath: 'D:\\TV\\OC\\Exports',
         })).toEqual({
-            titlesPath: 'D:\\TV\\OC\\Exports\\PA_titles.csv',
-            titlesWithHotPath: 'D:\\TV\\OC\\Exports\\PA_titles_with_hot.csv',
-            personsPath: 'D:\\TV\\OC\\Exports\\PA_persons.csv',
-            locationsPath: 'D:\\TV\\OC\\Exports\\PA_locations.csv',
-            phonesPath: 'D:\\TV\\OC\\Exports\\PA_phones.csv',
-            waitTitlesLocationsPath: 'D:\\TV\\OC\\Exports\\PA_wait_titles_locations.csv',
+            titlesPath: 'D:\\TV\\OC\\Exports\\titles.csv',
+            personsPath: 'D:\\TV\\OC\\Exports\\persons.csv',
+            locationsPath: 'D:\\TV\\OC\\Exports\\locations.csv',
+            phonesPath: 'D:\\TV\\OC\\Exports\\phones.csv',
+            waitTitlesLocationsPath: 'D:\\TV\\OC\\Exports\\wait_titles_locations.csv',
         })
     })
 
@@ -26,24 +25,22 @@ describe('exportPathResolver', () => {
             workingCsvPath: 'D:\\TV\\OC\\working.csv',
             exportFolderPath: '',
         })).toEqual({
-            titlesPath: 'D:\\TV\\OC\\Export\\PA_titles.csv',
-            titlesWithHotPath: 'D:\\TV\\OC\\Export\\PA_titles_with_hot.csv',
-            personsPath: 'D:\\TV\\OC\\Export\\PA_persons.csv',
-            locationsPath: 'D:\\TV\\OC\\Export\\PA_locations.csv',
-            phonesPath: 'D:\\TV\\OC\\Export\\PA_phones.csv',
-            waitTitlesLocationsPath: 'D:\\TV\\OC\\Export\\PA_wait_titles_locations.csv',
+            titlesPath: 'D:\\TV\\OC\\Export\\titles.csv',
+            personsPath: 'D:\\TV\\OC\\Export\\persons.csv',
+            locationsPath: 'D:\\TV\\OC\\Export\\locations.csv',
+            phonesPath: 'D:\\TV\\OC\\Export\\phones.csv',
+            waitTitlesLocationsPath: 'D:\\TV\\OC\\Export\\wait_titles_locations.csv',
         })
     })
 
     it('uses fixed filenames', () => {
         expect(ENTITY_EXPORT_FILENAMES).toEqual({
-            titles: 'PA_titles.csv',
-            titlesWithHot: 'PA_titles_with_hot.csv',
-            persons: 'PA_persons.csv',
-            locations: 'PA_locations.csv',
-            phones: 'PA_phones.csv',
-            waitTitlesLocations: 'PA_wait_titles_locations.csv',
-            quickTitles: 'PA_quickTitles.csv',
+            titles: 'titles.csv',
+            persons: 'persons.csv',
+            locations: 'locations.csv',
+            phones: 'phones.csv',
+            waitTitlesLocations: 'wait_titles_locations.csv',
+            quickTitles: 'quickTitles.csv',
         })
     })
 
@@ -51,7 +48,7 @@ describe('exportPathResolver', () => {
         expect(resolveQuickTitlesCsvPath({
             workingCsvPath: 'D:\\TV\\OC\\working.csv',
             exportFolderPath: 'D:\\TV\\OC\\Exports',
-        })).toBe('D:\\TV\\OC\\Exports\\PA_quickTitles.csv')
+        })).toBe('D:\\TV\\OC\\Exports\\quickTitles.csv')
     })
 
     it('resolves fallback folder using dirname of the working CSV', () => {
@@ -66,5 +63,12 @@ describe('exportPathResolver', () => {
             workingCsvPath: 'D:\\TV\\OC\\working.csv',
             exportFolderPath: '  D:\\TV\\OC\\Exports  ',
         })).toBe('D:\\TV\\OC\\Exports')
+    })
+
+    it('uses project root, configurable prefix, and no legacy hot titles file', () => {
+        const paths = resolveEntityExportPaths({ projectFolderPath: 'D:\\Projects\\Show', exportPrefix: 'X_' })
+        expect(paths.titlesPath).toBe('D:\\Projects\\Show\\Export\\X_titles.csv')
+        expect(paths.personsPath).toBe('D:\\Projects\\Show\\Export\\X_persons.csv')
+        expect(paths).not.toHaveProperty('titlesWithHotPath')
     })
 })
