@@ -134,7 +134,7 @@ describe('entity export mapper', () => {
         }] }, undefined, '', undefined, showDocument as any).waitTitlesLocationsCsv
 
         expect(csv.split('\n')[0]).toBe('Titlu;Locatie;Template;waitTitle.customNote;waitLocation.customNote')
-        expect(csv.split('\n')[1]).toBe('Wait;Place;Wait title;TITLE NOTE;LOCATION NOTE')
+        expect(csv.split('\n')[1]).toBe('Wait;Place;Wait Title;TITLE NOTE;LOCATION NOTE')
     })
 
     it('maps titles to OC CSV', () => {

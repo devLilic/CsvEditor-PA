@@ -323,7 +323,7 @@ export function EntityList({ onRepeatSupratitle }: {
     }
 
     if (isWaitTitlesLocationsList) {
-        const disabledTypes = activeProject?.document.disabledEntityTypes ?? []
+        const disabledTypes = activeProject?.document?.disabledEntityTypes ?? []
         const showWaitLocations = !disabledTypes.includes('waitLocations')
         const showWaitTitles = !disabledTypes.includes('waitTitles')
         const waitLocations = activeSection?.kind === 'invited' && showWaitLocations
