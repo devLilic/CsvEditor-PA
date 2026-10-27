@@ -19,6 +19,7 @@ const csvHooks = vi.hoisted(() => ({
         | 'hotTitles'
         | 'waitTitles'
         | 'waitLocations',
+    activeRows: [] as any[],
     getBlockItems: vi.fn(),
     deleteEntity: vi.fn(),
     deletePlateauTitleDivider: vi.fn(),
@@ -50,7 +51,7 @@ vi.mock('@/features/csv-editor', async (importOriginal) => {
         ...actual,
         useEntities: () => ({
             activeSectionId: csvHooks.activeSectionId,
-            activeSection: { id: csvHooks.activeSectionId, kind: csvHooks.activeSectionKind, rows: [] },
+            activeSection: { id: csvHooks.activeSectionId, kind: csvHooks.activeSectionKind, rows: csvHooks.activeRows },
             getBlockItems: csvHooks.getBlockItems,
             deleteEntity: csvHooks.deleteEntity,
             deletePlateauTitleDivider: csvHooks.deletePlateauTitleDivider,
@@ -77,6 +78,7 @@ beforeEach(() => {
     csvHooks.activeSectionId = 'invited-1'
     csvHooks.activeSectionKind = 'invited'
     csvHooks.activeEntityType = 'titles'
+    csvHooks.activeRows = []
     csvHooks.getBlockItems.mockReset()
     csvHooks.deleteEntity.mockClear()
     csvHooks.deletePlateauTitleDivider.mockReset()
@@ -584,6 +586,12 @@ describe('EntityList', () => {
         ['waitLocations', 'waitLocations', { location: 'LOCATIE ASTEPTARE' }],
     ] as const)('renders %s lists', (activeEntityType, entityType, data) => {
         csvHooks.activeEntityType = activeEntityType
+        csvHooks.activeRows = [{
+            id: 'row-1',
+            ...(entityType === 'waitTitles'
+                ? { waitTitle: { id: `${entityType}-1`, ...data } }
+                : { waitLocation: { id: `${entityType}-1`, ...data } }),
+        }]
         csvHooks.getBlockItems.mockReturnValue([
             { entityType, id: `${entityType}-1`, data },
         ])
@@ -616,6 +624,7 @@ describe('EntityList', () => {
         const user = userEvent.setup()
         csvHooks.activeSectionId = 'section-pa'
         csvHooks.activeEntityType = 'waitTitles'
+        csvHooks.activeRows = [{ id: 'row-pa', waitTitle: { id: 'wait-title-1', title: 'ASTEPTARE' } }]
         csvHooks.getBlockItems.mockReturnValue([
             { entityType: 'waitTitles', id: 'wait-title-1', data: { title: 'ASTEPTARE' } },
         ])
