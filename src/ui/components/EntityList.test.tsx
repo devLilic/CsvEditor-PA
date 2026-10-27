@@ -631,7 +631,7 @@ describe('EntityList', () => {
 
         renderEntityListWithEditModeToggle()
         await user.click(screen.getByRole('button', { name: 'toggle edit mode' }))
-        await user.click(screen.getByRole('button', { name: 'Sterge' }))
+        await user.click(screen.getByRole('button', { name: 'Sterge titlul' }))
 
         expect(csvHooks.deleteEntity).toHaveBeenCalledWith('section-pa', 'waitTitles', 'wait-title-1')
     })
