@@ -128,9 +128,9 @@ describe('PA entity export mapper', () => {
 
     it('writes wait titles and locations without Nr or markers', () => {
         expect(mapPaWaitTitlesLocationsExport(paState())).toBe([
-            'Titlu;Template Titlu;Locatie;Template Locatie',
-            'Titlu așteptare 1;Wait Title;Locație așteptare 1;Wait Location',
-            'Titlu așteptare 2;Wait Title;;',
+            'Titlu;Locatie;Template',
+            'Titlu așteptare 1;Locație așteptare 1;Wait Title',
+            'Titlu așteptare 2;;Wait Title',
         ].join('\n'))
     })
 
@@ -139,22 +139,22 @@ describe('PA entity export mapper', () => {
             ['Titlu așteptare 1', 'Titlu așteptare 2', ''],
             ['Locație așteptare 1', '', 'Locație așteptare 2'],
         )).toBe([
-            'Titlu;Template Titlu;Locatie;Template Locatie',
-            'Titlu așteptare 1;Wait Title;Locație așteptare 1;Wait Location',
-            'Titlu așteptare 2;Wait Title;;',
-            ';;Locație așteptare 2;Wait Location',
+            'Titlu;Locatie;Template',
+            'Titlu așteptare 1;Locație așteptare 1;Wait Title',
+            'Titlu așteptare 2;;Wait Title',
+            ';Locație așteptare 2;Wait Location',
         ].join('\n'))
     })
 
     it('writes header-only PA_wait_titles_locations.csv when both lists are empty', () => {
-        expect(mapPaWaitTitlesLocationsValues([], [])).toBe('Titlu;Template Titlu;Locatie;Template Locatie')
+        expect(mapPaWaitTitlesLocationsValues([], [])).toBe('Titlu;Locatie;Template')
     })
 
     it('applies the project prefix once to template names across all entity exports', () => {
         const state = paState()
         expect(mapPaLocationsExport(state, undefined, 'PA_')).toContain('Chișinău;PA_Location Bug')
         expect(mapPaPhonesExport(state, undefined, 'PA_')).toContain('D:\\photos\\phone.jpg;PA_Phone Call Lower Third')
-        expect(mapPaWaitTitlesLocationsExport(state, undefined, 'PA_')).toContain('Titlu așteptare 1;PA_Wait Title;Locație așteptare 1;PA_Wait Location')
+        expect(mapPaWaitTitlesLocationsExport(state, undefined, 'PA_')).toContain('Titlu așteptare 1;Locație așteptare 1;PA_Wait Title')
     })
 
     it('applies the project prefix to title and person template names in their dedicated exports', () => {

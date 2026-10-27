@@ -594,7 +594,8 @@ export function EntityEditor({
     // ✅ normalize only at SAVE time (prevents cursor jumping while editing)
     const normalizeForm = (f: FormState): FormState => {
         const next = { ...f }
-        if (next.title && activeEntityType !== 'titles') next.title = next.title.toUpperCase()
+        // Title casing comes from its active template. In particular, wait titles
+        // may use sentence case and must not be forced to uppercase on save.
         for (const { fieldId } of entityInputFields) {
             if (['supratitle', 'name', 'location'].includes(fieldId) && next[fieldId]) {
                 next[fieldId] = next[fieldId]!.toUpperCase()

@@ -22,6 +22,14 @@ function hasImage(image?: string): boolean {
     return typeof image === 'string' && image.trim() !== ''
 }
 
+function getWaitTitleLocation(title: { customFields?: Record<string, string> } | undefined): string {
+    if (!title?.customFields) return ''
+    const value = Object.entries(title.customFields).find(([fieldId]) => (
+        ['location', 'locatie'].includes(fieldId.trim().toLocaleLowerCase())
+    ))?.[1]
+    return typeof value === 'string' ? value : ''
+}
+
 export function mapPaTitlesExport(
     state: EntitiesState,
     types: LowerThirdTypeDefinition[] = DEFAULT_LOWER_THIRD_TYPES,
@@ -131,15 +139,22 @@ export function mapPaWaitTitlesLocationsValues(
     exportPrefix = '',
 ): string {
     const rowCount = Math.max(titles.length, locations.length)
+    const rows: Record<string, string>[] = []
+
+    for (let index = 0; index < rowCount; index += 1) {
+        const title = titles[index] ?? ''
+        const location = locations[index] ?? ''
+        if (!title && !location) continue
+        rows.push({
+            Titlu: title,
+            Locatie: location,
+            Template: prefixedTemplateName(title ? templates.waitTitles : templates.waitLocations, exportPrefix),
+        })
+    }
 
     return serializeEntityCsv(
-        ['Titlu', 'Template Titlu', 'Locatie', 'Template Locatie'],
-        Array.from({ length: rowCount }, (_, index) => ({
-            Titlu: titles[index] ?? '',
-            'Template Titlu': titles[index] ? prefixedTemplateName(templates.waitTitles, exportPrefix) : '',
-            Locatie: locations[index] ?? '',
-            'Template Locatie': locations[index] ? prefixedTemplateName(templates.waitLocations, exportPrefix) : '',
-        }))
+        ['Titlu', 'Locatie', 'Template'],
+        rows,
     )
 }
 
@@ -162,17 +177,25 @@ export function mapPaWaitTitlesLocationsExport(
     const locationColumnIds = new Map(locationFieldIds.map((id) => [id, collisions.has(id) ? `waitLocation.${id}` : id]))
     const customFieldIds = [...titleColumnIds.values(), ...locationColumnIds.values()]
     const rowCount = Math.max(titleEntries.length, locationEntries.length)
-    const rows = Array.from({ length: rowCount }, (_, index) => ({
-        Titlu: titleEntries[index]?.title ?? '',
-        'Template Titlu': titleEntries[index] ? prefixedTemplateName(templates.waitTitles, exportPrefix) : '',
-        Locatie: locationEntries[index]?.location ?? '',
-        'Template Locatie': locationEntries[index] ? prefixedTemplateName(templates.waitLocations, exportPrefix) : '',
-        ...(titleEntries[index]
-            ? Object.fromEntries(Object.entries(getEntityTemplateCustomValues('waitTitles', titleEntries[index], show)).map(([id, value]) => [titleColumnIds.get(id) ?? id, value]))
-            : {}),
-        ...(locationEntries[index]
-            ? Object.fromEntries(Object.entries(getEntityTemplateCustomValues('waitLocations', locationEntries[index], show)).map(([id, value]) => [locationColumnIds.get(id) ?? id, value]))
-            : {}),
-    }))
-    return serializeEntityCsv(['Titlu', 'Template Titlu', 'Locatie', 'Template Locatie', ...customFieldIds], rows)
+    const rows: Record<string, string>[] = []
+
+    for (let index = 0; index < rowCount; index += 1) {
+        const title = titleEntries[index]
+        const location = locationEntries[index]
+        if (!title && !location) continue
+        const titleCustomValues = title
+            ? Object.fromEntries(Object.entries(getEntityTemplateCustomValues('waitTitles', title, show)).map(([id, value]) => [titleColumnIds.get(id) ?? id, value]))
+            : {}
+        const locationCustomValues = location
+            ? Object.fromEntries(Object.entries(getEntityTemplateCustomValues('waitLocations', location, show)).map(([id, value]) => [locationColumnIds.get(id) ?? id, value]))
+            : {}
+        rows.push({
+            Titlu: title?.title ?? '',
+            Locatie: location?.location ?? getWaitTitleLocation(title),
+            Template: prefixedTemplateName(title ? templates.waitTitles : templates.waitLocations, exportPrefix),
+            ...titleCustomValues,
+            ...locationCustomValues,
+        })
+    }
+    return serializeEntityCsv(['Titlu', 'Locatie', 'Template', ...customFieldIds], rows)
 }

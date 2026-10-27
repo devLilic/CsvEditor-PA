@@ -62,7 +62,7 @@
     "entityTemplateNames": {
       "locations": "Locatie",
       "phones": "phone",
-      "waitTitles": "wait_title",
+      "waitTitles": "12_Locatie_Titlu_Asteptare",
       "waitLocations": "wait_location"
     },
     "exportPrefix": "ES_",
@@ -73,8 +73,8 @@
       "location": ""
     },
     "phoneImage": {
-      "width": 420,
-      "height": 540
+      "width": 270,
+      "height": 360
     },
     "id": "editie-speciala",
     "name": "Editie Speciala",
@@ -564,9 +564,30 @@
                 "color": "#000000",
                 "align": "left",
                 "lineHeight": 1,
-                "transform": "uppercase",
                 "letterSpacing": "0.01em"
               }
+            },
+            {
+              "id": "custom-text-1",
+              "type": "text",
+              "x": 1280,
+              "y": 504,
+              "width": 501,
+              "height": 34,
+              "zIndex": 3,
+              "fieldId": "Locatie",
+              "fallbackText": "Locatie",
+              "fieldDefaultValue": "Locatie",
+              "textStyle": {
+                "fontFamily": "inherit",
+                "fontSize": 19,
+                "fontWeight": 800,
+                "color": "#000000",
+                "align": "left",
+                "transform": "uppercase"
+              },
+              "minScaleX": 0.65,
+              "inputLabel": "Locatie"
             }
           ]
         },
@@ -1242,7 +1263,8 @@
         }
       },
       "disabledEntityTypes": [
-        "hotTitles"
+        "hotTitles",
+        "waitLocations"
       ]
     },
     "defaultDocument": {

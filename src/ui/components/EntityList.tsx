@@ -111,7 +111,7 @@ export function EntityList({ onRepeatSupratitle }: {
         reorderPlateauTitleItems,
     } = useEntities()
 
-    const { activeEntityType } = useActiveEntityType()
+    const { activeEntityType, setActiveEntityType } = useActiveEntityType()
     const { select, isSelected } = useSelectedEntity()
     const { editMode } = useEditMode()
     const { titleFilter } = useTitleFilter()
@@ -142,6 +142,7 @@ export function EntityList({ onRepeatSupratitle }: {
     const supportedEntityType = isSupportedEntityType(activeEntityType)
         ? activeEntityType
         : null
+    const isWaitTitlesLocationsList = supportedEntityType === 'waitTitles' || supportedEntityType === 'waitLocations'
     const normalizedTitleFilter = titleFilter.trim().toLocaleLowerCase()
     const items = useMemo(() => {
         if (!sectionId || !supportedEntityType) {
@@ -319,6 +320,108 @@ export function EntityList({ onRepeatSupratitle }: {
         if (!result.ok) {
             showErrorToast(result.error ?? 'TITLE_REORDER_FAILED')
         }
+    }
+
+    if (isWaitTitlesLocationsList) {
+        const disabledTypes = activeProject?.document.disabledEntityTypes ?? []
+        const showWaitLocations = !disabledTypes.includes('waitLocations')
+        const showWaitTitles = !disabledTypes.includes('waitTitles')
+        const waitLocations = activeSection?.kind === 'invited' && showWaitLocations
+            ? activeSection.rows.flatMap((row) => row.waitLocation ? [row.waitLocation] : [])
+            : []
+        const waitTitles = activeSection?.kind === 'invited' && showWaitTitles
+            ? activeSection.rows.flatMap((row) => row.waitTitle ? [row.waitTitle] : [])
+            : []
+        const groupCount = Math.max(waitLocations.length, waitTitles.length)
+
+        if (!groupCount) return <EmptyState text="Nu exista elemente in aceasta sectiune." />
+
+        const selectWaitEntity = (entityType: 'waitLocations' | 'waitTitles', id: string) => {
+            if (entityType !== activeEntityType) setActiveEntityType(entityType)
+            select({ sectionId, entityType, id, viewType: entityType })
+        }
+
+        const renderWaitValue = (
+            entityType: 'waitLocations' | 'waitTitles',
+            entity: any,
+            value: string,
+            displayValueOverride?: string,
+            textStyle: 'supratitle' | 'title' = 'title',
+            canDelete = true,
+        ) => {
+            const displayData = activeProject
+                ? applyEntityTemplateTextTransforms(
+                    entityType,
+                    entity,
+                    { ...activeProject.document, lowerThirdTypesEnabled: activeProject.lowerThirdTypesEnabled },
+                )
+                : entity
+            const displayValue = displayValueOverride
+                ?? (entityType === 'waitLocations' ? displayData.location : displayData.title)
+
+            return (
+                <div key={`${entityType}:${entity.id}:${textStyle}`} className="flex min-w-0 items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => selectWaitEntity(entityType, entity.id)}
+                        className={`min-w-0 flex-1 truncate rounded px-2 py-0.5 text-left ${textStyle === 'supratitle' ? 'text-xs font-bold text-gray-600' : 'font-bold'}`}
+                    >
+                        {displayValue || value}
+                    </button>
+                    {editMode && canDelete && (
+                        <button
+                            type="button"
+                            title="Sterge"
+                            aria-label={`Sterge ${entityType === 'waitLocations' ? 'locatia' : 'titlul'}`}
+                            onClick={() => deleteEntity(sectionId, entityType, entity.id)}
+                            className="app-button app-button-danger rounded border border-red-700 bg-red-500 px-2 text-xs text-white hover:bg-red-800"
+                        >
+                            x
+                        </button>
+                    )}
+                </div>
+            )
+        }
+
+        return (
+            <div ref={listRef} className="app-list h-full min-h-0 overflow-y-auto">
+                <div className="app-list-panel rounded border bg-white">
+                    {Array.from({ length: groupCount }, (_, index) => {
+                        const location = waitLocations[index]
+                        const title = waitTitles[index]
+                        const titleLocationField = title
+                            ? Object.keys(title.customFields ?? {}).find((fieldId) => (
+                                ['location', 'locatie'].includes(fieldId.trim().toLocaleLowerCase())
+                            ))
+                            : undefined
+                        const transformedTitle = title && activeProject
+                            ? applyEntityTemplateTextTransforms(
+                                'waitTitles',
+                                title,
+                                { ...activeProject.document, lowerThirdTypesEnabled: activeProject.lowerThirdTypesEnabled },
+                            )
+                            : title
+                        const titleLocation = titleLocationField
+                            ? transformedTitle?.customFields?.[titleLocationField]
+                            : undefined
+                        const selected = Boolean(
+                            (location && isSelected(sectionId, 'waitLocations', location.id))
+                            || (title && isSelected(sectionId, 'waitTitles', title.id))
+                        )
+                        return (
+                            <div key={`${location?.id ?? ''}:${title?.id ?? ''}`} className={`app-list-row group flex cursor-pointer items-center gap-3 border-b border-l-4 px-3 py-2 hover:bg-gray-100 ${selected ? 'border-l-blue-600 bg-blue-100' : 'border-l-transparent'}`}>
+                                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                                {location
+                                    ? renderWaitValue('waitLocations', location, location.location, undefined, 'supratitle')
+                                    : title && titleLocation && renderWaitValue('waitTitles', title, titleLocation, titleLocation, 'supratitle', false)}
+                                {title && renderWaitValue('waitTitles', title, title.title, undefined, 'title')}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        )
     }
 
     const renderItem = (item: any, dragHandle?: ReactNode) => {

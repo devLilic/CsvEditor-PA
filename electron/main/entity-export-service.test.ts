@@ -165,7 +165,7 @@ describe('entity-export-service retry write logic', () => {
         )
         expect(fsp.writeFile).toHaveBeenCalledWith(
             'D:\\TV\\OC\\Export\\PA_wait_titles_locations.csv',
-            'Titlu;Template Titlu;Locatie;Template Locatie',
+            'Titlu;Locatie;Template',
             expect.any(Object)
         )
     })

@@ -103,8 +103,8 @@ const RESERVED_FIELDS: Record<TemplateEntityKind, string[]> = {
     locations: ['location', 'Locatie', 'Template'],
     phoneCalls: ['name', 'occupation', 'image', 'Nume', 'Functie', 'Image', 'Template'],
     hotTitles: ['title', 'Titlu', 'Template'],
-    waitTitles: ['title', 'Titlu', 'Template Titlu'],
-    waitLocations: ['location', 'Locatie', 'Template Locatie'],
+    waitTitles: ['title', 'Titlu', 'location', 'Locatie', 'Template'],
+    waitLocations: ['location', 'Locatie', 'Template'],
 }
 
 function normalizeFieldId(fieldId: string) {

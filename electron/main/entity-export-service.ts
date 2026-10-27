@@ -182,6 +182,8 @@ export async function exportSingleEntityCsv(input: ExportSingleEntityCsvInput): 
 }
 
 export async function exportEntityCsvFiles(input: ExportEntityCsvFilesInput): Promise<EntityExportResult> {
+    let firstFailure: EntityExportResult | null = null
+
     for (const kind of ['titles', 'persons', 'locations', 'phones', 'waitTitlesLocations'] satisfies EntityExportKind[]) {
         const result = await exportSingleEntityCsv({
             kind,
@@ -192,15 +194,20 @@ export async function exportEntityCsvFiles(input: ExportEntityCsvFilesInput): Pr
         })
 
         if (!result.ok) {
-            return result
+            firstFailure ??= result
+            continue
         }
 
         if (kind === 'titles') {
-            await input.afterTitlesExport?.()
+            try {
+                await input.afterTitlesExport?.()
+            } catch (error) {
+                firstFailure ??= { ok: false, error: normalizeError(error).message }
+            }
         }
     }
 
-    return { ok: true }
+    return firstFailure ?? { ok: true }
 }
 
 export async function exportEntityCsvFilesFromFullCsvContent(

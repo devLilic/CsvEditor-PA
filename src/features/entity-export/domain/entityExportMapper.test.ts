@@ -113,7 +113,10 @@ describe('entity export mapper', () => {
     it('namespaces colliding custom fields for wait titles and wait locations', () => {
         const titleTemplate = {
             id: 'wait-title', name: 'Wait title', canvas: { width: 1920, height: 1080, background: { type: 'color', value: '#000' } },
-            layers: [{ id: 't', type: 'text', fieldId: 'customNote', x: 0, y: 0, width: 400, height: 80, zIndex: 1 }],
+            layers: [
+                { id: 't', type: 'text', fieldId: 'customNote', x: 0, y: 0, width: 400, height: 80, zIndex: 1 },
+                { id: 'loc', type: 'text', fieldId: 'Locatie', x: 0, y: 90, width: 400, height: 80, zIndex: 2 },
+            ],
         }
         const locationTemplate = {
             ...titleTemplate, id: 'wait-location', name: 'Wait location',
@@ -125,13 +128,13 @@ describe('entity export mapper', () => {
         const csv = mapEntitiesStateToExportCsvs({ sections: [{
             id: 'invited', kind: 'invited', rows: [{
                 id: 'row',
-                waitTitle: { id: 'wt', title: 'Wait', customFields: { customNote: 'TITLE NOTE' } },
+                waitTitle: { id: 'wt', title: 'Wait', customFields: { Locatie: 'TITLE LOCATION', customNote: 'TITLE NOTE' } },
                 waitLocation: { id: 'wl', location: 'Place', customFields: { customNote: 'LOCATION NOTE' } },
             }],
         }] }, undefined, '', undefined, showDocument as any).waitTitlesLocationsCsv
 
-        expect(csv.split('\n')[0]).toBe('Titlu;Template Titlu;Locatie;Template Locatie;waitTitle.customNote;waitLocation.customNote')
-        expect(csv.split('\n')[1]).toContain('TITLE NOTE;LOCATION NOTE')
+        expect(csv.split('\n')[0]).toBe('Titlu;Locatie;Template;waitTitle.customNote;waitLocation.customNote')
+        expect(csv.split('\n')[1]).toBe('Wait;Place;Wait title;TITLE NOTE;LOCATION NOTE')
     })
 
     it('maps titles to OC CSV', () => {
@@ -308,7 +311,7 @@ describe('entity export mapper', () => {
                 'Nume;Functie;Image;Template',
                 'Ana;Reporter;D:\\photos\\ana.jpg;Phone Call Lower Third',
             ].join('\n'),
-            waitTitlesLocationsCsv: 'Titlu;Template Titlu;Locatie;Template Locatie',
+            waitTitlesLocationsCsv: 'Titlu;Locatie;Template',
         })
     })
 
@@ -339,7 +342,7 @@ describe('entity export mapper', () => {
                 'Nume;Functie;Image;Template',
                 'Ana;Reporter;D:\\photos\\ana.jpg;Phone Call Lower Third',
             ].join('\n'),
-            waitTitlesLocationsCsv: 'Titlu;Template Titlu;Locatie;Template Locatie',
+            waitTitlesLocationsCsv: 'Titlu;Locatie;Template',
         })
     })
 
@@ -361,7 +364,7 @@ describe('entity export mapper', () => {
             ].join('\n'),
             locationsCsv: 'Locatie;Template',
             phonesCsv: 'Nume;Functie;Image;Template',
-            waitTitlesLocationsCsv: 'Titlu;Template Titlu;Locatie;Template Locatie',
+            waitTitlesLocationsCsv: 'Titlu;Locatie;Template',
         })
     })
 
@@ -373,8 +376,8 @@ describe('entity export mapper', () => {
         ].join('\n'))
 
         expect(result.waitTitlesLocationsCsv).toBe([
-            'Titlu;Template Titlu;Locatie;Template Locatie',
-            'Titlu wait;Wait Title;Locatie wait;Wait Location',
+            'Titlu;Locatie;Template',
+            'Titlu wait;Locatie wait;Wait Title',
         ].join('\n'))
     })
 
