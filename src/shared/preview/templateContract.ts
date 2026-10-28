@@ -6,6 +6,7 @@ export type BroadcastTemplate = {
         height: number
         background: BroadcastBackground
     }
+    inputOrder?: string[]
     layers: BroadcastLayer[]
 }
 

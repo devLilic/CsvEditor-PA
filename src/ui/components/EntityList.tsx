@@ -539,7 +539,7 @@ export function EntityList({ onRepeatSupratitle }: {
                     </div>
 
                     <div className="app-row-actions app-repeat-row-actions flex shrink-0 items-center gap-2">
-                        {isTitle && supratitle && onRepeatSupratitle && (
+                        {isTitle && supratitle && onRepeatSupratitle && activeProject?.quickTitleMode !== 'title-prefix' && (
                             <button
                                 type="button"
                                 title="Repetă supratitlu"

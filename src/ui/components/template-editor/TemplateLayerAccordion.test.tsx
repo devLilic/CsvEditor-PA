@@ -30,6 +30,19 @@ afterEach(() => {
 })
 
 describe('TemplateLayerAccordion', () => {
+    it('saves input order without changing layers', async () => {
+        const user = userEvent.setup()
+        const onTemplateChange = vi.fn()
+        render(<StatefulTemplateLayerAccordion initialTemplate={broadcastTemplates.persons} onTemplateChange={onTemplateChange} />)
+        const section = screen.getByRole('region', { name: 'Ordinea inputurilor' })
+        const buttons = within(section).getAllByRole('button')
+        await user.click(buttons[1])
+        const next = onTemplateChange.mock.lastCall![0]
+        expect(next.inputOrder.slice(0, 2)).toEqual(['occupation', 'name'])
+        expect(next.layers).toEqual(broadcastTemplates.persons.layers)
+        expect(within(section).getAllByRole('listitem')[0]).toHaveTextContent('Func')
+    })
+
     it('shows background and all existing layers', () => {
         render(
             <TemplateLayerAccordion

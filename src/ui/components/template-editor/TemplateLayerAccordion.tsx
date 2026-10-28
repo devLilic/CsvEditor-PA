@@ -1,3 +1,4 @@
+import { getTemplateInputFields } from '@/shared/preview/templateInputFields'
 import { useState } from 'react'
 import type {
     BroadcastLayer,
@@ -125,8 +126,29 @@ export function TemplateLayerAccordion({
         setExpandedLayerId((currentId) => currentId === layerId ? null : currentId)
     }
 
+    const inputFields = getTemplateInputFields(template)
+    const moveInput = (index: number, direction: number) => {
+        const order = inputFields.map(({ fieldId }) => fieldId)
+        const destination = index + direction
+        if (destination < 0 || destination >= order.length) return
+        ;[order[index], order[destination]] = [order[destination], order[index]]
+        applyTemplateUpdate({ ...cloneTemplate(template), inputOrder: order })
+    }
+
     return (
         <div className="flex flex-col gap-3">
+            <section className="rounded border bg-white p-3" aria-label="Ordinea inputurilor">
+                <h3 className="text-sm font-semibold">Ordinea inputurilor</h3>
+                <ol className="mt-2 flex flex-col gap-2">
+                    {inputFields.map(({ fieldId, label }, index) => (
+                        <li key={fieldId} className="flex items-center gap-2 text-sm">
+                            <span className="flex-1">{label}</span>
+                            <button type="button" aria-label={`Mută ${label} sus`} disabled={index === 0} onClick={() => moveInput(index, -1)} className="rounded border px-2 py-1 disabled:opacity-40">↑</button>
+                            <button type="button" aria-label={`Mută ${label} jos`} disabled={index === inputFields.length - 1} onClick={() => moveInput(index, 1)} className="rounded border px-2 py-1 disabled:opacity-40">↓</button>
+                        </li>
+                    ))}
+                </ol>
+            </section>
             <details open className="rounded border bg-white">
                 <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-gray-900">
                     Background

@@ -1,3 +1,4 @@
+import { getTemplateInputFields } from '@/shared/preview/templateInputFields'
 // src/ui/components/EntityEditor.tsx
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
@@ -188,6 +189,8 @@ export function EntityEditor({
     const { activeEntityType, setActiveEntityType } = useActiveEntityType()
     const { quickTitles, setAllQuickTitles } = useQuickTitles()
     const { document: templateDocument, lowerThirdTypesEnabled = true, activeProjectId, activeProject } = useTemplateDocument()
+    const quickTitleMode = activeProject?.quickTitleMode ?? 'supratitle-title'
+    const usesTitleOnlyQuickTitles = quickTitleMode === 'title-prefix'
     const { types: lowerThirdTypes } = useLowerThirdTypes()
     const editorEntityType = getCsvEntityTypeForEditorView(activeEntityType)
     const isAllowedInActiveSection = isEntityTypeAllowedInSection(activeEntityType, activeSection?.kind)
@@ -286,34 +289,15 @@ export function EntityEditor({
             : templateDocument.templates[activeEntityType]
         : templateDocument.templates[getTemplateKeyForViewType(activeEntityType)]
     const entityInputFields = useMemo(() => {
-        const standardLabels: Record<string, string> = {
-            title: 'Titlu',
-            name: 'Nume',
-            occupation: 'Funcție',
-            location: 'Locație',
-        }
-        const fields: Array<{ fieldId: string; label: string }> = []
-        for (const layer of activeTemplate.layers) {
-            if (layer.type !== 'text' || layer.visible === false) continue
-            const fieldIds = [layer.fieldId, ...(layer.textParts ?? []).map((part) => part.fieldId)]
-            for (const fieldId of fieldIds) {
-                const label = fieldId === layer.fieldId
-                    ? layer.inputLabel !== undefined ? layer.inputLabel.trim() : standardLabels[fieldId]
-                    : standardLabels[fieldId]
-                if (!fieldId.trim() || !label || fields.some((field) => field.fieldId === fieldId)) continue
-                fields.push({ fieldId, label })
-            }
-        }
-        return fields.sort((a, b) => (
-            a.fieldId === 'supratitle' ? -1 : b.fieldId === 'supratitle' ? 1 : 0
-        ))
-    }, [activeTemplate])
+        return getTemplateInputFields(activeTemplate)
+            .filter(({ fieldId }) => !(activeEntityType === 'titles' && usesTitleOnlyQuickTitles && fieldId === 'supratitle'))
+    }, [activeEntityType, activeTemplate, usesTitleOnlyQuickTitles])
     const hasTitleInput = entityInputFields.some(({ fieldId }) => fieldId === 'title')
 
     useEffect(() => {
         if (preserveQuickTitleAfterUpdateRef.current && !selected) return
         setActiveQuickTitle(null)
-    }, [activeEntityType, activeSectionId, selected?.id, selected?.entityType, selected?.sectionId])
+    }, [activeEntityType, activeProjectId, activeSectionId, selected?.id, selected?.entityType, selected?.sectionId])
 
     useEffect(() => {
         let isMounted = true
@@ -594,6 +578,7 @@ export function EntityEditor({
     // ✅ normalize only at SAVE time (prevents cursor jumping while editing)
     const normalizeForm = (f: FormState): FormState => {
         const next = { ...f }
+        if (editorEntityType === 'titles' && usesTitleOnlyQuickTitles) next.supratitle = ''
         // Title casing comes from its active template. In particular, wait titles
         // may use sentence case and must not be forced to uppercase on save.
         for (const { fieldId } of entityInputFields) {
@@ -626,7 +611,7 @@ export function EntityEditor({
                 const titleValue = form.title ?? ''
                 if (!titleValue.trim()) return false
 
-                const activePersonName = getPersonNameForQuickTitle(activeQuickTitle)
+                const activePersonName = !usesTitleOnlyQuickTitles ? getPersonNameForQuickTitle(activeQuickTitle) : null
                 if (activePersonName) {
                     const quotedBody = titleValue.match(/^"([\s\S]*)"$/)?.[1] ?? ''
                     return Boolean(quotedBody.trim())
@@ -767,7 +752,7 @@ export function EntityEditor({
 
         lastSavedLowerThirdTypeIdRef.current = lowerThirdTypeId
 
-        const restoredPersonName = quickTitleToRestore
+        const restoredPersonName = quickTitleToRestore && !usesTitleOnlyQuickTitles
             ? getPersonNameForQuickTitle(quickTitleToRestore)
             : null
         if (restoredPersonName) pendingTitleCaretPositionRef.current = 1
@@ -787,7 +772,7 @@ export function EntityEditor({
     // Person QuickTitles create a quote with the guest in Supratitlu; ordinary
     // QuickTitles keep their existing prefix behavior.
     const applyQuickTitle = (prefix: string) => {
-        const personName = getPersonNameForQuickTitle(prefix)
+        const personName = usesTitleOnlyQuickTitles ? null : getPersonNameForQuickTitle(prefix)
         if (personName) {
             const isSelectedPersonActive = activeQuickTitle !== null
                 && normalizeQuickTitle(activeQuickTitle) === normalizeQuickTitle(prefix)
@@ -821,7 +806,7 @@ export function EntityEditor({
         })
         setActiveQuickTitle(result.activeQuickTitle)
 
-        if (result.toggledOn) requestAnimationFrame(() => focusTitleInput())
+        if (result.toggledOn || usesTitleOnlyQuickTitles) requestAnimationFrame(() => focusTitleInput())
         else focusSupratitleInput()
     }
 

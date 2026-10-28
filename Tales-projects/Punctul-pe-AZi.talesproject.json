@@ -60,9 +60,9 @@
       }
     ],
     "entityTemplateNames": {
-      "locations": "Locatie",
+      "locations": "08_Locatie",
       "phones": "phone",
-      "waitTitles": "wait_title",
+      "waitTitles": "12_Locatie_Titlu_Asteptare",
       "waitLocations": "wait_location"
     },
     "exportPrefix": "PA_",
@@ -73,8 +73,8 @@
       "location": ""
     },
     "phoneImage": {
-      "width": 420,
-      "height": 540
+      "width": 270,
+      "height": 360
     },
     "id": "csv-editor-pa",
     "name": "Punctul pe AZi",
@@ -345,7 +345,7 @@
               "x": 0,
               "y": 0,
               "width": 400,
-              "height": 816,
+              "height": 963,
               "zIndex": 1,
               "fill": {
                 "type": "solid",
@@ -534,7 +534,7 @@
               "type": "text",
               "x": 1280,
               "y": 537,
-              "width": 583,
+              "width": 580,
               "height": 44,
               "zIndex": 2,
               "fieldId": "title",
@@ -549,10 +549,35 @@
                 "color": "#000000",
                 "align": "left",
                 "lineHeight": 1,
-                "transform": "uppercase",
                 "letterSpacing": "0.01em"
               }
+            },
+            {
+              "id": "custom-text-1",
+              "type": "text",
+              "x": 1280,
+              "y": 504,
+              "width": 580,
+              "height": 34,
+              "zIndex": 3,
+              "fieldId": "Locatie",
+              "fallbackText": "Locatie",
+              "fieldDefaultValue": "Locatie",
+              "textStyle": {
+                "fontFamily": "inherit",
+                "fontSize": 23,
+                "fontWeight": 700,
+                "color": "#000000",
+                "align": "left",
+                "transform": "uppercase"
+              },
+              "inputLabel": "Locatie",
+              "minScaleX": 0.65
             }
+          ],
+          "inputOrder": [
+            "Locatie",
+            "title"
           ]
         },
         "waitLocations": {
@@ -1212,7 +1237,8 @@
         }
       },
       "disabledEntityTypes": [
-        "hotTitles"
+        "hotTitles",
+        "waitLocations"
       ]
     },
     "defaultDocument": {
@@ -2393,6 +2419,7 @@
       ]
     },
     "betaSectionButtonEnabled": true,
-    "personDisplayMode": "single-line"
+    "personDisplayMode": "single-line",
+    "quickTitleMode": "supratitle-title"
   }
 }

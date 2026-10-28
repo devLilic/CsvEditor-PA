@@ -61,7 +61,7 @@
     ],
     "entityTemplateNames": {
       "locations": "Locatie",
-      "phones": "phone",
+      "phones": "13_Telefon",
       "waitTitles": "12_Locatie_Titlu_Asteptare",
       "waitLocations": "wait_location"
     },
@@ -360,7 +360,7 @@
               "x": 0,
               "y": 0,
               "width": 400,
-              "height": 816,
+              "height": 955,
               "zIndex": 1,
               "fill": {
                 "type": "solid",
@@ -572,7 +572,7 @@
               "type": "text",
               "x": 1280,
               "y": 504,
-              "width": 501,
+              "width": 580,
               "height": 34,
               "zIndex": 3,
               "fieldId": "Locatie",
@@ -580,7 +580,7 @@
               "fieldDefaultValue": "Locatie",
               "textStyle": {
                 "fontFamily": "inherit",
-                "fontSize": 19,
+                "fontSize": 23,
                 "fontWeight": 800,
                 "color": "#000000",
                 "align": "left",
@@ -589,6 +589,10 @@
               "minScaleX": 0.65,
               "inputLabel": "Locatie"
             }
+          ],
+          "inputOrder": [
+            "Locatie",
+            "title"
           ]
         },
         "waitLocations": {
@@ -2445,6 +2449,7 @@
       ]
     },
     "betaSectionButtonEnabled": true,
-    "personDisplayMode": "single-line"
+    "personDisplayMode": "single-line",
+    "quickTitleMode": "supratitle-title"
   }
 }

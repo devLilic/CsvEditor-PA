@@ -13,12 +13,16 @@ export const SHOW_PROJECTS_VERSION = 2
 export const SHOW_PROJECT_FILE_FORMAT = 'tales-show-project'
 export const SHOW_PROJECT_FILE_VERSION = 2
 
+export type QuickTitleMode = 'supratitle-title' | 'title-prefix'
+
 export type ShowProject = {
     id: string
     name: string
     /** Controls whether this show's editor exposes the add-BETA section action. */
     betaSectionButtonEnabled?: boolean
     personDisplayMode?: PersonDisplayMode
+    /** Controls how Quick Titles are entered for this show's title graphics. */
+    quickTitleMode?: QuickTitleMode
     lowerThirdTypesEnabled: boolean
     document: TemplateDocument
     defaultDocument: TemplateDocument
@@ -106,6 +110,7 @@ function standardConfig(snapshot: LegacyShowSettingsSnapshot = {}) {
     return {
         betaSectionButtonEnabled: true,
         personDisplayMode: 'single-line' as const,
+        quickTitleMode: 'supratitle-title' as const,
         lowerThirdTypesEnabled: true,
         lowerThirdTypes: normalizeLowerThirdTypes(snapshot.lowerThirdTypes),
         entityTemplateNames: normalizeEntityTemplateNames(snapshot.entityTemplateNames),
@@ -149,6 +154,7 @@ export function isShowProject(value: unknown): value is ShowProject {
         && typeof value.name === 'string' && normalizeShowProjectName(value.name).length > 0
         && (value.betaSectionButtonEnabled === undefined || typeof value.betaSectionButtonEnabled === 'boolean')
         && (value.personDisplayMode === undefined || value.personDisplayMode === 'single-line' || value.personDisplayMode === 'two-lines')
+        && (value.quickTitleMode === undefined || value.quickTitleMode === 'supratitle-title' || value.quickTitleMode === 'title-prefix')
         && typeof value.lowerThirdTypesEnabled === 'boolean'
         && isTemplateDocument(value.document) && isTemplateDocument(value.defaultDocument)
         && validateLowerThirdTypes(value.lowerThirdTypes)
