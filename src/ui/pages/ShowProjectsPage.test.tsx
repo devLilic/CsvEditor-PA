@@ -57,6 +57,22 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
 describe('Show project administration drafts', () => {
+    it('reimports an existing show with its original identity and workspace', async () => {
+        const user = userEvent.setup()
+        mockApi.workspaces.one = 'C:/Shows/Prima'
+        mockApi.importProject.mockResolvedValue({ ok: true, project: { ...mockApi.projects[0], exportPrefix: 'UPDATED_' } })
+        renderPage()
+        await user.click(screen.getByRole('button', { name: 'Importă' }))
+        await screen.findByText(/Configurația importată este pregătită/)
+        expect(mockApi.saveProject).not.toHaveBeenCalled()
+        await user.click(screen.getByRole('button', { name: 'Salvează emisiunea' }))
+        await waitFor(() => expect(mockApi.saveProject).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'one', name: 'Prima emisiune', exportPrefix: 'UPDATED_' }),
+            'C:/Shows/Prima',
+        ))
+        expect(mockApi.projects).toHaveLength(2)
+    })
+
     it('saves a new standard draft without requiring another edit', async () => {
         const user = userEvent.setup()
         renderPage()

@@ -92,6 +92,8 @@ function copyName(name: string, projects: ShowProject[]) {
 function errorText(error?: string) {
     if (error === 'PROJECT_NAME_REQUIRED') return 'Introdu un nume pentru emisiune.'
     if (error === 'PROJECT_NAME_ALREADY_EXISTS') return 'Există deja o emisiune cu acest nume.'
+    if (error === 'EDITION_BELONGS_TO_ANOTHER_SHOW') return 'Folderul ales conține o ediție a altei emisiuni. Alege folderul acestei emisiuni sau un folder nou.'
+    if (error === 'SHOW_PROJECT_WORKSPACE_ALREADY_ASSIGNED') return 'Folderul ales este deja folosit de altă emisiune. Alege un folder separat.'
     if (error === 'CANNOT_DELETE_LAST_PROJECT') return 'Trebuie să rămână cel puțin o emisiune.'
     return error || 'Operația nu a reușit.'
 }
@@ -253,15 +255,19 @@ export function ShowProjectsPage() {
         setError('')
         const result = await importProject()
         if (!result.ok || !result.project) { if (!result.canceled) setError(errorText(result.error)); return }
-        const name = isUnique(result.project.name, projects) ? result.project.name : copyName(result.project.name, projects)
-        const id = projects.some((item) => item.id === result.project?.id)
-            ? createShowProjectId(name, projects.map((item) => item.id))
-            : result.project.id
+        const existing = projects.find((item) => item.id === result.project?.id)
+        const name = isUnique(result.project.name, projects, existing?.id)
+            ? result.project.name : copyName(result.project.name, projects)
+        const id = result.project.id
         const imported = asDraft(prepareProjectForRuntime({ ...result.project, id, name }), '')
-        const selectedWorkspace = await csvFileSettingsService.selectProjectFolder()
+        const selectedWorkspace = existing
+            ? workspaces[existing.id] ?? ''
+            : await csvFileSettingsService.selectProjectFolder()
         const importWorkspace = selectedWorkspace ?? ''
         setSelectedId(imported.id); setDraft({ project: imported, workspace: importWorkspace, isDirty: true }); setTab('elements')
-        setNotice(selectedWorkspace
+        setNotice(existing
+            ? 'Configurația importată este pregătită pentru actualizarea emisiunii existente. Verifică modificările și apasă „Salvează emisiunea”. Folderul local și ediția sunt păstrate.'
+            : selectedWorkspace
             ? 'Emisiunea importată este un draft. Salveaz-o pentru a o adăuga în listă.'
             : 'Emisiunea importată este un draft fără folder local. Alege un folder în Datele emisiunii înainte să o folosești.')
     })() })
