@@ -103,6 +103,43 @@ describe('EditorHeader', () => {
         expect(mocks.activateProject).toHaveBeenCalledWith('show-b')
     })
 
+    it('keeps the loading indicator visible until project activation finishes', async () => {
+        vi.spyOn(settingsService, 'getShowProjectSelectorEnabled').mockResolvedValue(true)
+        let finishFlush!: (value: { ok: boolean }) => void
+        mocks.flushWorkingCopy.mockImplementationOnce(() => new Promise((resolve) => { finishFlush = resolve }))
+        const user = userEvent.setup()
+        renderHeader()
+        await user.selectOptions(await screen.findByRole('combobox', { name: 'Proiect de emisiune' }), 'show-b')
+
+        expect(screen.getByRole('status', { name: 'Se încarcă emisiunea selectată' })).toBeInTheDocument()
+        finishFlush({ ok: true })
+        await waitFor(() => expect(screen.queryByRole('status', { name: 'Se încarcă emisiunea selectată' })).not.toBeInTheDocument())
+        expect(mocks.activateProject).toHaveBeenCalledWith('show-b')
+    })
+
+    it('clears the loading indicator and reports an activation failure', async () => {
+        vi.spyOn(settingsService, 'getShowProjectSelectorEnabled').mockResolvedValue(true)
+        mocks.activateProject.mockResolvedValueOnce({ ok: false, error: 'ACTIVATION_FAILED' })
+        const user = userEvent.setup()
+        renderHeader()
+        await user.selectOptions(await screen.findByRole('combobox', { name: 'Proiect de emisiune' }), 'show-b')
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('ACTIVATION_FAILED')
+        expect(screen.queryByRole('status', { name: 'Se încarcă emisiunea selectată' })).not.toBeInTheDocument()
+    })
+
+    it('clears the loading indicator and reports a flush failure', async () => {
+        vi.spyOn(settingsService, 'getShowProjectSelectorEnabled').mockResolvedValue(true)
+        mocks.flushWorkingCopy.mockResolvedValueOnce({ ok: false, error: 'WORKSPACE_SAVE_FAILED' })
+        const user = userEvent.setup()
+        renderHeader()
+        await user.selectOptions(await screen.findByRole('combobox', { name: 'Proiect de emisiune' }), 'show-b')
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('WORKSPACE_SAVE_FAILED')
+        expect(screen.queryByRole('status', { name: 'Se încarcă emisiunea selectată' })).not.toBeInTheDocument()
+        expect(mocks.activateProject).not.toHaveBeenCalled()
+    })
+
     it('opens saved editions from the application menu event', async () => {
         const user = userEvent.setup()
         vi.spyOn(settingsService, 'getShowProjectSelectorEnabled').mockResolvedValue(true)

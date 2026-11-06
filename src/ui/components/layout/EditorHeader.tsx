@@ -15,6 +15,7 @@ import { savedProjectsService } from '@/features/csv-editor/services/savedProjec
 import { showErrorToast } from '@/ui/components/common/toast'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { settingsService } from '@/features/csv-editor/services/settingsService'
+import { ShowLoadingOverlay } from './ShowLoadingOverlay'
 
 function TrashIcon() {
     return (
@@ -176,7 +177,7 @@ export function EditorHeader() {
     }
 
     const handleShowChange = async (projectId: string) => {
-        if (isSwitchingShow) return
+        if (isSwitchingShow || projectId === activeProjectId) return
         setIsSwitchingShow(true)
         setShowProjectError(undefined)
         try {
@@ -255,6 +256,8 @@ export function EditorHeader() {
                     {showProjectError}
                 </div>
             )}
+
+            {isSwitchingShow && <ShowLoadingOverlay />}
 
 
             <BackupFailedDialog

@@ -7,6 +7,7 @@ import {EditModeProvider} from "@/ui/context/EditModeContext";
 import { TitleFilterProvider } from '@/ui/context/TitleFilterContext'
 import { useTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
 import { useCsvContext } from '@/features/csv-editor/context/CsvContext'
+import { ShowLoadingOverlay } from '@/ui/components/layout/ShowLoadingOverlay'
 
 export function CsvEditorPage() {
     const navigate = useNavigate()
@@ -46,7 +47,7 @@ export function CsvEditorPage() {
                             </section>
                         </main>
                     ) : workspaces[activeProjectId] && !csvState.isLoaded ? (
-                        <main className="flex flex-1 items-center justify-center bg-slate-100 p-6 text-sm text-slate-600">Se încarcă ediția…</main>
+                        <main className="flex flex-1 items-center justify-center bg-slate-100 p-6"><ShowLoadingOverlay /></main>
                     ) : <EditorBody/>}
                 </EditorLayout>
             </TitleFilterProvider>
