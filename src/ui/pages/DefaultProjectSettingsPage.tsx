@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AppUpdatePanel } from '@/ui/components/app-update/AppUpdatePanel'
 import { settingsService } from '@/features/csv-editor/services/settingsService'
 import type { UiTheme } from '@/features/theme/themeResolver'
+import { getDiacriticRules, isSingleUnicodeCharacter, type DiacriticRule } from '@/features/csv-editor/domain/diacriticRules'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -14,6 +15,9 @@ export function DefaultProjectSettingsPage() {
     const [dividerCreationStatus, setDividerCreationStatus] = useState<SaveStatus>('idle')
     const [showProjectSelector, setShowProjectSelector] = useState(true)
     const [projectSelectorStatus, setProjectSelectorStatus] = useState<SaveStatus>('idle')
+    const [diacriticRules, setDiacriticRules] = useState<DiacriticRule[]>([])
+    const [diacriticStatus, setDiacriticStatus] = useState<SaveStatus>('idle')
+    const [diacriticError, setDiacriticError] = useState('')
 
     useEffect(() => {
         let isMounted = true
@@ -25,6 +29,9 @@ export function DefaultProjectSettingsPage() {
         })
         settingsService.getShowProjectSelectorEnabled().then((enabled) => {
             if (isMounted) setShowProjectSelector(enabled)
+        })
+        settingsService.getConfig().then((config) => {
+            if (isMounted) setDiacriticRules(getDiacriticRules(config))
         })
         return () => { isMounted = false }
     }, [])
@@ -65,6 +72,38 @@ export function DefaultProjectSettingsPage() {
         }
     }
 
+    const saveDiacriticRules = async () => {
+        const seen = new Set<string>()
+        for (const rule of diacriticRules) {
+            if (!isSingleUnicodeCharacter(rule.from) || !isSingleUnicodeCharacter(rule.to)) {
+                setDiacriticError('Fiecare sursă și destinație trebuie să conțină un singur caracter Unicode.')
+                setDiacriticStatus('error')
+                return
+            }
+            if (seen.has(rule.from)) {
+                setDiacriticError(`Sursa „${rule.from}” apare de mai multe ori.`)
+                setDiacriticStatus('error')
+                return
+            }
+            seen.add(rule.from)
+        }
+        setDiacriticError('')
+        setDiacriticStatus('saving')
+        try {
+            await settingsService.setDiacriticRules(diacriticRules)
+            setDiacriticStatus('saved')
+        } catch {
+            setDiacriticStatus('error')
+            setDiacriticError('Regulile nu au putut fi salvate.')
+        }
+    }
+
+    const updateDiacriticRules = (update: (current: DiacriticRule[]) => DiacriticRule[]) => {
+        setDiacriticRules(update)
+        setDiacriticStatus('idle')
+        setDiacriticError('')
+    }
+
     return (
         <main className="app-settings min-h-screen bg-gray-50 p-6">
             <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -101,6 +140,33 @@ export function DefaultProjectSettingsPage() {
                     </div>
                     {uiThemeStatus === 'saved' && <span role="status" className="text-sm text-green-700">Salvat.</span>}
                     {uiThemeStatus === 'error' && <span role="alert" className="text-sm text-red-700">Tema nu a putut fi salvată.</span>}
+                </section>
+
+                <section className="app-panel app-settings-section flex flex-col gap-4 rounded bg-white p-5 shadow-sm">
+                    <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Conversie diacritice la salvare</h2>
+                        <p className="mt-1 text-sm text-gray-600">Înlocuiește caracterele din sursă cu destinația lor când salvezi sau actualizezi o entitate. Fiecare intrare are un singur caracter; lista goală dezactivează conversia.</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        {diacriticRules.map((rule, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                                <label className="flex items-center gap-2 text-sm">Sursă
+                                    <input aria-label={`Sursă ${index + 1}`} maxLength={2} value={rule.from} onChange={(event) => updateDiacriticRules((current) => current.map((item, i) => i === index ? { ...item, from: event.target.value } : item))} className="w-16 rounded border border-gray-300 px-2 py-1" />
+                                </label>
+                                <span aria-hidden="true">→</span>
+                                <label className="flex items-center gap-2 text-sm">Destinație
+                                    <input aria-label={`Destinație ${index + 1}`} maxLength={2} value={rule.to} onChange={(event) => updateDiacriticRules((current) => current.map((item, i) => i === index ? { ...item, to: event.target.value } : item))} className="w-16 rounded border border-gray-300 px-2 py-1" />
+                                </label>
+                                <button type="button" aria-label={`Șterge regula ${index + 1}`} onClick={() => updateDiacriticRules((current) => current.filter((_, i) => i !== index))} className="rounded border border-gray-300 px-2 py-1 text-sm">Șterge</button>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => updateDiacriticRules((current) => [...current, { from: '', to: '' }])} className="rounded border border-gray-300 px-3 py-2 text-sm">Adaugă regulă</button>
+                        <button type="button" onClick={() => void saveDiacriticRules()} disabled={diacriticStatus === 'saving'} className="app-button rounded px-3 py-2 text-sm">Salvează regulile</button>
+                    </div>
+                    {diacriticError && <span role="alert" className="text-sm text-red-700">{diacriticError}</span>}
+                    {diacriticStatus === 'saved' && <span role="status" className="text-sm text-green-700">Salvat.</span>}
                 </section>
 
                 <section className="app-panel app-settings-section flex flex-col gap-4 rounded bg-white p-5 shadow-sm">

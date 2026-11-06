@@ -75,4 +75,21 @@ describe('settingsService', () => {
 
         expect(result).toEqual({})
     })
+
+    it('setDiacriticRules rejects when IPC fails instead of reporting a successful save', async () => {
+        const api = (window as any).electronAPI
+        api.getAppConfig.mockResolvedValueOnce({ theme: 'dark' })
+        api.setAppConfig.mockRejectedValueOnce(new Error('write error'))
+
+        await expect(settingsService.setDiacriticRules([{ from: 'Ț', to: 'Ţ' }])).rejects.toThrow()
+    })
+
+    it('setDiacriticRules verifies the persisted response and preserves unrelated config', async () => {
+        const api = (window as any).electronAPI
+        api.getAppConfig.mockResolvedValueOnce({ theme: 'dark' })
+        api.setAppConfig.mockResolvedValueOnce({ theme: 'dark', diacriticConversionRules: [] })
+
+        await expect(settingsService.setDiacriticRules([])).resolves.toEqual([])
+        expect(api.setAppConfig).toHaveBeenCalledWith({ theme: 'dark', diacriticConversionRules: [] })
+    })
 })

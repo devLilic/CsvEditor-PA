@@ -42,6 +42,8 @@ vi.mock('@/features/csv-editor/services/csvFileSettingsService', () => ({
 
 vi.mock('@/features/csv-editor/services/settingsService', () => ({
     settingsService: {
+        getConfig: vi.fn(),
+        setDiacriticRules: vi.fn(),
         restoreUiTheme: vi.fn(),
         setUiTheme: vi.fn(),
         getPlateauTitleDividerCreationEnabled: vi.fn(),
@@ -74,6 +76,8 @@ function renderSettings() {
 
 describe('classic studio modals and settings theme', () => {
     beforeEach(() => {
+        vi.mocked(settingsService.getConfig).mockResolvedValue({})
+        vi.mocked(settingsService.setDiacriticRules).mockResolvedValue([])
         vi.mocked(defaultProjectSettingsService.getDefaultProjectSettings).mockResolvedValue(FALLBACK_DEFAULT_PROJECT_SETTINGS)
         vi.mocked(defaultProjectSettingsService.setDefaultProjectSettings).mockImplementation(async (settings) => settings)
         vi.mocked(phoneImageSettingsService.getPhoneImageSettings).mockResolvedValue(FALLBACK_PHONE_IMAGE_SETTINGS)

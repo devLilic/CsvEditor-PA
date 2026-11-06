@@ -743,11 +743,11 @@ export function EntityEditor({
 
         if (selected && selectedItem) {
             preserveQuickTitleAfterUpdateRef.current = Boolean(quickTitleToRestore)
-            updateEntity(selected.sectionId, selected.entityType, selected.id, payload)
+            await updateEntity(selected.sectionId, selected.entityType, selected.id, payload)
             clearSelection()
         } else {
             // create mode: use active section + active entity type
-            addEntity(sectionId, editorEntityType, payload)
+            await addEntity(sectionId, editorEntityType, payload)
         }
 
         lastSavedLowerThirdTypeIdRef.current = lowerThirdTypeId

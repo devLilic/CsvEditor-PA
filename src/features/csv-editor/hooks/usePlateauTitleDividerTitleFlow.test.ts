@@ -52,8 +52,8 @@ describe('plateau title divider and title integration flow', () => {
             const addDividerResult = await result.current.addPlateauTitleDivider()
             dividerId = addDividerResult.dividerId ?? ''
         })
-        act(() => {
-            result.current.addEntity('invited-1', 'titles', { title: 'TITLE AFTER DIVIDER' })
+        await act(async () => {
+            await result.current.addEntity('invited-1', 'titles', { title: 'TITLE AFTER DIVIDER' })
         })
         await act(async () => {
             await result.current.deletePlateauTitleDivider(dividerId)
@@ -70,8 +70,8 @@ describe('plateau title divider and title integration flow', () => {
         await act(async () => {
             await result.current.addPlateauTitleDivider()
         })
-        act(() => {
-            result.current.addEntity('invited-1', 'titles', { title: 'WRITTEN TITLE' })
+        await act(async () => {
+            await result.current.addEntity('invited-1', 'titles', { title: 'WRITTEN TITLE' })
         })
 
         expect(result.current.titleItems).toEqual([
@@ -88,8 +88,8 @@ describe('plateau title divider and title integration flow', () => {
         await act(async () => {
             await result.current.addPlateauTitleDivider()
         })
-        act(() => {
-            result.current.addEntity('invited-1', 'titles', { title: 'TEMP TITLE' })
+        await act(async () => {
+            await result.current.addEntity('invited-1', 'titles', { title: 'TEMP TITLE' })
         })
         const titleItem = result.current.getBlockItems('invited-1', 'titles')
             .find((item: any) => item.type === 'title' && item.data?.title === 'TEMP TITLE') as any
@@ -111,8 +111,8 @@ describe('plateau title divider and title integration flow', () => {
         await act(async () => {
             await result.current.addPlateauTitleDivider()
         })
-        act(() => {
-            result.current.addEntity('invited-1', 'titles', { title: 'MIDDLE TITLE' })
+        await act(async () => {
+            await result.current.addEntity('invited-1', 'titles', { title: 'MIDDLE TITLE' })
         })
         const titleItem = result.current.getBlockItems('invited-1', 'titles')
             .find((item: any) => item.type === 'title' && item.data?.title === 'MIDDLE TITLE') as any

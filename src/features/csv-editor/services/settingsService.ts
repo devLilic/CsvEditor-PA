@@ -18,6 +18,8 @@ import {
     restoreUiThemeSetting,
 } from '@/features/theme/themeSetting'
 import type { UiTheme } from '@/features/theme/themeResolver'
+import type { DiacriticRule } from '@/features/csv-editor/domain/diacriticRules'
+import { DIACRITIC_RULES_CONFIG_KEY } from '@/features/csv-editor/domain/diacriticRules'
 
 function getApi() {
     const api = (window as any)?.electronAPI
@@ -102,6 +104,18 @@ export const settingsService = {
         } catch {
             return {}
         }
+    },
+
+    /** Strict persistence path for diacritic rules; unlike generic settings, callers need to know if saving failed. */
+    async setDiacriticRules(rules: DiacriticRule[]): Promise<DiacriticRule[]> {
+        const current = await this.getConfig()
+        const response = await getApi().setAppConfig({ ...current, [DIACRITIC_RULES_CONFIG_KEY]: rules })
+        if (!response || typeof response !== 'object') throw new Error('Diacritic rules were not saved')
+        const saved = response[DIACRITIC_RULES_CONFIG_KEY]
+        if (!Array.isArray(saved) || JSON.stringify(saved) !== JSON.stringify(rules)) {
+            throw new Error('Diacritic rules were not saved')
+        }
+        return rules
     },
 
     async getPlateauTitleDragDropEnabled(): Promise<boolean> {

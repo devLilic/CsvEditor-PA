@@ -22,6 +22,7 @@ import { importPlateauTitles } from '@/features/title-backup/services/importPlat
 import { titleBackupReservationService } from '@/features/title-backup/services/titleBackupReservationService'
 import { applyEntityTemplateTextTransforms } from '@/features/entity-export/domain/entityTemplateFieldValues'
 import { useOptionalTemplateDocument } from '@/features/template-editor/state/TemplateDocumentProvider'
+import { applyDiacriticRules, getDiacriticRules } from '../domain/diacriticRules'
 
 type BlockItem =
     | { type: 'title'; entityType: 'titles'; id: string; rowId: string; data: SimpleTitle }
@@ -54,6 +55,40 @@ export type PlateauTitleReorderResult =
     | { ok: false; error?: string }
 
 const CONSECUTIVE_TITLE_DIVIDERS_ERROR = 'Nu pot fi adăugate două separatoare consecutive.'
+
+const ENTITY_USER_TEXT_FIELDS = [
+    'title', 'supratitle', 'name', 'occupation', 'location',
+] as const
+
+function applyConfiguredDiacriticRules(data: Record<string, unknown>, config: Awaited<ReturnType<typeof settingsService.getConfig>>) {
+    const rules = getDiacriticRules(config)
+    const next = { ...data }
+    for (const field of ENTITY_USER_TEXT_FIELDS) {
+        const value = next[field]
+        if (typeof value === 'string') next[field] = applyDiacriticRules(value, rules)
+    }
+    const customFields = next.customFields
+    if (customFields && typeof customFields === 'object' && !Array.isArray(customFields)) {
+        const normalizedCustomFields: Record<string, unknown> = { ...customFields }
+        for (const [key, value] of Object.entries(normalizedCustomFields)) {
+            if (typeof value === 'string') normalizedCustomFields[key] = applyDiacriticRules(value, rules)
+        }
+        next.customFields = normalizedCustomFields
+    }
+    return next
+}
+
+async function normalizeEntityDataForSave(
+    entityType: EntityType,
+    data: Record<string, unknown>,
+    templateTextConfig: Parameters<typeof applyEntityTemplateTextTransforms>[2],
+) {
+    const templateTransformed = templateTextConfig
+        ? applyEntityTemplateTextTransforms(entityType, data as any, templateTextConfig) as Record<string, unknown>
+        : data
+    const config = await settingsService.getConfig()
+    return applyConfiguredDiacriticRules(templateTransformed, config)
+}
 
 function rowsToBlockItems(section: CsvSection, entityType: EntityType): BlockItem[] {
     const out: BlockItem[] = []
@@ -172,11 +207,9 @@ export function useEntities() {
 
     // -------- CREATE --------
     const addEntity = useCallback(
-        (sectionId: string, entityType: EntityType, data: Record<string, unknown>) => {
+        async (sectionId: string, entityType: EntityType, data: Record<string, unknown>) => {
             if (!isSupportedEntityType(entityType)) return
-            const normalizedData = templateTextConfig
-                ? applyEntityTemplateTextTransforms(entityType, data as any, templateTextConfig)
-                : data
+            const normalizedData = await normalizeEntityDataForSave(entityType, data, templateTextConfig)
             dispatch({ type: 'ENTITY_ADD', payload: { sectionId, entityType, data: normalizedData } })
         },
         [dispatch, templateTextConfig]
@@ -184,11 +217,9 @@ export function useEntities() {
 
     // -------- UPDATE --------
     const updateEntity = useCallback(
-        (sectionId: string, entityType: EntityType, id: string, data: Record<string, unknown>) => {
+        async (sectionId: string, entityType: EntityType, id: string, data: Record<string, unknown>) => {
             if (!isSupportedEntityType(entityType)) return
-            const normalizedData = templateTextConfig
-                ? applyEntityTemplateTextTransforms(entityType, data as any, templateTextConfig)
-                : data
+            const normalizedData = await normalizeEntityDataForSave(entityType, data, templateTextConfig)
             dispatch({ type: 'ENTITY_UPDATE', payload: { sectionId, entityType, id, data: normalizedData } })
         },
         [dispatch, templateTextConfig]
@@ -204,9 +235,7 @@ export function useEntities() {
             return { ok: false, error: 'INVALID_PERSON' }
         }
 
-        const normalizedData: Record<string, unknown> = templateTextConfig
-            ? applyEntityTemplateTextTransforms('persons', input.data as any, templateTextConfig) as unknown as Record<string, unknown>
-            : input.data
+        const normalizedData = await normalizeEntityDataForSave('persons', input.data, templateTextConfig)
         const action = input.id
             ? {
                 type: 'ENTITY_UPDATE' as const,
