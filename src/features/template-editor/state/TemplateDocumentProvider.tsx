@@ -68,7 +68,7 @@ export type TemplateDocumentContextValue = {
     lowerThirdTypesEnabled: boolean
     projectError: string | null
     activateProject(projectId: string): Promise<{ ok: boolean; error?: string }>
-    saveProject(project: ShowProject, workspacePath: string): Promise<{ ok: boolean; error?: string }>
+    saveProject(project: ShowProject, workspacePath: string, options?: { refreshExports?: boolean; flushBeforeSave?: boolean }): Promise<{ ok: boolean; error?: string }>
     exportProject(project: ShowProject): Promise<{ ok: boolean; error?: string; canceled?: boolean }>
     assignLegacyWorkspace(projectId: string): Promise<{ ok: boolean; state?: ShowProjectsState; error?: string }>
     reloadProjects(): Promise<{ ok: boolean; error?: string }>
@@ -471,13 +471,13 @@ export function TemplateDocumentProvider({
         return { ok: true }
     }, [flushWorkingCopy, projectsState])
 
-    const saveProject = useCallback(async (project: ShowProject, workspacePath: string) => {
+    const saveProject = useCallback(async (project: ShowProject, workspacePath: string, options: { refreshExports?: boolean; flushBeforeSave?: boolean } = {}) => {
         if (!projectsState) return { ok: false, error: 'SHOW_PROJECTS_NOT_LOADED' }
         const isActive = project.id === projectsState.activeProjectId
         const oldWorkspace = projectsState.workspaces[project.id] ?? ''
         const nextWorkspace = workspacePath.trim()
         const workspaceChanged = isActive && oldWorkspace !== nextWorkspace
-        const flushed = isActive && oldWorkspace ? await flushWorkingCopy() : { ok: true as const }
+        const flushed = isActive && oldWorkspace && options.flushBeforeSave !== false ? await flushWorkingCopy() : { ok: true as const }
         if (!flushed.ok) return { ok: false, error: flushed.error ?? 'WORKSPACE_SAVE_FAILED' }
 
         const result = await showProjectStorageService.saveProject(dehydrateProject(project), workspacePath)
@@ -493,7 +493,7 @@ export function TemplateDocumentProvider({
             setDefaultDocument(runtimeProject.defaultDocument)
             setIsDirty(false)
             const lowerThirdTypes = (project as any).lowerThirdTypes
-            if (!workspaceChanged && flushed.snapshot && Array.isArray(lowerThirdTypes)) {
+            if (options.refreshExports !== false && !workspaceChanged && flushed.snapshot && Array.isArray(lowerThirdTypes)) {
                 const write = await csvService.write(
                     flushed.snapshot.content,
                     flushed.snapshot.entities,

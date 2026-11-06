@@ -294,6 +294,76 @@ export type ShowProjectsExportResponse =
     | { ok: true; canceled?: boolean; path?: string }
     | { ok: false; error: string }
 
+export interface TalesWebSessionInfo {
+    connected: boolean
+    baseUrl?: string
+}
+
+export interface TalesWebConnectionRequest {
+    baseUrl: string
+    token: string
+}
+
+export interface TalesWebShow {
+    id: number
+    slug: string
+    name: string
+}
+
+export interface TalesWebEdition {
+    id: number
+    name: string
+    theme?: string | null
+    broadcastAt?: string | null
+    revision: number
+    templateId: number | null
+    templateVersion: number | null
+    archived: boolean
+    updatedAt?: string | null
+    isPublished?: boolean
+}
+
+export interface TalesWebTemplateConfig {
+    version: number | null
+    document: TemplateDocument | null
+    exportPrefix: string
+    entityTemplateNames: {
+        locations: string
+        phones: string
+        waitTitles: string
+        waitLocations: string
+    }
+    lowerThirdTypes: LowerThirdTypeDefinition[]
+    lowerThirdTypesEnabled: boolean
+}
+
+export interface TalesWebEditionDetail {
+    edition: {
+        id: number
+        showId: number
+        name: string
+        theme?: string | null
+        broadcastAt?: string | null
+        revision: number
+        templateId: number | null
+        templateVersion: number | null
+        archived: boolean
+    }
+    content: EntitiesState
+    quickTitles: string[]
+}
+
+export type TalesWebApiResult<T> =
+    | { ok: true; data: T }
+    | { ok: false; error: string }
+
+export interface TalesWebImportResult {
+    edition: TalesWebEditionDetail['edition']
+    content: EntitiesState
+    quickTitles: string[]
+    template: TalesWebTemplateConfig
+}
+
 export interface IpcInvokeMap {
     [IPC_CHANNELS.CSV_GET_LAST]: {
         request: void
@@ -540,6 +610,36 @@ export interface IpcInvokeMap {
         response: ShowProjectWorkspaceResponse
     }
 
+    [IPC_CHANNELS.TALES_WEB_GET_SESSION]: {
+        request: void
+        response: TalesWebSessionInfo
+    }
+
+    [IPC_CHANNELS.TALES_WEB_CONNECT]: {
+        request: TalesWebConnectionRequest
+        response: TalesWebApiResult<TalesWebSessionInfo>
+    }
+
+    [IPC_CHANNELS.TALES_WEB_DISCONNECT]: {
+        request: void
+        response: TalesWebApiResult<void>
+    }
+
+    [IPC_CHANNELS.TALES_WEB_LIST_SHOWS]: {
+        request: void
+        response: TalesWebApiResult<TalesWebShow[]>
+    }
+
+    [IPC_CHANNELS.TALES_WEB_LIST_EDITIONS]: {
+        request: { showId: number }
+        response: TalesWebApiResult<TalesWebEdition[]>
+    }
+
+    [IPC_CHANNELS.TALES_WEB_IMPORT_EDITION]: {
+        request: { showId: number; editionId: number }
+        response: TalesWebApiResult<TalesWebImportResult>
+    }
+
     [IPC_CHANNELS.UPDATE_GET_CURRENT_VERSION]: {
         request: void
         response: string
@@ -626,6 +726,13 @@ export interface RendererApi {
     deleteShowProject(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_DELETE_PROJECT>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_DELETE_PROJECT>>
     activateShowProject(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_ACTIVATE>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_ACTIVATE>>
     assignLegacyShowWorkspace(request: IpcRequest<typeof IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE>): Promise<IpcResponse<typeof IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE>>
+
+    getTalesWebSession(): Promise<IpcResponse<typeof IPC_CHANNELS.TALES_WEB_GET_SESSION>>
+    connectTalesWeb(request: IpcRequest<typeof IPC_CHANNELS.TALES_WEB_CONNECT>): Promise<IpcResponse<typeof IPC_CHANNELS.TALES_WEB_CONNECT>>
+    disconnectTalesWeb(): Promise<IpcResponse<typeof IPC_CHANNELS.TALES_WEB_DISCONNECT>>
+    listTalesWebShows(): Promise<IpcResponse<typeof IPC_CHANNELS.TALES_WEB_LIST_SHOWS>>
+    listTalesWebEditions(request: IpcRequest<typeof IPC_CHANNELS.TALES_WEB_LIST_EDITIONS>): Promise<IpcResponse<typeof IPC_CHANNELS.TALES_WEB_LIST_EDITIONS>>
+    importTalesWebEdition(request: IpcRequest<typeof IPC_CHANNELS.TALES_WEB_IMPORT_EDITION>, showProjectId?: string): Promise<IpcResponse<typeof IPC_CHANNELS.TALES_WEB_IMPORT_EDITION>>
 
     onEntityExportError(callback: (notification: EntityExportFailureNotification) => void): () => void
 

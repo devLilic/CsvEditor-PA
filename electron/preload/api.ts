@@ -211,6 +211,30 @@ export const electronApi: RendererApi = {
         return ipcRenderer.invoke(IPC_CHANNELS.SHOW_PROJECTS_ASSIGN_LEGACY_WORKSPACE, request)
     },
 
+    getTalesWebSession() {
+        return ipcRenderer.invoke(IPC_CHANNELS.TALES_WEB_GET_SESSION)
+    },
+
+    connectTalesWeb(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TALES_WEB_CONNECT, request)
+    },
+
+    disconnectTalesWeb() {
+        return ipcRenderer.invoke(IPC_CHANNELS.TALES_WEB_DISCONNECT)
+    },
+
+    listTalesWebShows() {
+        return ipcRenderer.invoke(IPC_CHANNELS.TALES_WEB_LIST_SHOWS)
+    },
+
+    listTalesWebEditions(request) {
+        return ipcRenderer.invoke(IPC_CHANNELS.TALES_WEB_LIST_EDITIONS, request)
+    },
+
+    importTalesWebEdition(request, showProjectId) {
+        return invokeScopedFor(IPC_CHANNELS.TALES_WEB_IMPORT_EDITION, showProjectId, request)
+    },
+
     onEntityExportError(callback) {
         const listener = (_event: IpcRendererEvent, notification: EntityExportFailureNotification) => {
             callback(notification)

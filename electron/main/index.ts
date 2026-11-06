@@ -11,6 +11,7 @@ import { registerQuickTitlesHandlers } from './quick-titles-handlers'
 import { registerPhoneImageHandlers } from './phone-image-handlers'
 import { registerTemplateEditorHandlers } from './template-editor-handlers'
 import { registerShowProjectHandlers } from './show-project-handlers'
+import { registerTalesWebHandlers } from './tales-web-handlers'
 import { registerTitleBackupHandlers } from './title-backup-handlers'
 import { IPC_CHANNELS } from '../../src/shared/ipc-channels'
 
@@ -170,6 +171,7 @@ async function createWindow() {
   registerPhoneImageHandlers()
   registerTemplateEditorHandlers()
   registerShowProjectHandlers()
+  registerTalesWebHandlers()
   // =========================
 
   // Test actively push message to the Electron-Renderer

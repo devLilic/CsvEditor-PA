@@ -1,6 +1,6 @@
 // src/ui/components/layout/EditorHeader.tsx
-import { useEffect, useState } from 'react'
-import { useEntities } from '@/features/csv-editor'
+import { useEffect, useRef, useState } from 'react'
+import { useEntities, useQuickTitles } from '@/features/csv-editor'
 import { useCsvContext } from '@/features/csv-editor/context/CsvContext'
 import { parseCsv } from '@/features/csv-editor/utils/csvParser'
 import type { EntitiesState } from '@/features/csv-editor/domain/entities'
@@ -12,9 +12,25 @@ import { BackupFailedDialog } from '@/ui/components/csv/BackupFailedDialog'
 import { SavedProjectsModal } from '@/ui/components/csv/SavedProjectsModal'
 import { TextPromptDialog } from '@/ui/components/common/TextPromptDialog'
 import { savedProjectsService } from '@/features/csv-editor/services/savedProjectsService'
-import { showErrorToast } from '@/ui/components/common/toast'
+import { showErrorToast, showSuccessToast } from '@/ui/components/common/toast'
 import { ConfirmDialog } from '../common/ConfirmDialog'
 import { settingsService } from '@/features/csv-editor/services/settingsService'
+import { csvService } from '@/features/csv-editor/services/csvService'
+import { TalesWebImportDialog } from '@/ui/components/tales-web/TalesWebImportDialog'
+import type { TalesWebImportResult } from '@/shared/ipc-types'
+import { normalizeLowerThirdTypes } from '@/features/lower-thirds/domain/lowerThirdTypesValidation'
+import { normalizeEntityTemplateNames } from '@/features/lower-thirds/domain/entityTemplateNames'
+import type { ShowProject } from '@/features/show-projects/domain/showProject'
+
+type PendingImport = {
+    stage: 'verify' | 'rollback'
+    previousProject: ShowProject
+    previousEntities: EntitiesState
+    previousQuickTitles: string[]
+    workspacePath: string
+    editionName: string
+    error?: string
+}
 
 function TrashIcon() {
     return (
@@ -59,13 +75,16 @@ export function EditorHeader() {
     const {
         projects: showProjects,
         activeProjectId,
+        activeProject,
         workspaces,
         activateProject,
         isLoaded: areShowProjectsLoaded,
         flushWorkingCopy,
+        saveProject,
     } = useTemplateDocument()
     const { startNewProject, forceStartNewProjectWithoutBackup } = useEntities()
     const { state, dispatch } = useCsvContext()
+    const { quickTitles, setAllQuickTitles } = useQuickTitles()
     const { titleFilter, setTitleFilter } = useTitleFilter()
     const [newProjectError, setNewProjectError] = useState<string | null>(null)
     const [backupFailedError, setBackupFailedError] = useState<string | undefined>()
@@ -76,8 +95,50 @@ export function EditorHeader() {
     const [showProjectError, setShowProjectError] = useState<string | undefined>()
     const [showProjectSelector, setShowProjectSelector] = useState(false)
     const [projectSelectorSettingLoaded, setProjectSelectorSettingLoaded] = useState(false)
+    const [isTalesWebImportOpen, setIsTalesWebImportOpen] = useState(false)
+    const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
+    const processingImportRef = useRef(false)
     const canEditEdition = Boolean(areShowProjectsLoaded && activeProjectId && workspaces[activeProjectId] && state.isLoaded)
     const showAddBetaButton = showProjects.find((project) => project.id === activeProjectId)?.betaSectionButtonEnabled !== false
+
+    useEffect(() => {
+        if (!pendingImport || processingImportRef.current) return
+        processingImportRef.current = true
+        void (async () => {
+            try {
+                if (pendingImport.stage === 'verify') {
+                    const result = await flushWorkingCopy()
+                    if (result.ok) {
+                        showSuccessToast(`Ediția „${pendingImport.editionName}” a fost încărcată și salvată în Tales Desktop.`)
+                        setPendingImport(null)
+                        return
+                    }
+
+                    const restoreConfig = await saveProject(pendingImport.previousProject, pendingImport.workspacePath, { refreshExports: false, flushBeforeSave: false })
+                    dispatch({ type: 'CSV_LOADED', payload: pendingImport.previousEntities })
+                    await setAllQuickTitles(pendingImport.previousQuickTitles)
+                    if (!restoreConfig.ok) {
+                        showErrorToast(`Importul a eșuat: ${result.error ?? 'salvarea locală a eșuat.'} Configurația inițială nu a putut fi restaurată.`)
+                        setPendingImport(null)
+                        return
+                    }
+                    setPendingImport({ ...pendingImport, stage: 'rollback', error: result.error ?? 'Salvarea ediției importate a eșuat.' })
+                    return
+                }
+
+                const restored = await flushWorkingCopy()
+                showErrorToast(restored.ok
+                    ? `Importul ediției „${pendingImport.editionName}” a eșuat; conținutul anterior și CSV-urile locale au fost restaurate. ${pendingImport.error ?? ''}`
+                    : `Importul a eșuat, iar restaurarea CSV-urilor locale nu a reușit: ${restored.error ?? 'eroare necunoscută'}.`)
+                setPendingImport(null)
+            } catch (error) {
+                showErrorToast(error instanceof Error ? error.message : 'Importul nu a putut fi finalizat sau restaurat complet.')
+                setPendingImport(null)
+            } finally {
+                processingImportRef.current = false
+            }
+        })()
+    }, [dispatch, flushWorkingCopy, pendingImport, saveProject, setAllQuickTitles, state.entities])
 
     useEffect(() => {
         let isMounted = true
@@ -175,6 +236,50 @@ export function EditorHeader() {
         })
     }
 
+    const handleTalesWebImport = async (result: TalesWebImportResult) => {
+        if (!activeProject || !activeProjectId || !canEditEdition) throw new Error('Nu există o emisiune locală activă pentru import.')
+
+        const flushed = await flushWorkingCopy()
+        if (!flushed.ok) throw new Error(flushed.error ?? 'Ediția locală nu a putut fi salvată înainte de import.')
+        const backupContent = flushed.snapshot?.content ?? JSON.stringify({ version: 1, entities: state.entities }, null, 2)
+        const backup = await csvService.createBackup(backupContent, activeProjectId)
+        if (!backup.ok) throw new Error(backup.error ?? 'Backup-ul ediției locale a eșuat; importul a fost anulat.')
+
+        const remoteTemplate = result.template
+        const importedDocument = remoteTemplate.document
+            ? { ...remoteTemplate.document, show: activeProjectId }
+            : activeProject.document
+        const updatedProject: ShowProject = {
+            ...activeProject,
+            document: importedDocument,
+            exportPrefix: remoteTemplate.exportPrefix || activeProject.exportPrefix,
+            entityTemplateNames: normalizeEntityTemplateNames(remoteTemplate.entityTemplateNames ?? activeProject.entityTemplateNames),
+            lowerThirdTypes: normalizeLowerThirdTypes(remoteTemplate.lowerThirdTypes ?? activeProject.lowerThirdTypes),
+            lowerThirdTypesEnabled: remoteTemplate.lowerThirdTypesEnabled,
+        }
+
+        const savedProject = await saveProject(updatedProject, workspaces[activeProjectId] ?? '', { refreshExports: false, flushBeforeSave: false })
+        if (!savedProject.ok) throw new Error(savedProject.error ?? 'Configurația emisiunii nu a putut fi actualizată.')
+
+        dispatch({ type: 'CSV_LOADED', payload: result.content })
+        try {
+            await setAllQuickTitles(result.quickTitles ?? [])
+        } catch (error) {
+            await saveProject(activeProject, workspaces[activeProjectId] ?? '', { refreshExports: false, flushBeforeSave: false })
+            dispatch({ type: 'CSV_LOADED', payload: flushed.snapshot?.entities ?? state.entities })
+            await setAllQuickTitles(quickTitles)
+            throw error
+        }
+        setPendingImport({
+            stage: 'verify',
+            previousProject: activeProject,
+            previousEntities: flushed.snapshot?.entities ?? state.entities,
+            previousQuickTitles: quickTitles,
+            workspacePath: workspaces[activeProjectId] ?? '',
+            editionName: result.edition.name,
+        })
+    }
+
     const handleShowChange = async (projectId: string) => {
         if (isSwitchingShow) return
         setIsSwitchingShow(true)
@@ -230,6 +335,16 @@ export function EditorHeader() {
 
                 <EditModeToggle />
 
+                <button
+                    type="button"
+                    className="app-button rounded border border-blue-300 bg-white px-3 py-1 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                    disabled={!canEditEdition || !activeProject}
+                    onClick={() => setIsTalesWebImportOpen(true)}
+                    title="Încarcă o ediție salvată în Tales Web"
+                >
+                    Din Tales Web
+                </button>
+
                 <ConfirmDialog
                     title="Începi o ediție nouă?"
                     description="Se va crea un backup al ediției curente. După backup, lista de valori va fi resetată pentru emisiunea selectată."
@@ -278,6 +393,13 @@ export function EditorHeader() {
                 confirmText="Salvează"
                 onConfirm={(name) => { void handleSaveEdition(name) }}
                 onClose={() => setIsSaveEditionPromptOpen(false)}
+            />
+
+            <TalesWebImportDialog
+                open={isTalesWebImportOpen}
+                activeShowName={activeProject?.name ?? ''}
+                onClose={() => setIsTalesWebImportOpen(false)}
+                onImport={handleTalesWebImport}
             />
 
         </div>

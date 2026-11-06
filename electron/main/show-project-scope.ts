@@ -16,11 +16,11 @@ export function getScopedWorkspaceRoot(): string | undefined { return scopeStora
 export function getScopedWorkspaceFolders() { return scopeStorage.getStore()?.workspaceFolders }
 
 function needsWorkspace(channel: string) {
-    return /^(csv:|csv-project:|title-backup:|phone-image:|quick-titles:)/.test(channel)
+    return /^(csv:|csv-project:|title-backup:|phone-image:|quick-titles:|tales-web:import)/.test(channel)
 }
 
 function isMutation(channel: string) {
-    return /write|save|delete|load|create-backup|reserve|clear|set|export/i.test(channel)
+    return /write|save|delete|load|import|create-backup|reserve|clear|set|export/i.test(channel)
         && !channel.includes('show-projects:')
 }
 

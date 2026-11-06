@@ -55,6 +55,13 @@ export const IPC_CHANNELS = {
     SHOW_PROJECTS_SAVE_PROJECT: "show-projects:save-project",
     SHOW_PROJECTS_DELETE_PROJECT: "show-projects:delete-project",
 
+    TALES_WEB_GET_SESSION: "tales-web:get-session",
+    TALES_WEB_CONNECT: "tales-web:connect",
+    TALES_WEB_DISCONNECT: "tales-web:disconnect",
+    TALES_WEB_LIST_SHOWS: "tales-web:list-shows",
+    TALES_WEB_LIST_EDITIONS: "tales-web:list-editions",
+    TALES_WEB_IMPORT_EDITION: "tales-web:import-edition",
+
     ENTITY_EXPORT_ERROR: "entity-export:error",
 
     UPDATE_GET_CURRENT_VERSION: "update:get-current-version",
