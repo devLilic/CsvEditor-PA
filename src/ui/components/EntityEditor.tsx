@@ -97,11 +97,10 @@ function isEntityTypeAllowedInSection(entityType: EntityType, sectionKind?: stri
 
 function DividerButtonIcon() {
     return (
-        <span className="relative block h-7 w-9" aria-hidden="true">
-            <span className="absolute left-0 top-1 h-5 w-3 rounded-l-md border-y-[5px] border-l-[5px] border-gray-800" />
-            <span className="absolute right-0 top-1 h-5 w-3 rounded-r-md border-y-[5px] border-r-[5px] border-gray-800" />
-            <span className="absolute left-1/2 top-0 h-7 w-1.5 -translate-x-1/2 rounded-full bg-gray-800" />
-        </span>
+        <svg aria-hidden="true" viewBox="0 0 24 24" className="block h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3.5 5h11M3.5 19h11M3.5 12h10" />
+            <path d="M17 9.5v5M14.5 12h5" />
+        </svg>
     )
 }
 
@@ -544,7 +543,7 @@ export function EntityEditor({
     }, [selected, clearSelection, focusPrimaryInput, lowerThirdTypeId])
 
     const updateField = (key: keyof FormState, value: string) => {
-        const nextValue = key === 'supratitle' ? value.toUpperCase() : value
+        const nextValue = value
 
         if (key === 'title' && activeQuickTitle) {
             const personName = getPersonNameForQuickTitle(activeQuickTitle)

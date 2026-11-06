@@ -597,7 +597,7 @@ describe('EntityEditor', () => {
         expect(firstTwoFields[1]).toBe(screen.getByLabelText('Titlu'))
 
         await user.type(screen.getByLabelText('Supratitlu'), 'Live Update')
-        expect(screen.getByLabelText('Supratitlu')).toHaveValue('LIVE UPDATE')
+        expect(screen.getByLabelText('Supratitlu')).toHaveValue('Live Update')
         await user.keyboard('{Enter}')
         expect(screen.getByLabelText('Titlu')).toHaveFocus()
 
@@ -638,6 +638,29 @@ describe('EntityEditor', () => {
             supratitle: 'ECONOMIE',
             title: 'Prețurile la energie cresc',
         })
+    })
+
+    it('preserves the caret when typing into the middle of an existing uppercase supratitle', async () => {
+        csvHooks.selected = { sectionId: 'invited-1', entityType: 'titles', id: 'title-1' }
+        csvHooks.getBlockItems.mockReturnValue([{
+            type: 'title',
+            entityType: 'titles',
+            id: 'title-1',
+            rowId: 'row-1',
+            data: { id: 'title-1', title: 'Headline', supratitle: 'ULTIMA ORA' },
+        }] as any)
+        const user = userEvent.setup()
+        renderEntityEditor()
+
+        const supratitleInput = await screen.findByLabelText('Supratitlu') as HTMLInputElement
+        supratitleInput.focus()
+        supratitleInput.setSelectionRange(3, 3)
+        await user.keyboard('x')
+
+        expect(supratitleInput).toHaveValue('ULTxIMA ORA')
+        expect(supratitleInput).toHaveClass('uppercase')
+        expect(supratitleInput.selectionStart).toBe(4)
+        expect(supratitleInput.selectionEnd).toBe(4)
     })
 
     it('saving a valid person uses name and occupation fields', async () => {
